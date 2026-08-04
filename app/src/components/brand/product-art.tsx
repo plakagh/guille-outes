@@ -48,19 +48,37 @@ type Props = {
    * and a stray shadow behind the glass. Framing needs the art alone.
    */
   bare?: boolean;
+  /**
+   * Which way up a cuadro hangs. Ignored by every other shape — a t-shirt has
+   * one orientation and that is that.
+   */
+  orientation?: ArtOrientation;
   className?: string;
 };
 
 const VIEWBOX = "0 0 400 480";
 
-/**
- * The printed area of the poster shape, used as the viewBox when `bare`.
- * Matches the white sheet drawn in `Garment`, so the crop lands exactly on it.
- */
-export const BARE_VIEWBOX = "94 96 212 296";
+/** A cuadro hangs either way up. Only the poster shape has an orientation. */
+export type ArtOrientation = "portrait" | "landscape";
 
-/** Aspect ratio of that crop, for the container that holds a framed print. */
-export const BARE_ASPECT = "53 / 74";
+/**
+ * The printed sheet, per orientation: the white paper the composition sits on,
+ * and the crop used when the piece is drawn `bare` for framing.
+ *
+ * Both sheets end at the same y so the ground shadow under the "poster on a
+ * surface" view lands just below the paper either way up, without the shadow
+ * having to know which way the piece is turned.
+ */
+const POSTER_SHEET: Record<ArtOrientation, { x: number; y: number; w: number; h: number }> = {
+  portrait: { x: 94, y: 96, w: 212, h: 296 },
+  landscape: { x: 52, y: 180, w: 296, h: 212 },
+};
+
+/** The `bare` crop: exactly the sheet, so the mount lands on the printed edge. */
+export function bareViewBox(orientation: ArtOrientation): string {
+  const sheet = POSTER_SHEET[orientation];
+  return `${sheet.x} ${sheet.y} ${sheet.w} ${sheet.h}`;
+}
 
 export function ProductArt({
   shape,
@@ -68,21 +86,33 @@ export function ProductArt({
   print = "wordmark",
   number = 23,
   bare = false,
+  orientation = "portrait",
   className,
 }: Props) {
   const ink = colorway.print ?? colorway.trim;
   const cropped = bare && shape === "poster";
+  const sheet = POSTER_SHEET[orientation];
 
   return (
     <svg
-      viewBox={cropped ? BARE_VIEWBOX : VIEWBOX}
+      viewBox={cropped ? bareViewBox(orientation) : VIEWBOX}
       className={cn("h-full w-full", className)}
       aria-hidden="true"
       shapeRendering="geometricPrecision"
     >
       {/* Soft ground shadow anchors the garment on the card — but not behind glass. */}
-      {!bare && <ellipse cx="200" cy="446" rx="132" ry="14" fill="#000" opacity="0.06" />}
-      <Garment shape={shape} colorway={colorway} bare={bare} />
+      {!bare && (
+        <ellipse
+          cx="200"
+          cy="446"
+          // A little wider than the paper it sits under, either way up.
+          rx={shape === "poster" ? sheet.w / 2 + 26 : 132}
+          ry="14"
+          fill="#000"
+          opacity="0.06"
+        />
+      )}
+      <Garment shape={shape} colorway={colorway} bare={bare} orientation={orientation} />
       <ChestPrint shape={shape} kind={print} ink={ink} number={number} />
     </svg>
   );
@@ -94,10 +124,12 @@ function Garment({
   shape,
   colorway,
   bare = false,
+  orientation = "portrait",
 }: {
   shape: ArtShape;
   colorway: Colorway;
   bare?: boolean;
+  orientation?: ArtOrientation;
 }) {
   const { base, trim } = colorway;
   const shade = "rgba(0,0,0,0.10)";
@@ -333,31 +365,99 @@ function Garment({
       );
 
     case "poster":
-      return (
-        <g>
-          {/* The sheet and its edge belong to the "poster on a surface" view; in a
-              frame the mount is the white and the bevel is the edge. */}
-          {!bare && (
-            <>
-              <rect x="94" y="96" width="212" height="296" fill="#fff" />
-              <rect
-                x="94"
-                y="96"
-                width="212"
-                height="296"
-                fill="none"
-                stroke="rgba(0,0,0,0.14)"
-                strokeWidth="4"
-              />
-            </>
-          )}
-          <rect x="114" y="116" width="172" height="200" fill={base} />
-          <path d="M114 240 L166 176 L206 224 L246 190 L286 240 V316 H114 Z" fill={trim} />
-          <rect x="114" y="338" width="118" height="14" fill={base} />
-          <rect x="114" y="360" width="76" height="10" fill="rgba(0,0,0,0.2)" />
-        </g>
-      );
+      return <Poster colorway={colorway} bare={bare} orientation={orientation} />;
   }
+}
+
+/**
+ * A poster, either way up.
+ *
+ * The composition is derived from the sheet rather than drawn twice: a block of
+ * colour, a range of peaks along its foot, and two caption bars. Turning the
+ * piece sideways changes how wide the paper is, and every coordinate follows
+ * from that — so a landscape cuadro cannot drift out of step with a portrait one,
+ * which is what a second hand-tuned path would guarantee eventually.
+ */
+function Poster({
+  colorway,
+  bare,
+  orientation,
+}: {
+  colorway: Colorway;
+  bare?: boolean;
+  orientation: ArtOrientation;
+}) {
+  const { base, trim } = colorway;
+  const sheet = POSTER_SHEET[orientation];
+
+  // The margin of paper around the printed image, and the caption strip that
+  // always takes the same bite out of the bottom whichever way up it hangs.
+  const margin = 20;
+  const caption = 76;
+
+  const left = sheet.x + margin;
+  const width = sheet.w - 2 * margin;
+  const top = sheet.y + margin;
+  const bottom = sheet.y + sheet.h - caption;
+  const height = bottom - top;
+
+  // Peaks: a horizon in the lower third, two summits and a valley between them,
+  // all as fractions of the image so they keep their proportion when it widens.
+  const horizon = round(bottom - 0.38 * height);
+  const at = (fraction: number) => round(left + fraction * width);
+  const up = (fraction: number) => round(horizon - fraction * height);
+
+  const range = [
+    `M${left} ${horizon}`,
+    `L${at(0.3)} ${up(0.32)}`,
+    `L${at(0.535)} ${up(0.08)}`,
+    `L${at(0.767)} ${up(0.25)}`,
+    `L${left + width} ${horizon}`,
+    `V${bottom}`,
+    `H${left}`,
+    "Z",
+  ].join(" ");
+
+  return (
+    <g>
+      {/* The sheet and its edge belong to the "poster on a surface" view; in a
+          frame the mount is the white and the bevel is the edge. */}
+      {!bare && (
+        <>
+          <rect x={sheet.x} y={sheet.y} width={sheet.w} height={sheet.h} fill="#fff" />
+          <rect
+            x={sheet.x}
+            y={sheet.y}
+            width={sheet.w}
+            height={sheet.h}
+            fill="none"
+            stroke="rgba(0,0,0,0.14)"
+            strokeWidth="4"
+          />
+        </>
+      )}
+      <rect x={left} y={top} width={width} height={height} fill={base} />
+      <path d={range} fill={trim} />
+      {/* Title and credit line, in the caption strip. */}
+      <rect x={left} y={bottom + 22} width={round(width * 0.686)} height="14" fill={base} />
+      <rect
+        x={left}
+        y={bottom + 44}
+        width={round(width * 0.442)}
+        height="10"
+        fill="rgba(0,0,0,0.2)"
+      />
+    </g>
+  );
+}
+
+/**
+ * Whole coordinates only. Fractional ones would land the artwork off the pixel
+ * grid at thumbnail size, and rounding is also what makes the derived portrait
+ * geometry come out identical to the hand-tuned path it replaced.
+ */
+function round(value: number): number {
+  return Math.round(value);
 }
 
 /* ------------------------------------------------------------------- print */

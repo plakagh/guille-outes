@@ -2,7 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
-import { isColorwayId, isFrameFinish, isSizeDimension } from "@/lib/catalog";
+import {
+  DEFAULT_FRAME_PREVIEW,
+  FRAME_MAX_CM,
+  FRAME_MIN_CM,
+  isColorwayId,
+  isFrameFinish,
+  isSizeDimension,
+  parseVideoUrl,
+} from "@/lib/catalog";
 import { createClient, getViewer } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
 
@@ -50,6 +58,14 @@ function int(form: FormData, key: string): number | null {
   return Number.isFinite(value) ? Math.round(value) : null;
 }
 
+/** A measurement in centimetres, or the fallback when it is missing or absurd. */
+function cm(form: FormData, key: string, fallback: number): number {
+  const value = Number(str(form, key).replace(",", "."));
+  return Number.isFinite(value) && value >= FRAME_MIN_CM && value <= FRAME_MAX_CM
+    ? value
+    : fallback;
+}
+
 /** Euros in the form, integer cents in the database. */
 function cents(form: FormData, key: string): number | null {
   const raw = str(form, key).replace(",", ".");
@@ -68,6 +84,27 @@ function bundle(form: FormData, prefix: string): Record<Locale, string> | null {
   if (!es) return null;
   return Object.fromEntries(
     LOCALES.map((locale) => [locale, str(form, `${prefix}_${locale}`) || es]),
+  ) as Record<Locale, string>;
+}
+
+/**
+ * Same as `bundle`, for a field nobody is obliged to fill in.
+ *
+ * Null when every language is blank — which is exactly what makes the zone
+ * disappear from the storefront. A translation typed without its Castellano is
+ * not thrown away: the `i18n_text` domain insists on an `es` key, so the first
+ * language that *was* filled in stands in for it.
+ */
+function optionalBundle(form: FormData, prefix: string): Record<Locale, string> | null {
+  const typed = Object.fromEntries(
+    LOCALES.map((locale) => [locale, str(form, `${prefix}_${locale}`)]),
+  ) as Record<Locale, string>;
+
+  const fallback = typed.es || LOCALES.map((locale) => typed[locale]).find(Boolean);
+  if (!fallback) return null;
+
+  return Object.fromEntries(
+    LOCALES.map((locale) => [locale, typed[locale] || fallback]),
   ) as Record<Locale, string>;
 }
 
@@ -125,6 +162,16 @@ export async function saveProduct(form: FormData): Promise<ActionResult> {
     .filter((value) => isColorwayId(value));
   if (colorways.length === 0) return { ok: false, error: "needs_a_colour" };
 
+  /**
+   * The video is optional, but a video the browser cannot play is not: an address
+   * we do not recognise is rejected here rather than stored, so the ficha never
+   * has to render a player that will not start. The caption goes with it — a pie
+   * de foto with no video is not a zone anyone wants to see.
+   */
+  const typedVideo = str(form, "video_url");
+  const video = typedVideo ? parseVideoUrl(typedVideo) : null;
+  if (typedVideo && !video) return { ok: false, error: "video_url_not_playable" };
+
   const payload = {
     slug: slugBundle(form, name),
     name,
@@ -139,6 +186,8 @@ export async function saveProduct(form: FormData): Promise<ActionResult> {
     price_cents: price,
     compare_at_cents: compareAt,
     colorways,
+    video_url: video?.url ?? null,
+    video_caption: video ? optionalBundle(form, "video_caption") : null,
     published: form.get("published") === "on",
     arrived: int(form, "arrived") ?? 50,
   };
@@ -217,12 +266,18 @@ export async function saveFramePreview(form: FormData): Promise<ActionResult> {
   const mount = Number(rawMount);
   const safeMount = Number.isFinite(mount) && mount >= 0 && mount <= 30 ? mount : 10;
 
+  // The printed size. This one is not cosmetic: it is the scale the camera view
+  // hangs the piece at, so a wrong number here is a wrong answer to the only
+  // question that view exists to answer.
+  const width = cm(form, "frame_width", DEFAULT_FRAME_PREVIEW.width);
+  const height = cm(form, "frame_height", DEFAULT_FRAME_PREVIEW.height);
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("products")
     .update({
       frame_preview: enabled
-        ? { enabled: true, finishes, mount: safeMount }
+        ? { enabled: true, finishes, mount: safeMount, width, height }
         : {},
     })
     .eq("id", id);

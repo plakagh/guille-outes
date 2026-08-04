@@ -56,6 +56,8 @@ export function blankDraft(categoryId: string): ProductDraft {
     priceCents: 0,
     compareAtCents: null,
     colorways: ["negro"],
+    videoUrl: "",
+    videoCaption: { ...EMPTY_TEXT },
     published: false,
     arrived: 50,
   };
@@ -67,7 +69,7 @@ export async function getProductDraft(id: string): Promise<ProductDraft | null> 
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, ref, slug, name, description, keywords, details, category_id, collection_id, audience, shape, print, price_cents, compare_at_cents, colorways, published, arrived",
+      "id, ref, slug, name, description, keywords, details, category_id, collection_id, audience, shape, print, price_cents, compare_at_cents, colorways, video_url, video_caption, published, arrived",
     )
     .eq("id", id)
     .maybeSingle();
@@ -90,6 +92,8 @@ export async function getProductDraft(id: string): Promise<ProductDraft | null> 
     price_cents: number;
     compare_at_cents: number | null;
     colorways: unknown;
+    video_url: string | null;
+    video_caption: Bundle;
     published: boolean;
     arrived: number;
   };
@@ -112,6 +116,8 @@ export async function getProductDraft(id: string): Promise<ProductDraft | null> 
     colorways: Array.isArray(row.colorways)
       ? row.colorways.filter((value): value is string => typeof value === "string")
       : [],
+    videoUrl: row.video_url ?? "",
+    videoCaption: textBundle(row.video_caption),
     published: row.published,
     arrived: row.arrived,
   };

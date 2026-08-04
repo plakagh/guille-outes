@@ -9,7 +9,7 @@ import {
   OutletBand,
 } from "@/components/home/sections";
 import { ProductRail } from "@/components/product/product-rail";
-import { colorway, listProducts, type Catalog } from "@/lib/catalog";
+import { colorway, hasOutlet, listProducts, type Catalog } from "@/lib/catalog";
 import { getCatalog } from "@/lib/db/catalog";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
@@ -20,7 +20,9 @@ import { audienceSlug, curatedSlug } from "@/lib/i18n/sections";
 /**
  * Hero slides are editorial, so their copy lives in the dictionary while the
  * artwork keys off real collections. If a collection is missing from the
- * database its slide is dropped rather than linking nowhere.
+ * database its slide is dropped rather than linking nowhere — and the outlet
+ * slide goes the same way when nothing is discounted, since a hero shouting
+ * "hasta -50 %" over an empty listing is the worst version of that promise.
  */
 function buildSlides(locale: Locale, t: Dictionary, catalog: Catalog): HeroSlide[] {
   const slugOf = (id: string) => catalog.collections.find((c) => c.id === id)?.slug;
@@ -87,19 +89,21 @@ function buildSlides(locale: Locale, t: Dictionary, catalog: Catalog): HeroSlide
           art: { shape: "hoodie", colorway: colorway("arena", locale), print: "wordmark" },
         }
       : null,
-    {
-      eyebrow: t.home.slides.outlet.eyebrow,
-      headline: [t.home.slides.outlet.line1, t.home.slides.outlet.line2],
-      blurb: t.home.slides.outlet.blurb,
-      primary: {
-        label: t.home.slides.outlet.primary,
-        href: href(locale, "shop", curatedSlug("outlet", locale)),
-      },
-      ghost: "sale",
-      background: "#141414",
-      ink: "light",
-      art: { shape: "cap", colorway: colorway("negro", locale), print: "monogram" },
-    },
+    hasOutlet(catalog.products)
+      ? {
+          eyebrow: t.home.slides.outlet.eyebrow,
+          headline: [t.home.slides.outlet.line1, t.home.slides.outlet.line2],
+          blurb: t.home.slides.outlet.blurb,
+          primary: {
+            label: t.home.slides.outlet.primary,
+            href: href(locale, "shop", curatedSlug("outlet", locale)),
+          },
+          ghost: "sale",
+          background: "#141414",
+          ink: "light",
+          art: { shape: "cap", colorway: colorway("negro", locale), print: "monogram" },
+        }
+      : null,
   ];
 
   return candidates.filter((slide): slide is HeroSlide => slide !== null);

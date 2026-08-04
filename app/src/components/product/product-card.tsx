@@ -5,9 +5,10 @@ import { useState } from "react";
 import { useWishlist } from "@/components/account/wishlist-provider";
 import { ProductArt } from "@/components/brand/product-art";
 import { useI18n } from "@/components/i18n/provider";
-import { HeartIcon } from "@/components/icons";
+import { CameraIcon, HeartIcon } from "@/components/icons";
+import { useCameraProbe, WallView } from "@/components/product/wall-view";
 import { Badge, Price, Stars, Swatch } from "@/components/ui/bits";
-import { inStock, isNew, onSale, type Product } from "@/lib/catalog";
+import { frameOrientation, inStock, isNew, onSale, type Product } from "@/lib/catalog";
 import { cn, discountPercent } from "@/lib/utils";
 
 export function ProductCard({
@@ -23,12 +24,17 @@ export function ProductCard({
   const { t, href } = useI18n();
   const wishlist = useWishlist();
   const [activeColor, setActiveColor] = useState(0);
+  const [wallOpen, setWallOpen] = useState(false);
   const wished = wishlist.has(product.id);
 
   const colorway = product.colorways[activeColor] ?? product.colorways[0];
   const available = inStock(product);
   const reduced = onSale(product);
   const productHref = href("product", product.slug);
+  // Cuadros only: everything else has nothing to hang. Whether a camera exists
+  // is settled by CSS rather than here — see `useCameraProbe`.
+  const frame = product.framePreview;
+  useCameraProbe();
 
   return (
     <article className={cn("group relative flex flex-col", className)}>
@@ -36,7 +42,12 @@ export function ProductCard({
       <div className="relative aspect-[5/6] overflow-hidden bg-shell">
         <Link href={productHref} className="block h-full w-full" tabIndex={-1}>
           <div className="h-full w-full transition-transform duration-500 ease-[var(--ease-out-quint)] group-hover:scale-[1.04]">
-            <ProductArt shape={product.shape} colorway={colorway} print={product.print} />
+            <ProductArt
+              shape={product.shape}
+              colorway={colorway}
+              print={product.print}
+              orientation={frame ? frameOrientation(frame) : "portrait"}
+            />
           </div>
         </Link>
 
@@ -65,28 +76,53 @@ export function ProductCard({
           <HeartIcon className="size-[1.15rem]" filled={wished} />
         </button>
 
-        {/* Colour picker sits on the tile */}
-        {product.colorways.length > 1 && (
-          <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-1.5 bg-gradient-to-t from-black/10 to-transparent p-2.5 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100">
-            {product.colorways.slice(0, 5).map((c, i) => (
-              <button
-                key={c.id}
-                type="button"
-                onMouseEnter={() => setActiveColor(i)}
-                onFocus={() => setActiveColor(i)}
-                onClick={() => setActiveColor(i)}
-                aria-label={`${t.card.viewIn} ${c.name}`}
-                aria-pressed={i === activeColor}
-                className={cn(
-                  "grid size-6 place-items-center bg-white/90 ring-1 ring-inset transition",
-                  i === activeColor ? "ring-ink" : "ring-transparent hover:ring-line",
-                )}
-              >
-                <Swatch base={c.base} trim={c.trim} className="size-3.5" />
-              </button>
-            ))}
-          </div>
-        )}
+        {/*
+          The foot of the tile: colours on hover, and the wall button under them.
+          A column rather than two pinned layers, so hiding the button lets the
+          swatches fall to the bottom on their own — no offset to keep in step
+          with whether the button is there.
+        */}
+        <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col">
+          {product.colorways.length > 1 && (
+            <div className="flex items-center gap-1.5 bg-gradient-to-t from-black/10 to-transparent p-2.5 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100">
+              {product.colorways.slice(0, 5).map((c, i) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onMouseEnter={() => setActiveColor(i)}
+                  onFocus={() => setActiveColor(i)}
+                  onClick={() => setActiveColor(i)}
+                  aria-label={`${t.card.viewIn} ${c.name}`}
+                  aria-pressed={i === activeColor}
+                  className={cn(
+                    "grid size-6 place-items-center bg-white/90 ring-1 ring-inset transition",
+                    i === activeColor ? "ring-ink" : "ring-transparent hover:ring-line",
+                  )}
+                >
+                  <Swatch base={c.base} trim={c.trim} className="size-3.5" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/*
+            "En tu pared" — shown without hover, because the phone is where this
+            matters and a phone has no hover, and because it is the only reason
+            to stop scrolling a grid of prints that look alike at this size.
+            `data-wall-cta` is what CSS reveals once a camera is confirmed.
+          */}
+          {frame && (
+            <button
+              type="button"
+              data-wall-cta
+              onClick={() => setWallOpen(true)}
+              className="h-9 items-center justify-center gap-1.5 bg-ink/85 font-display text-[0.6875rem] font-bold uppercase tracking-wide text-white backdrop-blur transition hover:bg-flame"
+            >
+              <CameraIcon className="size-4" />
+              {t.wall.ctaShort}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Copy */}
@@ -119,6 +155,16 @@ export function ProductCard({
           </p>
         )}
       </div>
+
+      {frame && wallOpen && (
+        <WallView
+          product={product}
+          frame={frame}
+          initialFinish={frame.finishes[0]}
+          initialColorway={colorway}
+          onClose={() => setWallOpen(false)}
+        />
+      )}
     </article>
   );
 }

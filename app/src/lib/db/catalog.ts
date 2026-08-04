@@ -4,6 +4,7 @@ import {
   colorway,
   compareSizes,
   parseFramePreview,
+  parseProductVideo,
   parseSizeGuide,
   type Audience,
   type Author,
@@ -100,6 +101,8 @@ type ProductRow = {
   colorways: unknown;
   size_guide: unknown;
   frame_preview: unknown;
+  video_url: string | null;
+  video_caption: Bundle;
   rating: number | string;
   reviews: number;
   bestseller: boolean;
@@ -271,6 +274,7 @@ function mapProduct(row: ProductRow, locale: Locale): Product {
     soldOutSizes,
     sizeGuide: parseSizeGuide(row.size_guide),
     framePreview: parseFramePreview(row.frame_preview),
+    video: parseProductVideo(row.video_url, text(row.video_caption, locale)),
     variants,
     images,
     credits,
@@ -289,6 +293,7 @@ const PRODUCT_SELECT = `
   id, ref, slug, name, description, details, keywords,
   category_id, collection_id, audience, shape, print,
   price_cents, compare_at_cents, colorways, size_guide, frame_preview,
+  video_url, video_caption,
   rating, reviews, bestseller, exclusive, published, arrived,
   product_variants ( id, size, colorway_id, sku, stock, position ),
   product_images ( id, storage_path, alt, colorway_id, position ),

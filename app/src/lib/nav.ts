@@ -1,4 +1,4 @@
-import type { Catalog } from "@/lib/catalog";
+import { hasOutlet, type Audience, type Catalog } from "@/lib/catalog";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { href, withQuery } from "@/lib/i18n/routes";
@@ -35,6 +35,14 @@ export type NavItem = {
  */
 export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavItem[] {
   const { categories, collections } = catalog;
+
+  // With nothing discounted there is no outlet: every entry that promises one is
+  // dropped rather than pointing at an empty listing. The men's / women's / kids'
+  // entries are checked against their own products, since each of them lands on a
+  // listing already filtered by audience.
+  const outlet = hasOutlet(catalog.products);
+  const outletFor = (audience: Audience) =>
+    hasOutlet(catalog.products.filter((product) => product.audience === audience));
 
   const shop = (...rest: string[]) => href(locale, "shop", ...rest);
   const query = (path: string, params: Record<string, string>) =>
@@ -104,7 +112,15 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
           links: [
             { label: t.nav.bestSellers, href: shop(curatedSlug("mas-vendido", locale)) },
             { label: t.nav.authors, href: href(locale, "authors") },
-            { label: t.nav.outletUpTo, href: shop(curatedSlug("outlet", locale)), flag: "oferta" },
+            ...(outlet
+              ? [
+                  {
+                    label: t.nav.outletUpTo,
+                    href: shop(curatedSlug("outlet", locale)),
+                    flag: "oferta" as const,
+                  },
+                ]
+              : []),
           ],
         },
       ],
@@ -125,11 +141,15 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
               flag: "nuevo",
             },
             { label: t.nav.bestSellers, href: shop(curatedSlug("mas-vendido", locale)) },
-            {
-              label: t.nav.outlet,
-              href: query(shop(audienceSlug("hombre", locale)), { [QK.onSale]: "1" }),
-              flag: "oferta",
-            },
+            ...(outletFor("hombre")
+              ? [
+                  {
+                    label: t.nav.outlet,
+                    href: query(shop(audienceSlug("hombre", locale)), { [QK.onSale]: "1" }),
+                    flag: "oferta" as const,
+                  },
+                ]
+              : []),
           ],
         },
       ],
@@ -150,11 +170,15 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
               flag: "nuevo",
             },
             { label: t.nav.bestSellers, href: shop(curatedSlug("mas-vendido", locale)) },
-            {
-              label: t.nav.outlet,
-              href: query(shop(audienceSlug("mujer", locale)), { [QK.onSale]: "1" }),
-              flag: "oferta",
-            },
+            ...(outletFor("mujer")
+              ? [
+                  {
+                    label: t.nav.outlet,
+                    href: query(shop(audienceSlug("mujer", locale)), { [QK.onSale]: "1" }),
+                    flag: "oferta" as const,
+                  },
+                ]
+              : []),
           ],
         },
       ],
@@ -176,11 +200,15 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
           heading: t.nav.highlighted,
           links: [
             { label: t.nav.everyone, href: shop(audienceSlug("ninos", locale)) },
-            {
-              label: t.nav.outlet,
-              href: query(shop(audienceSlug("ninos", locale)), { [QK.onSale]: "1" }),
-              flag: "oferta",
-            },
+            ...(outletFor("ninos")
+              ? [
+                  {
+                    label: t.nav.outlet,
+                    href: query(shop(audienceSlug("ninos", locale)), { [QK.onSale]: "1" }),
+                    flag: "oferta" as const,
+                  },
+                ]
+              : []),
           ],
         },
       ],
@@ -225,15 +253,22 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
         },
       ],
     },
-    { label: t.nav.outlet, href: shop(curatedSlug("outlet", locale)), accent: true },
+    ...(outlet
+      ? [{ label: t.nav.outlet, href: shop(curatedSlug("outlet", locale)), accent: true }]
+      : []),
   ];
 }
 
 /* ================================================================== footer */
 
+/**
+ * `outlet` says whether there is anything discounted right now. False drops the
+ * outlet link from the shop column, for the same reason the menus drop theirs.
+ */
 export function buildFooterColumns(
   locale: Locale,
   t: Dictionary,
+  { outlet }: { outlet: boolean },
 ): NavColumn[] {
   // Resolve each topic through the doc set so the footer links carry this
   // locale's slug rather than the Castellano one.
@@ -271,7 +306,14 @@ export function buildFooterColumns(
           label: t.footer.links.bestSellers,
           href: href(locale, "shop", curatedSlug("mas-vendido", locale)),
         },
-        { label: t.footer.links.outlet, href: href(locale, "shop", curatedSlug("outlet", locale)) },
+        ...(outlet
+          ? [
+              {
+                label: t.footer.links.outlet,
+                href: href(locale, "shop", curatedSlug("outlet", locale)),
+              },
+            ]
+          : []),
         { label: t.footer.links.allProducts, href: href(locale, "shop") },
       ],
     },

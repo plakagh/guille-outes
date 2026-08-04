@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { BARE_ASPECT, ProductArt } from "@/components/brand/product-art";
+import { ProductArt } from "@/components/brand/product-art";
 import { CheckIcon, CloseIcon, PlusIcon } from "@/components/icons";
 import { FramedArt, FrameSwatch } from "@/components/product/framed-art";
 import { Swatch } from "@/components/ui/bits";
@@ -23,13 +23,19 @@ import {
   allSizes,
   baselineSizeGuide,
   compareSizes,
+  DEFAULT_FRAME_PREVIEW,
+  frameAspect,
+  frameOrientation,
   FRAME_FINISHES,
+  FRAME_MAX_CM,
+  FRAME_MIN_CM,
   palette,
   SIZE_DIMENSIONS,
   type Author,
   type Category,
   type Collection,
   type FrameFinish,
+  type FramePreview,
   type Product,
   type SizeDimension,
 } from "@/lib/catalog";
@@ -73,6 +79,9 @@ export type ProductDraft = {
   priceCents: number;
   compareAtCents: number | null;
   colorways: string[];
+  /** Blank when the product has no video, which is the normal case. */
+  videoUrl: string;
+  videoCaption: Record<Locale, string>;
   published: boolean;
   arrived: number;
 };
@@ -102,6 +111,10 @@ export function ProductEditor({
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const swatches = palette(locale);
+  // A cuadro wider than it is tall is drawn landscape, here as on the storefront.
+  const orientation = product?.framePreview
+    ? frameOrientation(product.framePreview)
+    : "portrait";
 
   const run = async (action: (form: FormData) => Promise<ActionResult>, form: FormData) => {
     setStatus("saving");
@@ -187,6 +200,41 @@ export function ProductEditor({
               />
             </div>
           ))}
+
+          {/*
+            The video. Part of the main form because both halves are plain columns
+            on the product — and because a brand-new product should be able to
+            arrive with its video already on it, which the sections below (they
+            need a saved row) cannot do.
+          */}
+          <div className="space-y-4 border-t border-line pt-5">
+            <div>
+              <h2 className="text-xl">{t.admin.video.title}</h2>
+              <p className="mt-1 max-w-2xl text-[0.875rem] text-mute">{t.admin.video.blurb}</p>
+            </div>
+
+            <Field
+              label={t.admin.video.url}
+              name="video_url"
+              type="url"
+              defaultValue={draft.videoUrl}
+              hint={t.admin.video.urlHint}
+            />
+
+            {/* Follows the locale tabs above, and every language stays mounted so
+                one submit carries all three. */}
+            {LOCALES.map((option) => (
+              <div key={option} className={option === tab ? "block" : "hidden"}>
+                <Field
+                  as="textarea"
+                  label={`${t.admin.video.caption} (${LOCALE_META[option].endonym})`}
+                  name={`video_caption_${option}`}
+                  defaultValue={draft.videoCaption[option]}
+                  hint={t.admin.video.captionHint}
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Sidebar: commerce fields */}
@@ -332,6 +380,7 @@ export function ProductEditor({
                 shape={draft.shape as (typeof SHAPES)[number]}
                 colorway={swatches.find((s) => s.id === colors[0]) ?? swatches[0]}
                 print={draft.print as (typeof PRINTS)[number]}
+                orientation={orientation}
               />
             </div>
           )}
@@ -395,6 +444,21 @@ function FrameEditor({
   const [finishes, setFinishes] = useState<FrameFinish[]>(
     stored?.finishes ?? [...FRAME_FINISHES],
   );
+  // Held as typed, not as numbers: a half-deleted field is a valid thing to be
+  // looking at, and `Number("")` is 0, which would flip the preview on its side
+  // mid-keystroke.
+  const [size, setSize] = useState({
+    width: String(stored?.width ?? DEFAULT_FRAME_PREVIEW.width),
+    height: String(stored?.height ?? DEFAULT_FRAME_PREVIEW.height),
+  });
+
+  /** What the preview draws: the typed size, falling back while it is unusable. */
+  const preview: FramePreview = {
+    finishes,
+    mount: stored?.mount ?? DEFAULT_FRAME_PREVIEW.mount,
+    width: cmOr(size.width, DEFAULT_FRAME_PREVIEW.width),
+    height: cmOr(size.height, DEFAULT_FRAME_PREVIEW.height),
+  };
 
   const toggle = (finish: FrameFinish) =>
     setFinishes((current) =>
@@ -480,20 +544,66 @@ function FrameEditor({
               </span>
             </label>
 
+            {/*
+              The printed size. Everything else on this form is presentation;
+              these two numbers are a fact about the object, and the camera view
+              scales the piece on someone's wall by them.
+            */}
+            <fieldset className="max-w-md">
+              <legend className="eyebrow mb-1.5 text-mute">{t.admin.frame.size}</legend>
+              <div className="flex items-center gap-3">
+                {(
+                  [
+                    ["frame_width", "width", t.pdp.sizeDimensions.width],
+                    ["frame_height", "height", t.admin.frame.height],
+                  ] as const
+                ).map(([name, key, label]) => (
+                  <label key={name} className="flex-1">
+                    <span className="sr-only">{label}</span>
+                    <span className="flex h-11 items-center border border-line focus-within:border-ink">
+                      {/* Controlled, so the preview below turns as it is typed:
+                          checking the orientation is most of why it is there. */}
+                      <input
+                        name={name}
+                        type="number"
+                        min={FRAME_MIN_CM}
+                        max={FRAME_MAX_CM}
+                        step={0.5}
+                        value={size[key]}
+                        onChange={(event) =>
+                          setSize((current) => ({ ...current, [key]: event.target.value }))
+                        }
+                        aria-label={label}
+                        className="h-full min-w-0 flex-1 px-3 text-right text-[0.9375rem] outline-none"
+                      />
+                      <span className="px-3 text-[0.875rem] text-mute">cm</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <span className="mt-1 block text-[0.75rem] text-mute">
+                {t.admin.frame.sizeHint}{" "}
+                <strong className="font-semibold text-ink">
+                  {t.admin.frame[preview.width > preview.height ? "landscape" : "portrait"]}
+                </strong>
+              </span>
+            </fieldset>
+
             {/* What the shopper will see, with the same component the PDP uses. */}
             <div className="max-w-[16rem]">
               <p className="eyebrow mb-2 text-mute">{t.admin.frame.preview}</p>
               <FramedArt
                 finish={finishes[0] ?? "black"}
-                mount={stored?.mount ?? 10}
+                mount={preview.mount}
                 className="aspect-[5/6]"
               >
-                <div style={{ aspectRatio: BARE_ASPECT }}>
+                <div style={{ aspectRatio: frameAspect(preview) }}>
                   <ProductArt
                     shape={product.shape}
                     colorway={product.colorways[0]}
                     print={product.print}
                     bare
+                    orientation={frameOrientation(preview)}
                   />
                 </div>
               </FramedArt>
@@ -911,6 +1021,18 @@ function ImageManager({
       </form>
     </section>
   );
+}
+
+/**
+ * A typed measurement as a number, or the fallback while it is not one yet.
+ * The server clamps the value that is actually stored; this only decides what the
+ * preview draws while someone is still typing.
+ */
+function cmOr(typed: string, fallback: number): number {
+  const value = Number(typed.replace(",", "."));
+  return Number.isFinite(value) && value >= FRAME_MIN_CM && value <= FRAME_MAX_CM
+    ? value
+    : fallback;
 }
 
 /* ----------------------------------------------------------------- atoms */

@@ -153,6 +153,33 @@
   }
 }
 
+/*
+  "Ve cómo queda en tu casa" — revealed by CSS, not by React.
+  =============================================================================
+  Whether a camera exists can only be answered in the browser, and answering it
+  is asynchronous. Deciding it in React state would put the call to action into
+  the tree a beat after the server rendered it without one, and that change in
+  the shape of the tree lands *during* hydration and is reported as a mismatch —
+  which is exactly how it first shipped.
+
+  So the button is rendered in both renders and hidden here. `useCameraProbe`
+  writes `data-camera` on <html> once it knows; nothing re-renders, so hydration
+  never sees it move. Hidden rather than disabled: a control that cannot work
+  should not be reachable by keyboard or read out either.
+
+  Deliberately outside every layer, so they are emitted after the utilities and
+  win the cascade. Inside `@layer components` they would lose to the `inline-flex`
+  utility the button already carries — same specificity, and components come
+  first.
+*/
+[data-wall-cta] {
+  display: none;
+}
+
+[data-camera="yes"] [data-wall-cta] {
+  display: inline-flex;
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;

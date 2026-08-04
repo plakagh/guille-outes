@@ -1,4 +1,9 @@
-import type { ArtPrint, ArtShape, Colorway } from "@/components/brand/product-art";
+import type {
+  ArtOrientation,
+  ArtPrint,
+  ArtShape,
+  Colorway,
+} from "@/components/brand/product-art";
 import type { Locale } from "@/lib/i18n/config";
 
 /* ============================================================== colorways */
@@ -294,13 +299,30 @@ export type FramePreview = {
   finishes: FrameFinish[];
   /** Mount width as a percentage of the artwork's shorter side. */
   mount: number;
+  /**
+   * Printed size of the artwork in centimetres, mount and moulding excluded.
+   *
+   * Only the wall view needs this, and it needs it badly: an overlay at the wrong
+   * scale is worse than no overlay. Everything else about the frame is relative,
+   * so these two numbers are the only physical fact the preview stores.
+   */
+  width: number;
+  height: number;
 };
 
 /** Sensible framing for a product someone has just ticked "show framed" on. */
 export const DEFAULT_FRAME_PREVIEW: FramePreview = {
   finishes: [...FRAME_FINISHES],
   mount: 10,
+  // 50 × 70 is the standard European poster size, and what both pieces in the
+  // catalogue are printed at.
+  width: 50,
+  height: 70,
 };
+
+/** Below a postcard or above a doorway, it is a typo rather than a measurement. */
+export const FRAME_MIN_CM = 5;
+export const FRAME_MAX_CM = 300;
 
 /**
  * Reads a stored `frame_preview`, returning null when the product is not sold
@@ -309,7 +331,13 @@ export const DEFAULT_FRAME_PREVIEW: FramePreview = {
 export function parseFramePreview(value: unknown): FramePreview | null {
   if (typeof value !== "object" || value === null) return null;
 
-  const raw = value as { enabled?: unknown; finishes?: unknown; mount?: unknown };
+  const raw = value as {
+    enabled?: unknown;
+    finishes?: unknown;
+    mount?: unknown;
+    width?: unknown;
+    height?: unknown;
+  };
   if (raw.enabled !== true) return null;
 
   const finishes = Array.isArray(raw.finishes)
@@ -325,7 +353,126 @@ export function parseFramePreview(value: unknown): FramePreview | null {
   return {
     finishes,
     mount: Number.isFinite(mount) && mount >= 0 && mount <= 30 ? mount : DEFAULT_FRAME_PREVIEW.mount,
+    // Rows written before the wall view existed have no measurements. Falling
+    // back to the standard size keeps the feature available on them rather than
+    // hiding it until someone edits the product.
+    width: frameCm(raw.width, DEFAULT_FRAME_PREVIEW.width),
+    height: frameCm(raw.height, DEFAULT_FRAME_PREVIEW.height),
   };
+}
+
+/**
+ * Which way up the piece hangs.
+ *
+ * Derived from the measurements rather than stored beside them: a 70 × 50 *is*
+ * landscape, and a separate flag could only ever contradict the numbers it sits
+ * next to. Square counts as portrait, which is what the drawing does with it.
+ */
+export function frameOrientation(frame: FramePreview): ArtOrientation {
+  return frame.width > frame.height ? "landscape" : "portrait";
+}
+
+/** The printed proportions, for the CSS box that holds the artwork. */
+export function frameAspect(frame: FramePreview): string {
+  return `${frame.width} / ${frame.height}`;
+}
+
+/** A stored measurement in centimetres, or the fallback when it is unusable. */
+function frameCm(value: unknown, fallback: number): number {
+  const cm = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(cm) && cm >= FRAME_MIN_CM && cm <= FRAME_MAX_CM ? cm : fallback;
+}
+
+/* ================================================================== video */
+
+/**
+ * The product video.
+ *
+ * Where it plays from decides how it plays: a platform page becomes an embed, a
+ * file becomes a `<video>` tag. Anything we cannot recognise as one of the two is
+ * not stored at all — a src the browser will not play is worse than no video,
+ * because the zone would appear empty.
+ */
+export type VideoProvider = "youtube" | "vimeo" | "file";
+
+export type ProductVideo = {
+  provider: VideoProvider;
+  /** What the player loads: the embed for a platform, the file itself otherwise. */
+  src: string;
+  /** The address as typed, for the "watch it there" link. */
+  url: string;
+  /** The caption under the player; null when nobody wrote one. */
+  caption: string | null;
+};
+
+const YOUTUBE_HOSTS = new Set([
+  "youtube.com",
+  "m.youtube.com",
+  "youtube-nocookie.com",
+  "youtu.be",
+]);
+const VIMEO_HOSTS = new Set(["vimeo.com", "player.vimeo.com"]);
+
+/** A file we can hand straight to a `<video>` element. */
+const VIDEO_FILE = /\.(mp4|webm|ogv|mov)$/i;
+const YOUTUBE_ID = /^[A-Za-z0-9_-]{6,20}$/;
+const VIMEO_ID = /^\d{6,12}$/;
+
+/**
+ * Reads a typed address into something playable, or null.
+ *
+ * Shared by the storefront and the admin form: the panel refuses to save an
+ * address this cannot make sense of, which is why the storefront never has to
+ * cope with one.
+ */
+export function parseVideoUrl(raw: string): Omit<ProductVideo, "caption"> | null {
+  const url = raw.trim();
+  if (!url) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  // A video over http breaks a page served over https, and a `javascript:` src
+  // is not a video at all.
+  if (parsed.protocol !== "https:") return null;
+
+  const host = parsed.hostname.replace(/^www\./, "");
+  /** The last non-empty path segment: the id in every URL shape below. */
+  const tail = parsed.pathname.split("/").filter(Boolean).pop() ?? "";
+
+  if (YOUTUBE_HOSTS.has(host)) {
+    // youtu.be/<id>, /watch?v=<id>, /shorts/<id>, /embed/<id> — all the same video.
+    const id = parsed.searchParams.get("v") ?? tail;
+    if (!YOUTUBE_ID.test(id)) return null;
+    return {
+      provider: "youtube",
+      // nocookie, and no related videos from other channels at the end.
+      src: `https://www.youtube-nocookie.com/embed/${id}?rel=0`,
+      url,
+    };
+  }
+
+  if (VIMEO_HOSTS.has(host)) {
+    if (!VIMEO_ID.test(tail)) return null;
+    // dnt=1 asks Vimeo not to track the viewer.
+    return { provider: "vimeo", src: `https://player.vimeo.com/video/${tail}?dnt=1`, url };
+  }
+
+  if (VIDEO_FILE.test(parsed.pathname)) {
+    return { provider: "file", src: url, url };
+  }
+
+  return null;
+}
+
+/** A stored `video_url` + `video_caption` pair, or null when there is no video. */
+export function parseProductVideo(url: unknown, caption: string): ProductVideo | null {
+  const video = typeof url === "string" ? parseVideoUrl(url) : null;
+  if (!video) return null;
+  return { ...video, caption: caption.trim() || null };
 }
 
 /* ================================================================= shapes */
@@ -432,6 +579,8 @@ export type Product = {
   sizeGuide: SizeGuide | null;
   /** Framing options when the piece is sold as a cuadro; null otherwise. */
   framePreview: FramePreview | null;
+  /** The product video and its caption; null when there is none to show. */
+  video: ProductVideo | null;
   variants: Variant[];
   images: ProductImage[];
   credits: Credit[];
@@ -464,6 +613,19 @@ export function isNew(product: Product): boolean {
 
 export function onSale(product: Product): boolean {
   return product.compareAt !== undefined && product.compareAt > product.price;
+}
+
+/**
+ * Is there an outlet at all?
+ *
+ * The outlet is not a section someone switches on: it is whatever happens to be
+ * discounted right now. With nothing discounted there is no outlet, and every
+ * part of the site that talks about one — the hero slide, the menus, the footer,
+ * the home band, the announcement bar, the listing itself — has to stop talking
+ * about it, rather than send people to an empty page promising -50 %.
+ */
+export function hasOutlet(products: Product[]): boolean {
+  return products.some(onSale);
 }
 
 /** Units available for a size, summed across every colourway. */

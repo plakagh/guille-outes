@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useWishlist } from "@/components/account/wishlist-provider";
-import { BARE_ASPECT, ProductArt } from "@/components/brand/product-art";
+import { ProductArt } from "@/components/brand/product-art";
 import { useCart } from "@/components/cart/cart-context";
 import { useI18n } from "@/components/i18n/provider";
 import {
   ArrowRight,
   BagIcon,
+  CameraIcon,
   FrameIcon,
   CheckIcon,
   HeartIcon,
@@ -21,8 +22,12 @@ import {
 import { Badge, Price, Stars, Swatch } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
 import { FramedArt, FrameSwatch } from "@/components/product/framed-art";
+import { ProductVideo } from "@/components/product/product-video";
 import { SizeGuideDialog } from "@/components/product/size-guide";
+import { useCameraProbe, WallView } from "@/components/product/wall-view";
 import {
+  frameAspect,
+  frameOrientation,
   isNew,
   onSale,
   resolveSizeGuide,
@@ -51,14 +56,24 @@ export function ProductDetail({
   const [colorIndex, setColorIndex] = useState(0);
   const [view, setView] = useState(0);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
-  // Framing: available only for cuadros, and off until asked for — the piece
-  // itself is what is being sold, the frame is a way of picturing it.
-  const [framed, setFramed] = useState(false);
+  // Framing: cuadros open framed. It is how the piece is meant to be seen and
+  // how the shopper will judge it, so it should not take a click to get there.
+  // Picking a thumbnail drops back out of it — see the gallery below.
+  const [framed, setFramed] = useState(true);
   const [finish, setFinish] = useState<FrameFinish | null>(null);
+  // The camera view is mounted only once asked for: it holds a MediaStream, and
+  // unmounting is what guarantees the camera is released.
+  const [wallOpen, setWallOpen] = useState(false);
   // This product's own measurements, or the baseline for its garment shape.
   const sizeGuide = resolveSizeGuide(product);
   const frame = product.framePreview;
+  // The camera call to action is in the markup either way; CSS decides whether a
+  // device that has no camera ever sees it.
+  useCameraProbe();
   const activeFinish = finish ?? frame?.finishes[0] ?? "black";
+  // Which way up the piece hangs, read off its measurements. Nothing else has an
+  // orientation, so anything that is not a cuadro stays portrait.
+  const orientation = frame ? frameOrientation(frame) : "portrait";
   const [size, setSize] = useState<string | null>(
     product.sizes.length === 1 ? product.sizes[0] : null,
   );
@@ -115,12 +130,18 @@ export function ProductDetail({
             <li key={item.id}>
               <button
                 type="button"
-                onClick={() => setView(i)}
+                // A thumbnail is a picture of the *unframed* rendering, so it
+                // gives you exactly that: choosing one leaves the framed view
+                // rather than quietly ignoring the choice behind the glass.
+                onClick={() => {
+                  setView(i);
+                  setFramed(false);
+                }}
                 aria-label={item.label}
-                aria-current={i === view}
+                aria-current={i === view && !framed}
                 className={cn(
                   "block size-16 overflow-hidden bg-shell ring-1 ring-inset transition sm:size-20",
-                  i === view ? "ring-ink" : "ring-transparent hover:ring-line",
+                  i === view && !framed ? "ring-ink" : "ring-transparent hover:ring-line",
                 )}
               >
                 <span className="block h-full w-full" style={{ transform: `scale(${item.zoom})` }}>
@@ -128,6 +149,7 @@ export function ProductDetail({
                     shape={product.shape}
                     colorway={colorway}
                     print={item.print ?? product.print}
+                    orientation={orientation}
                   />
                 </span>
               </button>
@@ -148,12 +170,13 @@ export function ProductDetail({
             <FramedArt finish={activeFinish} mount={frame.mount} className="aspect-[5/6]">
               {/* The art alone, at its own proportions: the mount supplies the
                   white and the bevel supplies the edge. */}
-              <div style={{ aspectRatio: BARE_ASPECT }}>
+              <div style={{ aspectRatio: frameAspect(frame) }}>
                 <ProductArt
                   shape={product.shape}
                   colorway={colorway}
                   print={activeView.print ?? product.print}
                   bare
+                  orientation={orientation}
                 />
               </div>
             </FramedArt>
@@ -166,6 +189,7 @@ export function ProductDetail({
                 shape={product.shape}
                 colorway={colorway}
                 print={activeView.print ?? product.print}
+                orientation={orientation}
               />
             </div>
           )}
@@ -222,6 +246,36 @@ export function ProductDetail({
             )}
 
             <p className="text-[0.75rem] text-mute">{t.pdp.frameNote}</p>
+          </div>
+        )}
+
+        {/*
+          The camera. Full width and under the framing controls, because it
+          answers the question the shopper asks *after* deciding they like it:
+          not "what does it look like" but "does it fit that wall".
+        */}
+        {frame && (
+          <Button
+            variant="outline"
+            size="lg"
+            block
+            data-wall-cta
+            onClick={() => setWallOpen(true)}
+          >
+            <CameraIcon className="size-5" />
+            {t.wall.cta}
+          </Button>
+        )}
+
+        {/*
+          The video, for the products that have one — which is most of them not.
+          Under the gallery because that is what it is: another way of looking at
+          the piece, not another thing to decide about before buying it.
+        */}
+        {product.video && (
+          <div>
+            <h2 className="eyebrow mb-2 text-mute">{t.pdp.videoHeading}</h2>
+            <ProductVideo video={product.video} t={t} productName={product.name} />
           </div>
         )}
       </div>
@@ -486,6 +540,17 @@ export function ProductDetail({
           helpHref={sizeGuideHref}
           open={sizeGuideOpen}
           onClose={() => setSizeGuideOpen(false)}
+        />
+      )}
+
+      {frame && wallOpen && (
+        <WallView
+          product={product}
+          frame={frame}
+          // The camera opens on whatever the shopper is already looking at.
+          initialFinish={activeFinish}
+          initialColorway={colorway}
+          onClose={() => setWallOpen(false)}
         />
       )}
     </div>

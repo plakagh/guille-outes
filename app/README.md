@@ -289,6 +289,71 @@ there is no reason for an admin to need one.
 
 ---
 
+## The outlet only exists when it exists
+
+The outlet is not a section anyone switches on: it is whatever happens to be
+discounted right now — `compare_at_cents` above `price_cents`, product by product.
+So when nothing is discounted there is no outlet, and nothing on the site may claim
+otherwise. `hasOutlet(products)` in [catalog.ts](src/lib/catalog.ts) is the single
+answer, and everything that talks about an outlet asks it:
+
+- the **hero slide** promising "hasta -50 %" is dropped, the same way a slide for a
+  missing collection is
+- the **outlet entry in the primary nav** goes, and with it the outlet links inside
+  the "destacados" columns. The men's / women's / kids' ones are checked against
+  *their own* products, because each of them lands on a listing already filtered by
+  audience: no discounted women's product, no women's outlet link
+- the **footer** loses its outlet link
+- the **announcement bar** drops any message whose link points at the outlet
+  listing, so nobody has to switch a promo off in the admin and remember to switch
+  it back on
+- the **home band** hides itself (it already did — it renders nothing with no
+  products)
+- the **empty cart** loses its "ver el outlet" button, and says a sentence that does
+  not mention one
+- the **listing itself** 404s. Every link that led there is already gone, and a page
+  headed "Outlet hasta -50 %" over an empty grid is the worst version of the
+  promise. The URL comes back on its own the moment something is discounted again.
+
+None of this is a switch an administrator can get wrong: putting one product on sale
+brings the whole outlet back, and taking the last one off retires it.
+
+---
+
+## The product video
+
+A product may carry **one video and its own caption**, and most carry neither. With
+no video there is no video zone on the product page — not an empty player, not a
+heading with nothing under it. The caption disappears on the same terms: written, it
+prints under the player; blank, the player stands alone.
+
+Two nullable columns, `products.video_url` and `products.video_caption` (trilingual,
+like everything else the shop types). It is an **address, not an upload**: the
+`media` bucket takes images only and stops at 8 MB, so the video lives where it is
+already published and the shop stores the link. `parseVideoUrl` recognises three
+shapes and refuses everything else — the admin panel will not save an address it
+cannot make sense of, which is why the storefront never has to render a player that
+will not start:
+
+| typed | played as |
+| --- | --- |
+| `youtube.com/watch?v=…`, `youtu.be/…`, `/shorts/…`, `/embed/…` | `youtube-nocookie.com` embed, `rel=0` |
+| `vimeo.com/123456789`, `player.vimeo.com/video/123456789` | Vimeo player, `dnt=1` |
+| any `https://…` ending in `.mp4`, `.webm`, `.ogv`, `.mov` | a plain `<video>` element |
+
+`https` only. A video over `http` breaks a page served over `https`, and a
+`javascript:` string in a `src` is not a video — the same reasoning the promo-bar
+links get, enforced here *and* by a CHECK constraint on the column.
+
+**A platform embed is not mounted until it is asked for.** The iframe appears on the
+first click, not on page load: it keeps a third-party player and its cookies off a
+page nobody has consented to be tracked on, and keeps the platform's JavaScript out
+of a product page that draws its own artwork. A self-hosted file has no third party
+to keep out, so it is a `<video>` with `preload="metadata"` — enough for the controls
+and the duration, not enough to download the film.
+
+---
+
 ## Cuadros (framed prints)
 
 A `cuadros` category, and a "see it framed" preview on those products.
@@ -301,16 +366,26 @@ padding with a hairline inner shadow, the bevel is a three-layer `box-shadow`, a
 the glass is one faint diagonal highlight.
 
 `products.frame_preview` decides per product whether the preview appears, which
-finishes are offered, and how wide the mount is:
+finishes are offered, how wide the mount is, and how big the print actually is:
 
 ```json
-{ "enabled": true, "finishes": ["black", "white", "wood"], "mount": 10 }
+{ "enabled": true, "finishes": ["black", "white", "wood"], "mount": 10, "width": 50, "height": 70 }
 ```
+
+The centimetres are the **printed artwork**, mount and moulding excluded — the shop
+types what is on the label and the storefront derives the outside dimensions from
+the percentages it draws with.
 
 Per product, not per shop, because framing is a property of the piece: a numbered
 serigraph may only be sold in black. Enabled with every finish removed is stored
 and read as **off** rather than as a frame with no colour — a preview the shop did
 not choose is worse than no preview.
+
+**Cuadros open framed.** It is how the piece is meant to be seen and what the
+shopper is judging, so it should not take a click to get there. Picking a gallery
+thumbnail drops back out of it: a thumbnail is a picture of the *unframed*
+rendering, so tapping one gives exactly that instead of quietly ignoring the
+choice behind the glass. While framed, no thumbnail is marked current.
 
 Two details worth keeping:
 
@@ -326,6 +401,54 @@ Two details worth keeping:
 The price shown is for the print; the preview says so, because a simulated frame
 next to a price is exactly the kind of thing a shopper would otherwise assume is
 included.
+
+### "Ve cómo queda en tu casa" — the camera wall view
+
+Every cuadro carries a second call to action: on the product page under the framing
+controls, and on the tile of every cuadro card in the home rails and the listings.
+It opens the camera full screen and hangs the piece on the shopper's own wall —
+drag to move it, pinch to walk towards the wall, shutter to photograph it. Finish
+and colourway can be changed without leaving the camera.
+[wall-view.tsx](src/components/product/wall-view.tsx).
+
+**The button is not offered where it cannot work.** `useWallViewSupport` checks the
+secure context, `getUserMedia`, and whether `enumerateDevices` reports a
+`videoinput` — no permission needed for that last one; before one is granted the
+entries simply carry no labels. Both calls to action stay hidden until it says yes,
+so a desktop without a webcam never gets a button that opens a panel explaining
+itself. It resolves to false on the server and until the check returns, which means
+the button appears a moment late on the devices that do have a camera — better than
+flashing on every device that does not. An *empty* device list is read as "the
+browser is withholding its inventory", not as "no camera", so a hardened browser
+keeps the button rather than losing it. For the same reason the `cuadros` category
+copy says nothing about the camera: that text is read on desktops.
+
+The `unavailable` panel still exists, for the cases the check cannot see — a camera
+that is present but busy, or that fails to open.
+
+**Why not WebXR.** Anchoring to a real wall needs `immersive-ar` with hit testing,
+which today means Android Chrome and nothing else — no iOS Safari, no desktop. Half
+the shop's visitors would get a button that apologises. An overlay placed by hand
+works wherever there is a camera, and answers the question actually being asked:
+*is a 50 × 70 too big for that space?*
+
+**Scale is honest; distance is a guess.** The centimetres come from the product.
+No browser reports the camera's field of view, so the scale rests on one assumption
+(65° horizontal) and on the distance the shopper states — which is why distance is a
+control and not a readout, corrected by pinching until the room looks right. The
+conversion works from the *scaled* video width rather than the viewport, because
+`object-fit: cover` on a portrait phone throws away a third of a landscape sensor.
+
+**The photograph is composed locally.** Nothing is uploaded: the frame is repainted
+into a `<canvas>` over the video frame, and the artwork is the live SVG serialised
+and rasterised, so the print, colourway and any future change to the drawing come
+along for free. A canvas cannot read a CSS gradient, so the moulding is painted
+twice — once by CSS, once in [wall-photo.ts](src/lib/wall-photo.ts) — from the one
+`FRAME_PAINT` table, so the preview and its own photograph cannot drift apart.
+
+`navigator.share` sends the file to the phone's share sheet where it exists, and
+falls back to a download. The camera stream is released by unmounting: the dialog is
+mounted only once asked for, which is what guarantees the recording light goes out.
 
 ---
 
@@ -348,7 +471,12 @@ included.
 - **Images** — upload to Supabase Storage, delete; products fall back to the generated
   vector artwork when no photo exists
 - **Framed view** — for cuadros: whether the piece is shown framed, in which
-  finishes, and how wide the mount is, with a live preview
+  finishes, how wide the mount is and how large the print is in centimetres (the
+  scale the camera wall view hangs it at), with a live preview
+- **Video** — an optional address (YouTube, Vimeo or a hosted file) and an optional
+  trilingual caption, saved with the rest of the product so a brand-new one can
+  arrive with its video already on it. An address that cannot be played is refused
+  rather than stored; removing the link removes the caption with it
 - **Shop settings** — shipping rates, the free-delivery threshold, which services are
   offered, and the promo-bar messages
 - **Newsletter** — subscriber counts and state, read-only
@@ -645,6 +773,10 @@ with real user tokens:
   endpoints; the app adds nothing).
 - **Reviews.** Ratings are seeded aggregates; the PDP shows the distribution but never
   invents review text. Wire a real provider before showing testimonials.
+- **HTTPS for the camera.** `getUserMedia` only runs in a secure context. `localhost`
+  counts, so the wall view works in development, but testing it from a phone on the
+  LAN needs a tunnel or a certificate — otherwise it reports the camera as
+  unavailable, correctly but confusingly.
 
 ---
 

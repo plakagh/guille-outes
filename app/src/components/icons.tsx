@@ -161,6 +161,53 @@ export function FrameIcon(props: IconProps) {
   );
 }
 
+export function CameraIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      {/* Body with the raised viewfinder bump, and the lens. */}
+      <path d="M3.5 8.5h3.2l1.4-2.2h7.8l1.4 2.2h3.2V19h-17V8.5Z" />
+      <circle cx="12" cy="13.2" r="3.4" />
+    </Stroke>
+  );
+}
+
+/** Filled triangle: at 20 px an outlined play arrow reads as a stray chevron. */
+export function PlayIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M8.5 5.6 19 12 8.5 18.4V5.6Z" fill="currentColor" />
+    </Stroke>
+  );
+}
+
+/** The camera's shutter: a ring around a filled disc, so it reads as "take it". */
+export function ShutterIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="6" fill="currentColor" stroke="none" />
+    </Stroke>
+  );
+}
+
+export function ShareIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M12 15.5V4m0 0L8.4 7.6M12 4l3.6 3.6" />
+      <path d="M5.5 12.5V19a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-6.5" />
+    </Stroke>
+  );
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M12 4v11.5m0 0L8.4 12M12 15.5 15.6 12" />
+      <path d="M5.5 18.5h13" />
+    </Stroke>
+  );
+}
+
 export function ShieldIcon(props: IconProps) {
   return (
     <Stroke {...props}>

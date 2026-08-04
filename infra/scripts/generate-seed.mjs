@@ -51,7 +51,13 @@ const APPAREL = ["XS", "S", "M", "L", "XL", "2XL"];
 const KIDS = ["4", "6", "8", "10", "12", "14"];
 const ONE = { es: "Única", gl: "Única", en: "One size" };
 
-const ONE_SIZE_CATEGORIES = new Set(["gorras", "accesorios", "balones", "coleccionismo"]);
+const ONE_SIZE_CATEGORIES = new Set([
+  "gorras",
+  "accesorios",
+  "balones",
+  "coleccionismo",
+  "cuadros",
+]);
 
 function sizesFor(product) {
   if (product.sizes) return product.sizes;
@@ -328,6 +334,51 @@ const categories = [
       es: ["póster serigrafiado", "edición limitada", "lámina numerada", "arte baloncesto"],
       gl: ["cartel serigrafiado", "edición limitada", "lámina numerada", "arte baloncesto"],
       en: ["screen print poster", "limited edition", "numbered print", "basketball art"],
+    },
+    details: {
+      es: [
+        "Papel de 300 g sin ácido",
+        "Serigrafía de tres tintas",
+        "Numerado y firmado a mano",
+        "Se envía en tubo rígido",
+      ],
+      gl: [
+        "Papel de 300 g sen ácido",
+        "Serigrafía de tres tintas",
+        "Numerado e asinado a man",
+        "Envíase en tubo ríxido",
+      ],
+      en: [
+        "300 gsm acid-free paper",
+        "Three-colour screen print",
+        "Hand-numbered and signed",
+        "Ships in a rigid tube",
+      ],
+    },
+  },
+  {
+    // Work on paper, sold to be hung. Everything in here carries a `frame`, and
+    // that is what turns on the framed preview and the camera wall view.
+    id: "cuadros",
+    slug: { es: "cuadros", gl: "cadros", en: "framed-prints" },
+    name: { es: "Cuadros", gl: "Cadros", en: "Framed prints" },
+    heading: {
+      es: "Cuadros y láminas enmarcadas",
+      gl: "Cadros e láminas enmarcadas",
+      en: "Framed prints and artwork",
+    },
+    // Deliberately silent about the camera: the wall view needs one, and this
+    // copy is read on desktops that have none. The button says so where it can
+    // be honoured; the category text would be promising it everywhere.
+    blurb: {
+      es: "Obra sobre papel de nuestros autores, lista para colgar. Puedes verla enmarcada antes de decidir: marco negro, blanco o madera, siempre con paspartú blanco.",
+      gl: "Obra sobre papel das nosas autoras, lista para colgar. Podes vela enmarcada antes de decidir: marco negro, branco ou madeira, sempre con paspartú branco.",
+      en: "Work on paper by our authors, ready to hang. See it framed before you decide: black, white or wood, always with a white mount.",
+    },
+    keywords: {
+      es: ["cuadros", "laminas", "serigrafia", "marco", "paspartu", "arte", "decoracion"],
+      gl: ["cadros", "laminas", "serigrafia", "marco", "paspartu", "arte", "decoracion"],
+      en: ["framed prints", "art prints", "serigraph", "frame", "mount", "wall art"],
     },
     details: {
       es: [
@@ -1630,10 +1681,12 @@ const products = [
       gl: ["cartel serigrafiado", "lámina numerada", "50x70"],
       en: ["screen print poster", "numbered print", "50x70"],
     },
-    category: "coleccionismo",
+    category: "cuadros",
     collection: "origen",
     shape: "poster",
     print: "none",
+    // 50 × 70, as the description says. The camera view hangs it at that size.
+    frame: { finishes: ["black", "white", "wood"], mount: 10, width: 50, height: 70 },
     price: 3500,
     colors: ["granate", "marino", "negro"],
     rating: 4.9,
@@ -1659,10 +1712,13 @@ const products = [
       gl: ["cartel retro", "cartel anos 90", "hardwood"],
       en: ["retro poster", "nineties print", "hardwood"],
     },
-    category: "coleccionismo",
+    category: "cuadros",
     collection: "hardwood-94",
     shape: "poster",
     print: "none",
+    // Landscape: a reproduction of a wide arena poster, and the one piece in the
+    // catalogue that exercises a horizontal cuadro end to end.
+    frame: { finishes: ["black", "wood"], mount: 8, width: 70, height: 50 },
     price: 2900,
     compareAt: 3500,
     colors: ["arena", "morado"],
@@ -1740,7 +1796,7 @@ for (const p of products) {
 
   say(`-- ${p.ref} · ${p.name.es}`);
   say(
-    `insert into public.products (id, ref, slug, name, description, details, keywords, category_id, collection_id, audience, shape, print, price_cents, compare_at_cents, colorways, rating, reviews, bestseller, exclusive, arrived) values (` +
+    `insert into public.products (id, ref, slug, name, description, details, keywords, category_id, collection_id, audience, shape, print, frame_preview, price_cents, compare_at_cents, colorways, rating, reviews, bestseller, exclusive, arrived) values (` +
       [
         q(id),
         q(p.ref),
@@ -1754,6 +1810,9 @@ for (const p of products) {
         `${q(audience)}::public.audience`,
         `${q(p.shape)}::public.art_shape`,
         `${q(p.print ?? "wordmark")}::public.art_print`,
+        // No `frame` means not sold framed, which the storefront reads as an
+        // empty object rather than as null.
+        j(p.frame ? { enabled: true, ...p.frame } : {}),
         p.price,
         p.compareAt ?? "null",
         j(p.colors),

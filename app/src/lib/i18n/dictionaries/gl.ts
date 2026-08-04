@@ -267,6 +267,9 @@ const gl: Dictionary = {
     viewDetail: "Detalle do estampado",
     viewMonogram: "Monograma",
     viewPlain: "Sen estampado",
+    videoHeading: "Vídeo do produto",
+    videoPlay: "Reproducir o vídeo",
+    videoPrivacy: "O reprodutor externo cárgase só cando lle das ao play.",
     promiseShippingTitle: "Envío gratis desde 60 €",
     promiseShippingBody: "entrega estimada en 24–72 h.",
     promiseReturnsTitle: "30 días para devolver",
@@ -291,12 +294,43 @@ const gl: Dictionary = {
     alsoLike: "Tamén che pode gustar",
   },
 
+  wall: {
+    cta: "Mira como queda na túa casa",
+    ctaShort: "Na túa parede",
+    title: "Na túa parede",
+    canvasLabel: "Coloca o cadro sobre a túa parede. Arrastra para movelo e belisca para achegarte.",
+    introTitle: "Pendúrao antes de mercalo",
+    introBody:
+      "Abrimos a cámara e poñemos a obra sobre a túa parede a tamaño real, para que vexas se encaixa nese oco.",
+    privacy: "A imaxe non sae do teu dispositivo: non se sobe nada nin se garda nada.",
+    start: "Abrir a cámara",
+    starting: "Abrindo a cámara…",
+    deniedTitle: "Sen permiso para a cámara",
+    deniedBody:
+      "O teu navegador bloqueou a cámara. Permítea no cadeado da barra de enderezos ou nos axustes do navegador e téntao de novo.",
+    retry: "Tentalo de novo",
+    unavailableTitle: "Aquí non podemos abrir a cámara",
+    unavailableBody:
+      "Este dispositivo ou este navegador non nos deixa usar a cámara. Proba desde o móbil: na ficha tes tamén a vista enmarcada.",
+    hint: "Arrastra para movelo · belisca para achegarte",
+    distance: "Distancia á parede",
+    recentre: "Centrar",
+    capture: "Facer unha foto",
+    disclaimer: "Tamaño orientativo",
+    share: "Compartir",
+    shareText: "Que che parece aquí?",
+    download: "Descargar",
+    retake: "Repetir a foto",
+    shotAlt: "Foto da túa parede coa obra colocada",
+  },
+
   cart: {
     taxBase: "Base impoñible",
     vat: "IVE",
     title: "O teu carro",
     empty: "O teu carro está baleiro",
     emptyBlurb: "Aínda non engadiches nada. Empeza polo máis vendido ou bota unha ollada ao outlet.",
+    emptyBlurbNoOutlet: "Aínda non engadiches nada. Empeza polo máis vendido.",
     startShopping: "Empezar a comprar",
     keepShopping: "Seguir comprando",
     bestSellers: "O máis vendido",
@@ -590,6 +624,17 @@ const gl: Dictionary = {
     startShopping: "Empezar a comprar",
   },
   admin: {
+    video: {
+      title: "Vídeo",
+      blurb:
+        "Opcional, e para case todo innecesario. Sen enlace a ficha non mostra ningunha zona de vídeo: non queda ningún oco.",
+      url: "Dirección do vídeo",
+      urlHint:
+        "Ten que empezar por https://. Vale a páxina de YouTube ou de Vimeo, ou o enlace directo a un ficheiro .mp4, .webm ou .mov aloxado en calquera sitio. O vídeo non se sobe aquí.",
+      caption: "Descrición do vídeo",
+      captionHint:
+        "Pé de texto debaixo do reprodutor: que se ve, onde se gravou. Baleiro non se mostra, e se quitas o enlace bórrase con el.",
+    },
     frame: {
       title: "Vista enmarcada",
       blurb:
@@ -599,6 +644,12 @@ const gl: Dictionary = {
       noFinishes: "Sen ningún acabado marcado a vista non se mostrará.",
       mount: "Ancho do paspartú",
       mountHint: "Porcentaxe do ancho do marco. Entre 8 e 14 % é o habitual.",
+      size: "Medidas da lámina",
+      height: "Alto",
+      sizeHint:
+        "Ancho e alto do papel impreso, sen marco nin paspartú. É a escala á que se coloca a obra sobre a parede na vista con cámara.",
+      landscape: "Debuxarase en horizontal.",
+      portrait: "Debuxarase en vertical.",
       preview: "Así se verá",
     },
     shop: {

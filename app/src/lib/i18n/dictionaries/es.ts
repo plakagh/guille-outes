@@ -269,6 +269,9 @@ const es = {
     viewDetail: "Detalle del estampado",
     viewMonogram: "Monograma",
     viewPlain: "Sin estampado",
+    videoHeading: "Vídeo del producto",
+    videoPlay: "Reproducir el vídeo",
+    videoPrivacy: "El reproductor externo se carga solo cuando le das al play.",
     promiseShippingTitle: "Envío gratis desde 60 €",
     promiseShippingBody: "entrega estimada en 24–72 h.",
     promiseReturnsTitle: "30 días para devolver",
@@ -293,12 +296,45 @@ const es = {
     alsoLike: "También te puede gustar",
   },
 
+  /** "Ve cómo queda en tu casa": el cuadro sobre la pared, con la cámara. */
+  wall: {
+    cta: "Ve cómo queda en tu casa",
+    ctaShort: "En tu pared",
+    title: "En tu pared",
+    canvasLabel: "Coloca el cuadro sobre tu pared. Arrastra para moverlo y pellizca para acercarte.",
+    introTitle: "Cuélgalo antes de comprarlo",
+    introBody:
+      "Abrimos la cámara y ponemos la obra sobre tu pared a tamaño real, para que veas si encaja en ese hueco.",
+    privacy: "La imagen no sale de tu dispositivo: no se sube nada ni se guarda nada.",
+    start: "Abrir la cámara",
+    starting: "Abriendo la cámara…",
+    deniedTitle: "Sin permiso para la cámara",
+    deniedBody:
+      "Tu navegador ha bloqueado la cámara. Permítela en el candado de la barra de direcciones o en los ajustes del navegador y vuelve a intentarlo.",
+    retry: "Volver a intentarlo",
+    unavailableTitle: "Aquí no podemos abrir la cámara",
+    unavailableBody:
+      "Este dispositivo o este navegador no nos deja usar la cámara. Prueba desde el móvil: en la ficha tienes también la vista enmarcada.",
+    hint: "Arrastra para moverlo · pellizca para acercarte",
+    distance: "Distancia a la pared",
+    recentre: "Centrar",
+    capture: "Hacer una foto",
+    disclaimer: "Tamaño orientativo",
+    share: "Compartir",
+    shareText: "¿Qué te parece aquí?",
+    download: "Descargar",
+    retake: "Repetir la foto",
+    shotAlt: "Foto de tu pared con la obra colocada",
+  },
+
   cart: {
     taxBase: "Base imponible",
     vat: "IVA",
     title: "Tu cesta",
     empty: "Tu cesta está vacía",
     emptyBlurb: "Todavía no has añadido nada. Empieza por lo más vendido o echa un ojo al outlet.",
+    /** Sin nada rebajado no hay outlet al que mandar a nadie. */
+    emptyBlurbNoOutlet: "Todavía no has añadido nada. Empieza por lo más vendido.",
     startShopping: "Empezar a comprar",
     keepShopping: "Seguir comprando",
     bestSellers: "Lo más vendido",
@@ -593,6 +629,17 @@ const es = {
     startShopping: "Empezar a comprar",
   },
   admin: {
+    video: {
+      title: "Vídeo",
+      blurb:
+        "Opcional, y para casi todo innecesario. Sin enlace la ficha no muestra ninguna zona de vídeo: no queda ningún hueco.",
+      url: "Dirección del vídeo",
+      urlHint:
+        "Tiene que empezar por https://. Vale la página de YouTube o de Vimeo, o el enlace directo a un fichero .mp4, .webm o .mov alojado en cualquier sitio. El vídeo no se sube aquí.",
+      caption: "Descripción del vídeo",
+      captionHint:
+        "Pie de texto debajo del reproductor: qué se ve, dónde se grabó. Vacío no se muestra, y si quitas el enlace se borra con él.",
+    },
     frame: {
       title: "Vista enmarcada",
       blurb:
@@ -602,6 +649,12 @@ const es = {
       noFinishes: "Sin ningún acabado marcado la vista no se mostrará.",
       mount: "Ancho del paspartú",
       mountHint: "Porcentaje del ancho del marco. Entre 8 y 14 % es lo habitual.",
+      size: "Medidas de la lámina",
+      height: "Alto",
+      sizeHint:
+        "Ancho y alto del papel impreso, sin marco ni paspartú. Es la escala a la que se coloca la obra sobre la pared en la vista con cámara.",
+      landscape: "Se dibujará en horizontal.",
+      portrait: "Se dibujará en vertical.",
       preview: "Así se verá",
     },
     shop: {

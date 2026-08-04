@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { CatalogView } from "@/components/catalog/catalog-view";
-import { listProducts, type Catalog, type Filters } from "@/lib/catalog";
+import { hasOutlet, listProducts, type Catalog, type Filters } from "@/lib/catalog";
 import { getCatalog } from "@/lib/db/catalog";
 import { isLocale, LOCALE_META, LOCALES, type Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
@@ -37,6 +37,11 @@ function resolve(
 ): Section | null {
   const curated = curatedFromSlug(section);
   if (curated) {
+    // An outlet with nothing in it is not a section. Every link that led here is
+    // already gone; the listing itself goes too, rather than printing
+    // "Outlet hasta -50 %" over nothing.
+    if (curated === "outlet" && !hasOutlet(catalog.products)) return null;
+
     const copy = {
       novedades: { eyebrow: t.plp.newEyebrow, title: t.plp.newTitle, blurb: t.plp.newBlurb },
       outlet: {

@@ -266,6 +266,9 @@ const en: Dictionary = {
     viewDetail: "Print detail",
     viewMonogram: "Monogram",
     viewPlain: "No print",
+    videoHeading: "Product video",
+    videoPlay: "Play the video",
+    videoPrivacy: "The external player only loads once you press play.",
     promiseShippingTitle: "Free shipping over €60",
     promiseShippingBody: "estimated delivery in 24–72 h.",
     promiseReturnsTitle: "30 days to return",
@@ -290,12 +293,43 @@ const en: Dictionary = {
     alsoLike: "You may also like",
   },
 
+  wall: {
+    cta: "See it on your wall",
+    ctaShort: "On your wall",
+    title: "On your wall",
+    canvasLabel: "Place the piece on your wall. Drag to move it, pinch to step closer.",
+    introTitle: "Hang it before you buy it",
+    introBody:
+      "We open the camera and put the piece on your wall at life size, so you can see whether it fits that space.",
+    privacy: "The picture never leaves your device: nothing is uploaded and nothing is stored.",
+    start: "Open the camera",
+    starting: "Opening the camera…",
+    deniedTitle: "No camera permission",
+    deniedBody:
+      "Your browser has blocked the camera. Allow it from the padlock in the address bar or in your browser settings, then try again.",
+    retry: "Try again",
+    unavailableTitle: "We cannot open the camera here",
+    unavailableBody:
+      "This device or browser will not let us use the camera. Try it on your phone — the framed preview on the product page works everywhere.",
+    hint: "Drag to move · pinch to step closer",
+    distance: "Distance to the wall",
+    recentre: "Recentre",
+    capture: "Take a photo",
+    disclaimer: "Size is a guide",
+    share: "Share",
+    shareText: "How does it look here?",
+    download: "Download",
+    retake: "Take another",
+    shotAlt: "Photo of your wall with the piece in place",
+  },
+
   cart: {
     taxBase: "Taxable amount",
     vat: "VAT",
     title: "Your basket",
     empty: "Your basket is empty",
     emptyBlurb: "Nothing in here yet. Start with the best sellers or take a look at the outlet.",
+    emptyBlurbNoOutlet: "Nothing in here yet. Start with the best sellers.",
     startShopping: "Start shopping",
     keepShopping: "Keep shopping",
     bestSellers: "Best sellers",
@@ -583,6 +617,17 @@ const en: Dictionary = {
     startShopping: "Start shopping",
   },
   admin: {
+    video: {
+      title: "Video",
+      blurb:
+        "Optional, and unnecessary for most products. With no link the product page shows no video area at all — there is no empty slot left behind.",
+      url: "Video address",
+      urlHint:
+        "Must start with https://. A YouTube or Vimeo page works, as does a direct link to an .mp4, .webm or .mov file hosted anywhere. The video itself is not uploaded here.",
+      caption: "Video description",
+      captionHint:
+        "Caption under the player: what it shows, where it was filmed. Left empty it is not shown, and removing the link removes it too.",
+    },
     frame: {
       title: "Framed view",
       blurb:
@@ -592,6 +637,12 @@ const en: Dictionary = {
       noFinishes: "With no finish ticked the view will not be shown.",
       mount: "Mount width",
       mountHint: "Percentage of the frame width. Between 8 and 14 % is usual.",
+      size: "Print measurements",
+      height: "Height",
+      sizeHint:
+        "Width and height of the printed paper, frame and mount excluded. This is the scale the camera view hangs the piece at.",
+      landscape: "Will be drawn landscape.",
+      portrait: "Will be drawn portrait.",
       preview: "How it will look",
     },
     shop: {

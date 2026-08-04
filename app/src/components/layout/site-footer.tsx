@@ -13,6 +13,8 @@ import {
   YoutubeIcon,
 } from "@/components/icons";
 import { Newsletter } from "@/components/layout/newsletter";
+import { hasOutlet } from "@/lib/catalog";
+import { getCatalog } from "@/lib/db/catalog";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { href } from "@/lib/i18n/routes";
@@ -30,8 +32,10 @@ const SOCIALS = [
 const PAYMENTS = ["Visa", "Mastercard", "Amex", "PayPal", "Bizum", "Apple Pay", "Klarna"];
 
 export async function SiteFooter({ locale }: { locale: Locale }) {
-  const t = await getDictionary(locale);
-  const columns = buildFooterColumns(locale, t);
+  // The catalogue is only read to know whether there is an outlet to link to.
+  // `getCatalog` is request-cached, so this shares the header's round trip.
+  const [t, catalog] = await Promise.all([getDictionary(locale), getCatalog(locale)]);
+  const columns = buildFooterColumns(locale, t, { outlet: hasOutlet(catalog.products) });
   const legal = buildLegalLinks(locale, t);
 
   const guarantees = [

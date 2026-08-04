@@ -22,7 +22,12 @@ import { formatPrice } from "@/lib/utils";
 
 const PAYMENTS = ["Visa", "Mastercard", "Amex", "PayPal", "Bizum", "Apple Pay"];
 
-export function CartView() {
+/**
+ * `outlet` says whether anything is discounted right now. The empty cart offers
+ * somewhere to go, and one of those places only exists when there is an outlet:
+ * both the button and the sentence that mentions it come out when there is not.
+ */
+export function CartView({ outlet }: { outlet: boolean }) {
   const { t, href, locale } = useI18n();
   const { lines, subtotal, shipping, total, count, setQty, remove, ready, freeShipping } =
     useCart();
@@ -36,14 +41,18 @@ export function CartView() {
       <div className="shell flex flex-col items-start gap-5 py-20">
         <BagIcon className="size-14 text-line" />
         <h1 className="text-4xl">{t.cart.empty}</h1>
-        <p className="max-w-md text-[0.9375rem] text-mute">{t.cart.emptyBlurb}</p>
+        <p className="max-w-md text-[0.9375rem] text-mute">
+          {outlet ? t.cart.emptyBlurb : t.cart.emptyBlurbNoOutlet}
+        </p>
         <div className="flex flex-wrap gap-3">
           <ButtonLink href={href("shop", curatedSlug("mas-vendido", locale))}>
             {t.cart.bestSellers}
           </ButtonLink>
-          <ButtonLink href={href("shop", curatedSlug("outlet", locale))} variant="outline">
-            {t.cart.viewOutlet}
-          </ButtonLink>
+          {outlet && (
+            <ButtonLink href={href("shop", curatedSlug("outlet", locale))} variant="outline">
+              {t.cart.viewOutlet}
+            </ButtonLink>
+          )}
         </div>
       </div>
     );

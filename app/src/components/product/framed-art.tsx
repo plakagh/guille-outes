@@ -21,50 +21,112 @@ import type { FrameFinish } from "@/lib/catalog";
  * with its container — a thumbnail and a full-size view use the same component.
  */
 
-type FinishStyle = {
-  /** The moulding face. */
-  background: string;
+export type FinishStyle = {
+  /**
+   * The moulding face, as diagonal gradient stops (percent, colour).
+   *
+   * Kept as data rather than as a finished CSS string because the camera view
+   * has to repaint the very same moulding into a `<canvas>` when it composes the
+   * photograph, and a canvas cannot read a CSS gradient. One table, two painters.
+   */
+  stops: [number, string][];
+  /** Wood only: the fine darker streaks laid over the gradient, on and off. */
+  grain?: [string, string];
   /** Outer highlight and inner shadow: the two edges that make it look solid. */
   outer: string;
   inner: string;
 };
 
-const FINISHES: Record<FrameFinish, FinishStyle> = {
+/**
+ * The moulding, as a percentage of the frame's own width. Exported because the
+ * wall view has to turn "50 cm of paper" into a number of pixels for the *whole*
+ * frame, and that conversion is only right if it uses the same number the CSS
+ * below paints with.
+ */
+export const MOULDING_PCT = 3.2;
+
+/** The wall margin around the frame in the standard rendering. */
+export const WALL_PCT = 7;
+
+/**
+ * How much wider the frame is than the artwork inside it, as a multiplier.
+ *
+ * Both paddings are percentages resolved against the width of the box they sit
+ * in, so each one shrinks what is left: the moulding takes its share of the
+ * outer box, and the mount takes its share of what the moulding leaves. Reading
+ * it backwards — from the art outwards — is what turns a printed size into the
+ * size the frame must be drawn at.
+ */
+export function framedWidthRatio(mount: number): number {
+  return 1 / ((1 - (2 * MOULDING_PCT) / 100) * (1 - (2 * mount) / 100));
+}
+
+export const FRAME_PAINT: Record<FrameFinish, FinishStyle> = {
   black: {
-    background: "linear-gradient(135deg, #2a2a2a 0%, #131313 45%, #232323 100%)",
+    stops: [
+      [0, "#2a2a2a"],
+      [45, "#131313"],
+      [100, "#232323"],
+    ],
     outer: "#3a3a3a",
     inner: "#050505",
   },
   white: {
-    background: "linear-gradient(135deg, #ffffff 0%, #eceae6 45%, #f7f6f3 100%)",
+    stops: [
+      [0, "#ffffff"],
+      [45, "#eceae6"],
+      [100, "#f7f6f3"],
+    ],
     outer: "#ffffff",
     inner: "#c9c6bf",
   },
   wood: {
-    // Grain: wide warm bands crossed by fine darker streaks.
-    background: [
-      "repeating-linear-gradient(92deg, rgba(90,58,28,0.16) 0 2px, rgba(90,58,28,0) 2px 9px)",
-      "linear-gradient(135deg, #c08a4f 0%, #9c6634 40%, #b47c45 70%, #8f5a2b 100%)",
-    ].join(", "),
+    stops: [
+      [0, "#c08a4f"],
+      [40, "#9c6634"],
+      [70, "#b47c45"],
+      [100, "#8f5a2b"],
+    ],
+    grain: ["rgba(90,58,28,0.16)", "rgba(90,58,28,0)"],
     outer: "#d3a06a",
     inner: "#5d3a1a",
   },
 };
 
+/** The moulding face as CSS: the diagonal gradient, and wood's grain over it. */
+export function mouldingBackground(style: FinishStyle): string {
+  const face = `linear-gradient(135deg, ${style.stops
+    .map(([at, color]) => `${color} ${at}%`)
+    .join(", ")})`;
+
+  if (!style.grain) return face;
+
+  // Grain: wide warm bands crossed by fine darker streaks.
+  const [on, off] = style.grain;
+  return `repeating-linear-gradient(92deg, ${on} 0 2px, ${off} 2px 9px), ${face}`;
+}
+
 export function FramedArt({
   finish,
   mount,
+  onWall = true,
   children,
   className,
 }: {
   finish: FrameFinish;
   /** Mount width as a percentage of the frame's width. */
   mount: number;
+  /**
+   * Draw the painted wall behind the frame. Off when there is a real wall to
+   * hang it on — the camera view supplies its own, and a grey rectangle floating
+   * over someone's living room is the one thing that would break the illusion.
+   */
+  onWall?: boolean;
   /** The artwork to frame. */
   children: ReactNode;
   className?: string;
 }) {
-  const style = FINISHES[finish] ?? FINISHES.black;
+  const style = FRAME_PAINT[finish] ?? FRAME_PAINT.black;
 
   return (
     // The wall. A soft radial keeps the frame from floating on flat colour, and
@@ -72,8 +134,10 @@ export function FramedArt({
     <div
       className={className}
       style={{
-        background: "radial-gradient(120% 100% at 50% 0%, #f3f1ee 0%, #e4e1dc 100%)",
-        padding: "7%",
+        background: onWall
+          ? "radial-gradient(120% 100% at 50% 0%, #f3f1ee 0%, #e4e1dc 100%)"
+          : undefined,
+        padding: onWall ? `${WALL_PCT}%` : undefined,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -86,8 +150,8 @@ export function FramedArt({
         data-frame-finish={finish}
         style={{
           // Moulding width, and the frame's own depth.
-          padding: "3.2%",
-          background: style.background,
+          padding: `${MOULDING_PCT}%`,
+          background: mouldingBackground(style),
           // Lengths only: a percentage anywhere in box-shadow makes the whole
           // declaration invalid, which silently drops every layer — including the
           // drop shadow that makes this read as an object on a wall.
@@ -145,15 +209,15 @@ export function FramedArt({
 }
 
 /** Swatch for the finish picker, using the same paint as the frame itself. */
-export function FrameSwatch({ finish }: { finish: FrameFinish }) {
-  const style = FINISHES[finish] ?? FINISHES.black;
+export function FrameSwatch({ finish, className }: { finish: FrameFinish; className?: string }) {
+  const style = FRAME_PAINT[finish] ?? FRAME_PAINT.black;
 
   return (
     <span
       aria-hidden="true"
-      className="block size-7"
+      className={className ?? "block size-7"}
       style={{
-        background: style.background,
+        background: mouldingBackground(style),
         boxShadow: `inset 0 0 0 1px ${style.inner}`,
         border: `1px solid ${style.outer}`,
       }}

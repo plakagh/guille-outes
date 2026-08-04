@@ -8,26 +8,50 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { PromoBar } from "@/components/layout/promo-bar";
 import { getPromoMessages } from "@/lib/db/settings";
 import { SearchField, type SearchIndexEntry } from "@/components/layout/search-field";
+import { hasOutlet } from "@/lib/catalog";
 import { getCatalog } from "@/lib/db/catalog";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { href } from "@/lib/i18n/routes";
+import { curatedSlug } from "@/lib/i18n/sections";
 import { helpSlug } from "@/lib/pages";
 import { buildNav } from "@/lib/nav";
 import { getViewer } from "@/lib/supabase/server";
+
+/**
+ * Does a promo message point at a given listing?
+ *
+ * Only the path is compared: a message may carry a query string or an anchor. A
+ * link written as a full `https://` address to our own domain will not match,
+ * which is the same shape the admin hint steers people away from.
+ */
+function pointsAt(link: string | null, path: string): boolean {
+  if (!link) return false;
+  return link.split(/[?#]/)[0].replace(/\/$/, "") === path.replace(/\/$/, "");
+}
 
 /**
  * Server component: it loads the catalogue and dictionary once and hands the
  * interactive pieces (menus, search, cart) the minimum they need as props.
  */
 export async function SiteHeader({ locale }: { locale: Locale }) {
-  const [t, catalog, viewer] = await Promise.all([
+  const [t, catalog, viewer, promos] = await Promise.all([
     getDictionary(locale),
     getCatalog(locale),
     getViewer(),
+    getPromoMessages(locale),
   ]);
 
   const nav = buildNav(locale, t, catalog);
+
+  // An announcement linking to the outlet is an outlet zone like any other: with
+  // nothing discounted it comes off the bar on its own, rather than needing
+  // someone to switch it off in the admin and remember to switch it back on.
+  const outlet = hasOutlet(catalog.products);
+  const outletPath = href(locale, "shop", curatedSlug("outlet", locale));
+  const messages = outlet
+    ? promos
+    : promos.filter((message) => !pointsAt(message.href, outletPath));
 
   // A slim index for the typeahead — enough to render a row, nothing more.
   const searchIndex: SearchIndexEntry[] = catalog.products.map((product) => ({
@@ -47,7 +71,7 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
 
   return (
     <header className="relative z-50">
-      <PromoBar locale={locale} t={t} messages={await getPromoMessages(locale)} />
+      <PromoBar locale={locale} t={t} messages={messages} />
 
       <div className="sticky top-0 z-50 bg-white shadow-[0_1px_0_var(--color-line)]">
         <div className="shell flex h-masthead items-center gap-3 md:gap-6">
