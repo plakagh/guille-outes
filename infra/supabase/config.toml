@@ -1,33 +1,81 @@
-project_id = "your-project-ref"
+project_id = "guille-outes"
 
 [api]
 enabled = true
-port = 54421
+port = 54521
 schemas = ["public", "storage", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-port = 54422
-shadow_port = 54420
+port = 54522
+shadow_port = 54520
 major_version = 15
 
 [studio]
 enabled = true
-port = 54423
+port = 54523
 
 [inbucket]
 enabled = true
-port = 54424
+port = 54524
+# Exposed so the app can send transactional mail (order confirmations, failed
+# payments) through Mailpit locally. Nothing leaves the machine.
+smtp_port = 54525
+pop3_port = 54526
 
 [auth]
 enabled = true
 site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://localhost:3000", "https://your-domain.com"]
+# The confirmation link lands on our own route, which then redirects into the app.
+additional_redirect_urls = [
+  "http://localhost:3000",
+  "http://localhost:3000/auth/confirm",
+  "http://localhost:3000/es/cuenta",
+  "http://localhost:3000/gl/conta",
+  "http://localhost:3000/en/account",
+  "https://your-domain.com",
+]
 jwt_expiry = 3600
 enable_signup = true
 
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
-enable_confirmations = false
+# New accounts must confirm their address before they can sign in. Locally the
+# mail is caught by Mailpit (see `pnpm db:urls`), nothing leaves the machine.
+enable_confirmations = true
+
+# Custom template so the link carries a token hash our /auth/confirm route can
+# verify server-side. The default {{ .ConfirmationURL }} returns the session in
+# the URL fragment, which server-rendered code cannot read.
+[auth.email.template.confirmation]
+subject = "Confirma tu correo · Guille Outes"
+content_path = "./supabase/templates/confirm-signup.html"
+
+[auth.email.template.recovery]
+subject = "Restablece tu contraseña · Guille Outes"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Tu enlace de acceso · Guille Outes"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.invite]
+subject = "Te invitamos a la tienda · Guille Outes"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.email_change]
+subject = "Confirma tu nuevo correo · Guille Outes"
+content_path = "./supabase/templates/email-change.html"
+
+# Local-only: the default 543xx ports collide with another Supabase project on
+# this machine, so the whole local stack is moved into the 545xx range.
+[analytics]
+enabled = true
+port = 54527
+vector_port = 54529
+
+[db.pooler]
+enabled = false
+port = 54529

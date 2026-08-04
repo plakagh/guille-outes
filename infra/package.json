@@ -6,12 +6,13 @@
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
 
-    "db:push": "supabase db push",
+    "db:push": "supabase migration up --local",
     "db:push:prod": "dotenv -e .env.local -- sh -c 'supabase db push --db-url $PROD_DB_URL'",
     "db:reset": "supabase db reset",
     "db:diff": "supabase db diff",
     "db:new-migration": "supabase migration new",
 
+    "seed:generate": "node scripts/generate-seed.mjs",
     "seed": "dotenv -e .env.local -- sh -c 'psql $SUPABASE_DB_URL < supabase/seed.sql'",
 
     "studio": "supabase studio",

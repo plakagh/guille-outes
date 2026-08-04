@@ -47,12 +47,14 @@ Anon keys, API URLs, and other connection details needed by the **app** belong i
 
 ### 1. Set the project ID
 
-Open `supabase/config.toml` and set `project_id` to a short slug for your project (e.g. `acme`).
-This is used by the Supabase CLI to name local Docker containers and the local network — it must be set before the first `supabase start`.
+`supabase/config.toml` already sets this:
 
 ```toml
-project_id = "your-project"
+project_id = "guille-outes"
 ```
+
+The Supabase CLI uses it to name the local Docker containers and network. It must be set
+before the first `supabase start`.
 
 ### 2. Install dependencies
 
@@ -80,19 +82,28 @@ On first run it pulls images — this takes a few minutes.
 Once running, the CLI prints your local credentials:
 
 ```
-API URL: http://localhost:54421
-DB URL:  postgresql://postgres:postgres@localhost:54422/postgres
-Studio:  http://localhost:54423
-Anon key:         eyJ...
-Service role key: eyJ...
+API URL: http://localhost:54521
+DB URL:  postgresql://postgres:postgres@localhost:54522/postgres
+Studio:  http://localhost:54523
+Publishable key: sb_publishable_...
+Secret key:      sb_secret_...
 ```
 
-Copy the `anon key` and `service role key` into your **app's** `.env.local` (e.g. `app/.env.local`):
+> **Ports.** This project uses the **545xx** range, not the template's default 543xx/544xx,
+> because another local Supabase project on the development machine already holds those.
+> The full range lives in `supabase/config.toml`; local analytics ports were moved too.
+> If you clone this onto a clean machine you can move them back.
+
+Copy **only the publishable key** into `app/.env.local`:
 
 ```dotenv
-SUPABASE_URL=http://localhost:54421
-SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54521
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 ```
+
+> The **secret / service-role key must never reach `app/`**. It bypasses Row Level Security,
+> which is the only thing protecting the catalogue. Use it from a terminal for
+> administrative one-offs (e.g. creating the first user), and nowhere else.
 
 ### 5. Apply migrations
 
@@ -103,10 +114,10 @@ pnpm db:push
 ### 6. Open Studio
 
 ```bash
-pnpm studio        # opens http://localhost:54423
+pnpm studio        # opens http://localhost:54523
 ```
 
-Or navigate directly to [http://localhost:54423](http://localhost:54423).
+Or navigate directly to [http://localhost:54523](http://localhost:54523).
 
 ### 7. Stop the stack
 
@@ -123,8 +134,8 @@ pnpm supabase:stop
 pnpm db:new-migration your-migration-name
 # → edit the generated SQL in supabase/migrations/
 
-# Apply pending migrations to local DB
-pnpm db:push
+# Apply pending migrations to the local DB
+pnpm db:push          # = supabase migration up --local
 
 # Diff local schema against migrations (useful to check drift)
 pnpm db:diff
@@ -145,7 +156,7 @@ pnpm db:push:prod   # reads PROD_DB_URL from .env.local
 | `pnpm supabase:start` | Start local Supabase stack |
 | `pnpm supabase:stop` | Stop local Supabase stack |
 | `pnpm supabase:status` | Show status and local credentials |
-| `pnpm db:push` | Apply pending migrations (local) |
+| `pnpm db:push` | Apply pending migrations to the local DB (`migration up --local`) |
 | `pnpm db:push:prod` | Apply pending migrations (production) |
 | `pnpm db:reset` | Reset local DB and re-apply all migrations |
 | `pnpm db:diff` | Diff local schema against migrations |
@@ -348,6 +359,12 @@ gunzip -c /var/backups/db_YYYYMMDD_HHMMSS.dump.gz \
 
 - **Postgres is never exposed to the internet** — port 5432 is localhost-only inside Docker.
 - **Studio is never exposed to the internet** — access only via SSH tunnel.
-- **RLS should be enabled on all application tables** — the template ships with no migrations, so this is your responsibility.
+- **RLS is enabled on every application table** — see `supabase/migrations/`. Reads are
+  public but limited to published rows; every write requires `public.is_admin()`.
+- **`profiles.is_admin` cannot be set by the account itself** — column-level privileges plus
+  a trigger. Flip it as `postgres` (Studio or psql). The reasoning, including two bugs found
+  and fixed while building it, is commented in `20260804120000_profiles_and_roles.sql`.
+- **No service-role key reaches the client app** — `app/` only ever holds the publishable
+  key, so Row Level Security has no bypass path.
 - **No secrets live in the repo** — `docker/.env` is gitignored and generated on the server during setup.
 - **Production data** lives in the data directory on the server (outside the repo), not tracked by git.
