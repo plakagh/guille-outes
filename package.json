@@ -1,0 +1,26 @@
+{
+  "name": "guille-outes",
+  "private": true,
+  "description": "Guille Outes — self-hosted Supabase + trilingual storefront",
+  "scripts": {
+    "dev:all": "bash scripts/dev.sh",
+    "dev:fresh": "bash scripts/dev.sh --fresh",
+    "dev": "pnpm --dir app dev",
+
+    "db:start": "supabase --workdir infra start",
+    "db:stop": "supabase --workdir infra stop",
+    "db:status": "supabase --workdir infra status",
+    "db:migrate": "supabase --workdir infra migration up --local",
+    "db:reset": "supabase --workdir infra db reset",
+    "db:seed": "pnpm --dir infra seed",
+    "db:seed:generate": "pnpm --dir infra seed:generate",
+    "db:urls": "supabase --workdir infra status",
+
+    "stop:all": "supabase --workdir infra stop",
+
+    "build": "pnpm --dir app build",
+    "lint": "pnpm --dir app lint",
+    "test": "pnpm --dir app test",
+    "check": "pnpm --dir app lint && pnpm --dir app test && pnpm --dir app build"
+  }
+}
