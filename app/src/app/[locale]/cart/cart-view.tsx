@@ -1,0 +1,235 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { ProductArt } from "@/components/brand/product-art";
+import { useCart } from "@/components/cart/cart-context";
+import { useI18n } from "@/components/i18n/provider";
+import {
+  BagIcon,
+  CloseIcon,
+  MinusIcon,
+  PaymentMark,
+  PlusIcon,
+  ShieldIcon,
+  TruckIcon,
+} from "@/components/icons";
+import { Breadcrumbs } from "@/components/ui/bits";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { curatedSlug } from "@/lib/i18n/sections";
+import { VatLines } from "@/components/cart/vat-lines";
+import { formatPrice } from "@/lib/utils";
+
+const PAYMENTS = ["Visa", "Mastercard", "Amex", "PayPal", "Bizum", "Apple Pay"];
+
+export function CartView() {
+  const { t, href, locale } = useI18n();
+  const { lines, subtotal, shipping, total, count, setQty, remove, ready, freeShipping } =
+    useCart();
+  const [code, setCode] = useState("");
+  const [codeState, setCodeState] = useState<"idle" | "invalid">("idle");
+
+  if (!ready) return <div className="shell py-20" aria-busy="true" />;
+
+  if (lines.length === 0) {
+    return (
+      <div className="shell flex flex-col items-start gap-5 py-20">
+        <BagIcon className="size-14 text-line" />
+        <h1 className="text-4xl">{t.cart.empty}</h1>
+        <p className="max-w-md text-[0.9375rem] text-mute">{t.cart.emptyBlurb}</p>
+        <div className="flex flex-wrap gap-3">
+          <ButtonLink href={href("shop", curatedSlug("mas-vendido", locale))}>
+            {t.cart.bestSellers}
+          </ButtonLink>
+          <ButtonLink href={href("shop", curatedSlug("outlet", locale))} variant="outline">
+            {t.cart.viewOutlet}
+          </ButtonLink>
+        </div>
+      </div>
+    );
+  }
+
+  const { missing } = freeShipping;
+
+  return (
+    <div className="shell py-6 lg:py-10">
+      <Breadcrumbs
+        label={t.plp.breadcrumbHome}
+        trail={[{ label: t.plp.breadcrumbHome, href: href() }, { label: t.cart.title }]}
+        className="mb-4"
+      />
+
+      <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[0.9]">
+        {t.cart.title}{" "}
+        <span className="font-sans text-[0.9375rem] font-normal normal-case tracking-normal text-mute">
+          ({count} {count === 1 ? t.plp.item : t.plp.items})
+        </span>
+      </h1>
+
+      <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-14">
+        {/* Lines */}
+        <div>
+          <ul className="divide-y divide-line border-y border-line">
+            {lines.map((line) => (
+              <li key={line.key} className="flex gap-4 py-5">
+                <Link
+                  href={href("product", line.slug)}
+                  className="size-24 shrink-0 bg-shell sm:size-32"
+                >
+                  <ProductArt shape={line.shape} colorway={line.colorway} print={line.print} />
+                </Link>
+
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <Link
+                        href={href("product", line.slug)}
+                        className="block text-[0.9375rem] font-semibold leading-snug hover:underline"
+                      >
+                        {line.name}
+                      </Link>
+                      <p className="mt-1 text-[0.8125rem] text-mute">
+                        {line.colorway.name} · {t.cart.size} {line.size} · {t.pdp.ref} {line.ref}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => remove(line.key)}
+                      aria-label={`${t.common.remove}: ${line.name}`}
+                      className="grid size-8 shrink-0 place-items-center text-mute transition hover:text-flame"
+                    >
+                      <CloseIcon className="size-4" />
+                    </button>
+                  </div>
+
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center border border-line">
+                      <button
+                        type="button"
+                        onClick={() => setQty(line.key, line.qty - 1)}
+                        aria-label={t.pdp.decreaseQty}
+                        className="grid size-10 place-items-center hover:bg-shell"
+                      >
+                        <MinusIcon className="size-4" />
+                      </button>
+                      <span className="w-9 text-center text-[0.875rem] font-semibold">
+                        {line.qty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQty(line.key, line.qty + 1)}
+                        aria-label={t.pdp.increaseQty}
+                        disabled={line.qty >= 10}
+                        className="grid size-10 place-items-center hover:bg-shell disabled:opacity-30"
+                      >
+                        <PlusIcon className="size-4" />
+                      </button>
+                    </div>
+
+                    <p className="text-[1.0625rem] font-semibold">{formatPrice(line.lineTotal)}</p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <Link
+            href={href("shop")}
+            className="mt-5 inline-block text-[0.875rem] underline hover:text-flame"
+          >
+            {t.cart.keepShopping}
+          </Link>
+        </div>
+
+        {/* Summary */}
+        <aside className="lg:sticky lg:top-[calc(var(--spacing-masthead)+var(--spacing-navbar)+1.5rem)] lg:self-start">
+          <div className="border border-line p-5">
+            <h2 className="text-xl">{t.cart.summary}</h2>
+
+            <dl className="mt-4 space-y-2 text-[0.875rem]">
+              <div className="flex justify-between">
+                <dt className="text-mute">{t.cart.subtotal}</dt>
+                <dd className="font-semibold">{formatPrice(subtotal)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-mute">{t.cart.shipping}</dt>
+                <dd className="font-semibold">
+                  {shipping === 0 ? t.cart.free : formatPrice(shipping)}
+                </dd>
+              </div>
+              <div className="flex justify-between border-t border-line pt-3 text-lg">
+                <dt className="font-display font-bold uppercase">{t.cart.total}</dt>
+                <dd className="font-bold">{formatPrice(total)}</dd>
+              </div>
+              {/* The split of that total, not an addition to it. */}
+              <div className="space-y-2 border-t border-line-soft pt-2 text-[0.8125rem]">
+                <VatLines grossCents={total} t={t} />
+              </div>
+            </dl>
+
+            <p className="mt-1 text-[0.75rem] text-mute">{t.common.vatIncluded}</p>
+
+            {missing > 0 && (
+              <p className="mt-4 flex items-start gap-2 bg-shell p-3 text-[0.8125rem]">
+                <TruckIcon className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  {t.cart.addMore} <span className="font-semibold">{formatPrice(missing)}</span>{" "}
+                  {t.cart.andShippingFree}
+                </span>
+              </p>
+            )}
+
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                setCodeState("invalid");
+              }}
+              className="mt-5"
+            >
+              <label htmlFor="promo" className="eyebrow mb-2 block text-mute">
+                {t.cart.promoCode}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="promo"
+                  value={code}
+                  onChange={(event) => {
+                    setCode(event.target.value);
+                    setCodeState("idle");
+                  }}
+                  placeholder="BIENVENIDA10"
+                  className="h-11 min-w-0 flex-1 border border-line px-3 text-[0.875rem] outline-none transition focus:border-ink"
+                />
+                <Button type="submit" variant="outline" size="sm" className="h-11 px-4">
+                  {t.cart.apply}
+                </Button>
+              </div>
+              {codeState === "invalid" && (
+                <p role="alert" className="mt-2 text-[0.8125rem] text-flame">
+                  {t.cart.invalidCode}
+                </p>
+              )}
+            </form>
+
+            <ButtonLink href={href("checkout")} block size="lg" className="mt-5">
+              {t.cart.goToPay}
+            </ButtonLink>
+
+            <p className="mt-3 flex items-start gap-2 text-[0.75rem] leading-relaxed text-mute">
+              <ShieldIcon className="mt-0.5 size-4 shrink-0" />
+              {t.cart.securePayment}
+            </p>
+
+            <ul className="mt-4 flex flex-wrap gap-1.5">
+              {PAYMENTS.map((label) => (
+                <li key={label} className="[&_span]:border-line">
+                  <PaymentMark label={label} tone="#4a4a4a" />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}

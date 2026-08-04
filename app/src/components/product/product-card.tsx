@@ -1,0 +1,124 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { useWishlist } from "@/components/account/wishlist-provider";
+import { ProductArt } from "@/components/brand/product-art";
+import { useI18n } from "@/components/i18n/provider";
+import { HeartIcon } from "@/components/icons";
+import { Badge, Price, Stars, Swatch } from "@/components/ui/bits";
+import { inStock, isNew, onSale, type Product } from "@/lib/catalog";
+import { cn, discountPercent } from "@/lib/utils";
+
+export function ProductCard({
+  product,
+  collectionName,
+  className,
+}: {
+  product: Product;
+  /** Passed in by the parent so the card never has to query the catalogue. */
+  collectionName?: string;
+  className?: string;
+}) {
+  const { t, href } = useI18n();
+  const wishlist = useWishlist();
+  const [activeColor, setActiveColor] = useState(0);
+  const wished = wishlist.has(product.id);
+
+  const colorway = product.colorways[activeColor] ?? product.colorways[0];
+  const available = inStock(product);
+  const reduced = onSale(product);
+  const productHref = href("product", product.slug);
+
+  return (
+    <article className={cn("group relative flex flex-col", className)}>
+      {/* Art tile */}
+      <div className="relative aspect-[5/6] overflow-hidden bg-shell">
+        <Link href={productHref} className="block h-full w-full" tabIndex={-1}>
+          <div className="h-full w-full transition-transform duration-500 ease-[var(--ease-out-quint)] group-hover:scale-[1.04]">
+            <ProductArt shape={product.shape} colorway={colorway} print={product.print} />
+          </div>
+        </Link>
+
+        <div className="pointer-events-none absolute left-0 top-0 flex flex-col items-start gap-1 p-2.5">
+          {reduced && product.compareAt !== undefined && (
+            <Badge tone="sale">{discountPercent(product.price, product.compareAt)} %</Badge>
+          )}
+          {isNew(product) && !reduced && <Badge tone="new">{t.card.new}</Badge>}
+          {product.exclusive && <Badge tone="limited">{t.card.limited}</Badge>}
+          {!available && <Badge tone="soldout">{t.card.soldOut}</Badge>}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => wishlist.toggle(product.id)}
+          aria-label={
+            wishlist.signedIn
+              ? wished
+                ? t.card.removeFromWishlist
+                : t.card.addToWishlist
+              : t.account.signInToSave
+          }
+          aria-pressed={wished}
+          className="absolute right-2 top-2 z-20 grid size-9 place-items-center bg-white/85 text-ink backdrop-blur transition hover:bg-white"
+        >
+          <HeartIcon className="size-[1.15rem]" filled={wished} />
+        </button>
+
+        {/* Colour picker sits on the tile */}
+        {product.colorways.length > 1 && (
+          <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-1.5 bg-gradient-to-t from-black/10 to-transparent p-2.5 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100">
+            {product.colorways.slice(0, 5).map((c, i) => (
+              <button
+                key={c.id}
+                type="button"
+                onMouseEnter={() => setActiveColor(i)}
+                onFocus={() => setActiveColor(i)}
+                onClick={() => setActiveColor(i)}
+                aria-label={`${t.card.viewIn} ${c.name}`}
+                aria-pressed={i === activeColor}
+                className={cn(
+                  "grid size-6 place-items-center bg-white/90 ring-1 ring-inset transition",
+                  i === activeColor ? "ring-ink" : "ring-transparent hover:ring-line",
+                )}
+              >
+                <Swatch base={c.base} trim={c.trim} className="size-3.5" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Copy */}
+      <div className="flex flex-1 flex-col gap-1.5 pt-3">
+        {collectionName && <p className="eyebrow text-mute">{collectionName}</p>}
+
+        <h3 className="font-sans text-[0.9375rem] font-semibold normal-case leading-snug tracking-normal">
+          <Link href={productHref} className="hover:underline">
+            {/* Full-tile hit area without nesting interactive elements */}
+            <span className="absolute inset-0 z-10" aria-hidden="true" />
+            {product.name}
+          </Link>
+        </h3>
+
+        {product.reviews > 0 && (
+          <Stars rating={product.rating} reviews={product.reviews} label={t.pdp.outOf5} />
+        )}
+
+        <Price price={product.price} compareAt={product.compareAt} className="mt-auto pt-1" />
+
+        <p className="text-[0.75rem] text-mute">
+          {product.colorways.length === 1
+            ? colorway.name
+            : `${product.colorways.length} ${t.common.colors}`}
+        </p>
+
+        {product.credits.length > 0 && (
+          <p className="truncate text-[0.75rem] text-mute-soft">
+            {product.credits.map((credit) => credit.name).join(" · ")}
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}

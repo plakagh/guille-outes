@@ -1,0 +1,186 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { getCatalog } from "@/lib/db/catalog";
+import { getShippingSettings } from "@/lib/db/settings";
+import { isLocale, type Locale } from "@/lib/i18n/config";
+import { href } from "@/lib/i18n/routes";
+import { createClient, getUser } from "@/lib/supabase/server";
+import { stockFor } from "@/lib/catalog";
+import { isShippingMethod, shippingCost } from "@/lib/shipping";
+import { VAT_RATE } from "@/lib/tax";
+
+/**
+ * Order creation.
+ *
+ * The browser sends *what the shopper chose*, never what it costs. Every price,
+ * every stock level and the shipping charge are recomputed here from the
+ * database, so a tampered localStorage cart or a crafted POST cannot change what
+ * gets charged — which matters doubly because the amount is what we sign and
+ * hand to the bank.
+ */
+
+export type CheckoutLineInput = {
+  slug: string;
+  size: string;
+  colorwayId: string;
+  qty: number;
+};
+
+export type CheckoutState = {
+  error?: "empty" | "out_of_stock" | "invalid" | "not_signed_in" | "unknown";
+  /** Which line failed, so the UI can point at it. */
+  detail?: string;
+};
+
+function text(form: FormData, key: string): string {
+  const value = form.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/** Cart lines arrive as JSON in a hidden field, then get validated here. */
+function parseLines(raw: string): CheckoutLineInput[] {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((item) => {
+      if (typeof item !== "object" || item === null) return [];
+      const line = item as Partial<CheckoutLineInput>;
+      if (
+        typeof line.slug !== "string" ||
+        typeof line.size !== "string" ||
+        typeof line.colorwayId !== "string" ||
+        !Number.isFinite(line.qty)
+      ) {
+        return [];
+      }
+      // Clamp rather than trust: the same ceiling the UI enforces.
+      const qty = Math.min(10, Math.max(1, Math.floor(Number(line.qty))));
+      return [{ slug: line.slug, size: line.size, colorwayId: line.colorwayId, qty }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function placeOrder(
+  _previous: CheckoutState,
+  form: FormData,
+): Promise<CheckoutState> {
+  const rawLocale = text(form, "locale");
+  const locale: Locale = isLocale(rawLocale) ? rawLocale : "es";
+
+  const user = await getUser();
+  // Guest checkout would need its own RLS path; for now an account is required.
+  if (!user) return { error: "not_signed_in" };
+
+  const lines = parseLines(text(form, "lines"));
+  if (lines.length === 0) return { error: "empty" };
+
+  const email = text(form, "email");
+  const shipName = `${text(form, "firstName")} ${text(form, "lastName")}`.trim();
+  const line1 = text(form, "address");
+  const postcode = text(form, "postcode");
+  const city = text(form, "city");
+  const province = text(form, "province");
+
+  if (!email || !shipName || !line1 || !postcode || !city || !province) {
+    return { error: "invalid" };
+  }
+
+  const shippingMethod = text(form, "shipping") || "standard";
+  if (!isShippingMethod(shippingMethod)) return { error: "invalid" };
+
+  // Rates come from the database, not from the request and not from a constant:
+  // this is the same row the checkout quoted from, so the total shown is the total
+  // charged. A method the shop has switched off is refused even if the form still
+  // offers it — a stale tab must not be able to buy a withdrawn service.
+  const shippingSettings = await getShippingSettings();
+  if (!shippingSettings.enabled[shippingMethod]) return { error: "invalid" };
+
+  // Re-price from the catalogue. This is the authoritative amount.
+  const catalog = await getCatalog(locale);
+  let subtotal = 0;
+  const items: {
+    product_id: string;
+    variant_id: string | null;
+    name: string;
+    ref: string;
+    size: string;
+    colorway_id: string;
+    unit_price_cents: number;
+    qty: number;
+  }[] = [];
+
+  for (const line of lines) {
+    const product = catalog.products.find((candidate) => candidate.slug === line.slug);
+    if (!product) return { error: "invalid", detail: line.slug };
+
+    const available = stockFor(product, line.size, line.colorwayId);
+    if (available < line.qty) {
+      return { error: "out_of_stock", detail: `${product.name} · ${line.size}` };
+    }
+
+    const variant = product.variants.find(
+      (candidate) => candidate.size === line.size && candidate.colorwayId === line.colorwayId,
+    );
+
+    subtotal += product.price * line.qty;
+    items.push({
+      product_id: product.id,
+      variant_id: variant?.id ?? null,
+      name: product.name,
+      ref: product.ref,
+      size: line.size,
+      colorway_id: line.colorwayId,
+      unit_price_cents: product.price,
+      qty: line.qty,
+    });
+  }
+
+  const shipping = shippingCost(subtotal, shippingMethod, shippingSettings);
+
+  const supabase = await createClient();
+
+  // `order_ref` is generated by a database default (a zero-padded sequence), so
+  // it is unique per merchant without a round trip to check.
+  const { data: order, error } = await supabase
+    .from("orders")
+    .insert({
+      user_id: user.id,
+      email,
+      phone: text(form, "tel") || null,
+      locale,
+      amount_cents: subtotal + shipping,
+      shipping_cents: shipping,
+      // Recorded per order, so a future rate change never rewrites this invoice.
+      vat_rate: VAT_RATE,
+      ship_name: shipName,
+      ship_line1: line1,
+      ship_line2: text(form, "addressExtra") || null,
+      ship_postcode: postcode,
+      ship_city: city,
+      ship_province: province,
+      shipping_method: shippingMethod,
+    })
+    .select("id, order_ref")
+    .single();
+
+  if (error || !order) {
+    console.error("placeOrder: could not insert order", error);
+    return { error: "unknown", detail: error?.message };
+  }
+
+  const created = order as { id: string; order_ref: string };
+
+  const { error: itemsError } = await supabase
+    .from("order_items")
+    .insert(items.map((item) => ({ ...item, order_id: created.id })));
+
+  if (itemsError) {
+    console.error("placeOrder: could not insert order items", itemsError);
+    return { error: "unknown", detail: itemsError.message };
+  }
+
+  redirect(href(locale, "order", created.order_ref));
+}
