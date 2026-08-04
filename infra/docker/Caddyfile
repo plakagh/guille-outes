@@ -1,0 +1,14 @@
+{
+    email admin@your-domain.com
+}
+
+your-domain.com {
+    reverse_proxy /* frontend:3000
+}
+
+api.your-domain.com {
+    reverse_proxy /rest/*      kong:8000
+    reverse_proxy /auth/*      kong:8000
+    reverse_proxy /storage/*   kong:8000
+    reverse_proxy /realtime/*  kong:8000
+}

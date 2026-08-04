@@ -1,0 +1,24 @@
+{
+  "name": "your-project-infra",
+  "private": true,
+  "scripts": {
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+
+    "db:push": "supabase db push",
+    "db:push:prod": "dotenv -e .env.local -- sh -c 'supabase db push --db-url $PROD_DB_URL'",
+    "db:reset": "supabase db reset",
+    "db:diff": "supabase db diff",
+    "db:new-migration": "supabase migration new",
+
+    "seed": "dotenv -e .env.local -- sh -c 'psql $SUPABASE_DB_URL < supabase/seed.sql'",
+
+    "studio": "supabase studio",
+    "logs": "supabase logs"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^7.4.2",
+    "supabase": "^1.200.0"
+  }
+}
