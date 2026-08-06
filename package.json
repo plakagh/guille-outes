@@ -5,6 +5,7 @@
   "scripts": {
     "dev:all": "bash scripts/dev.sh",
     "dev:fresh": "bash scripts/dev.sh --fresh",
+    "dev:clean": "rm -rf app/.next && bash scripts/dev.sh",
     "dev": "pnpm --dir app dev",
 
     "db:start": "supabase --workdir infra start",

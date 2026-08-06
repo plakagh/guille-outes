@@ -40,6 +40,17 @@ all in three languages.
 > template's default `543xx` range was already taken by another Supabase project on
 > the development machine. See `infra/supabase/config.toml`.
 
+> **A hydration error describing markup you do not recognise is a stale bundle.**
+> Turbopack keeps its dev cache in `app/.next` across checkouts, so switching
+> branches (or reloading a tab that is holding older chunks) can leave the browser
+> running one revision of a component while the server renders another. React
+> reports it as a genuine mismatch — the diff it prints is real, it is just two
+> different versions of your own file. It surfaced once as a `product-card.tsx`
+> diff whose "client" class list was the outer and inner `<div>` of the colour
+> strip spliced into one, which is exactly how that component looked before the
+> wall-view change. `pnpm dev:clean` deletes the cache and brings the stack back
+> up; a hard reload finishes the job.
+
 > **Always go through `pnpm db:*`.** The Supabase project lives in `infra/`, and the
 > root scripts pass `--workdir infra`. Running the CLI by hand from the repo root
 > instead resolves the *linked remote* project — `supabase migration up --local` there
@@ -60,7 +71,7 @@ grant catalogue access.
 | `/{locale}/acceder` · `login` | Sign in |
 | `/{locale}/cuenta` · `conta` · `account` | Account area, tabbed |
 
-The account area has four tabs:
+The account area has five tabs:
 
 - **My details** — edit the display name. The email is shown read-only because it belongs to
   the auth service, and `full_name` is the *only* profile column the `authenticated` role is
@@ -68,6 +79,9 @@ The account area has four tabs:
 - **Wishlist** — persisted per account in `wishlist_items`. The heart on any product card or
   PDP writes straight to the database; signed-out visitors are sent to sign in and returned
   to the page they came from. The header heart carries a live count.
+- **My drawings** — everything this account has published to the children's gallery,
+  including what it has taken back down: hidden rows come back through the "read own"
+  policy, so withdrawing a drawing never means losing sight of it.
 - **Orders** — the account's own orders from `orders` / `order_items`, each linking to its
   summary page with the payment state and the IVA breakdown.
 - **Addresses** — `customer_addresses`, with one default enforced by a partial unique index.
@@ -117,7 +131,7 @@ is locale-prefixed, which is what makes each language independently indexable.
 | Layer | Where it lives | Example |
 |---|---|---|
 | Route segments | [src/lib/i18n/routes.ts](src/lib/i18n/routes.ts) | `/es/tienda` · `/gl/tenda` · `/en/shop` |
-| Entity slugs | `slug` JSONB column per row | `/es/producto/camiseta-hardwood-94` · `/en/product/hardwood-94-tee` |
+| Entity slugs | `slug` JSONB column per row | `/es/producto/camiseta-archivo-94` · `/en/product/archive-94-tee` |
 
 Folder names under `src/app/[locale]/` are canonical English ids (`shop`, `product`, …);
 the proxy rewrites the localised public path onto them, so routes stay statically typed
@@ -289,6 +303,82 @@ there is no reason for an admin to need one.
 
 ---
 
+## Discount codes
+
+The cart has had a "código promocional" box since the first build, and until now it
+always answered *that code is not valid*. It works: `/{locale}/admin/discounts`
+creates them, the box in the cart and at the checkout applies them, and the payment
+callback is what counts them as spent.
+
+**What a code can be.** A percentage (with an optional ceiling — "20 %, up to 15 €"),
+a fixed amount, or free delivery. Scoped to the whole catalogue, to one collection or
+to one category. With a minimum order, a start, an end, a total number of uses, a
+number of uses per customer, first-order-only, and a switch to keep it from stacking
+on top of the outlet. Every limit is optional, and blank means unlimited: a permanent
+"students get 10 %" is expressed by leaving the boxes empty rather than by typing a
+big number. **One code per order** — the `UNIQUE` on `discount_redemptions.order_id`
+is what enforces it.
+
+**Nobody may read the codes.** `discount_codes` has no select policy for the
+storefront at all — not for `anon`, not for a signed-in customer. A shop's live
+campaigns are commercially sensitive, and a readable table is a listing endpoint for
+anyone holding the public key. Instead there is one `SECURITY DEFINER` function,
+`discount_lookup(text)`, which answers about **one exact string** and returns nothing
+for a code that is unknown, misspelt or switched off. It cannot be used to search, to
+enumerate, or to learn that a near-miss exists.
+
+What it returns is the *rules*, plus the three counts only a privileged reader could
+compute (uses in total, uses by the caller, whether the caller has ever paid). The
+verdict is formed in [discounts.ts](src/lib/discounts.ts), because forming it needs
+the basket — which products, at which prices, in which categories.
+
+**One evaluator, three callers.** The cart, the checkout and `placeOrder` all run the
+same `evaluateDiscount`, for the same reason `shipping.ts` and `tax.ts` are neutral
+modules: if the figure on screen and the figure charged ever disagree, the shop has
+either lied to a customer or undercharged itself.
+
+**The code travels; the saving does not.** Only the string is posted at checkout, and
+only the string is kept in `localStorage`. `placeOrder` looks the code up and applies
+it again from scratch against the basket it is actually charging for — a tab left open
+through the end of a campaign is refused at the till rather than honoured on a stale
+quote, and a discount invented in the browser is not a discount. A code that has
+stopped working **stops the order** rather than quietly charging full price: being
+taken to the bank for more than the page said is the one outcome worse than being
+told to try again.
+
+**A code is spent when somebody pays with it.** `discount_redemptions` is written by
+the Redsys callback, never at checkout, and `service_role` is the only role that may
+insert. So an abandoned basket does not take the last slot on a limited campaign, and
+"used 47 times" in the admin panel means forty-seven sales. The cost is a small race —
+two shoppers can both be told a last-remaining code is valid — and the callback
+resolves it by recording both: the limits were checked when the order was placed, the
+card has since been charged, and telling the bank otherwise is not on the table.
+
+**Waived delivery is a discount, not a free shipping line.** A free-delivery code
+leaves `shipping_cents` at the quoted rate and puts the waived amount into
+`discount_cents`, so the summary reads *Envío 4,95 € / Descuento −4,95 €*, the lines
+add up to the total exactly, and the shop can see what a free-delivery campaign
+actually cost. Zeroing the shipping line instead would make it look free to run.
+
+**The order still has to be payable.** Redsys cannot process a zero charge and there
+is no free-order path that skips the bank, so a code generous enough to clear the
+basket is applied up to a 50-cent floor and no further (`MIN_PAYABLE_CENTS`). It bites
+only in the pathological case — 100 % off with free collection — and the shopper is
+always shown the figure that is really coming off.
+
+**Refusals get their own sentence.** "You have already used this one", "that campaign
+has ended", "spend 8 € more" and "no such code" send a shopper to very different
+places; collapsing them into *invalid* is how a shop generates support mail. The
+checks run code-first, basket-second, so nobody is told to spend more on a code that
+had expired anyway.
+
+Two columns carry it on the order: `discount_code` and `discount_cents`, snapshotted
+like the address and the line prices. The order page, the confirmation email and the
+account history read those, so a campaign that is later edited, paused or deleted
+never rewrites what a customer was given.
+
+---
+
 ## The outlet only exists when it exists
 
 The outlet is not a section anyone switches on: it is whatever happens to be
@@ -452,6 +542,277 @@ mounted only once asked for, which is what guarantees the recording light goes o
 
 ---
 
+## La galería de los peques (children's art gallery)
+
+At the fairs the shop goes to, the people who stay longest at the stand are
+children. This gives them somewhere to be: they photograph a drawing they
+brought, or paint one on a tablet at the stand, sign it with their own name, and
+it goes straight up on the site. From the drawing's own page, whoever is paying
+can order it printed on a t-shirt.
+
+Three routes: `/{locale}/galeria` · `galeria` · `gallery` is the wall,
+`/{locale}/galeria/taller` · `obradoiro` · `studio` is the painting tool, and
+`/{locale}/galeria/<slug>` is one drawing.
+
+### The author is a child; the publisher is an adult
+
+They are different people and they are different columns. `artworks.user_id` is
+the grown-up who pressed publish and who answers for the consent;
+`author_name` / `author_age` are the credit line.
+
+**Painting needs no account. Publishing does.** That is the single decision the
+rest of the design hangs off. A child at a stand should be drawing one tap after
+arriving, and nobody is going to fill in a sign-up form to do that — but putting
+a child's drawing and first name on a public, indexable page is not something an
+anonymous tablet gets to do on its own. So the studio is open to everybody, and
+the account is asked for at the moment the drawing would become public.
+
+The drawing is kept in `localStorage` across that round trip, and `?next=` brings
+the browser back to the studio. A child who loses their drawing to a login form
+does not make a second one.
+
+### Only a first name, and at most an age
+
+"Martina, 7 años" gives credit and lets a child find their own drawing again. It
+does not identify a particular child on a page Google will index. No surnames, no
+school, no contact details; the publisher's email is stored as evidence of the
+permission and is shown nowhere.
+
+The check on the name is a **word count, not a ban on spaces**. Refusing spaces
+would be the obvious rule and it would be wrong: "Ana María" and "José Luis" are
+single first names here, and a form that rejects them insults the child it is
+trying to credit. Three or more words is what gets refused — and refused, not
+truncated, because silently publishing "Martina García López" as "Martina" would
+be guessing at what a parent meant about their own child.
+
+### The consent travels with the drawing
+
+Not a boolean on the profile, and not a pointer at today's privacy notice. Each
+row in `artworks` carries the **exact wording that was on screen**, the document
+version and the locale, because Art. 7(1) puts the burden of proof on us and
+today's policy does not show what somebody agreed to on the day. It is recorded
+per drawing rather than once per account: consent to publish one drawing is not
+consent to publish the next one.
+
+`guardian_confirmed` is a column that can only ever be true — `not null`, a CHECK
+with no false branch, and no default to fall through. A drawing published without
+the box being ticked cannot exist as a row, and reading a `pg_dump` shows that
+about every drawing in the table.
+
+A matching row also goes into `user_consents` under a third kind, `gallery`,
+which is the trail that survives the drawing being deleted. It is a separate kind
+because consent must be specific and unbundled: agreeing to the conditions of
+sale is not agreeing to this.
+
+Withdrawal is one click on the drawing itself, and deletion is next to it —
+Art. 7(3) says withdrawing has to be as easy as consenting was.
+
+**The privacy notice covers this**, in its own section: that the gallery is
+public and indexable, that painting stores nothing server-side while publishing
+needs an adult's account, that under art. 7 LOPDGDD a child under fourteen
+consents through whoever holds parental authority, exactly which four things get
+published and which never do, how to withdraw, and the one carve-out — an image
+kept to print a shirt somebody paid for is contract performance, not continued
+publication. The processing table gained a row for it, and the terms of sale now
+name a printed drawing among the art. 103(c) exceptions to the right of
+withdrawal, since each one is made for that order. `LEGAL_VERSION` was bumped to
+`2026-08-05`, so consents recorded before and after are distinguishable — which
+is the whole reason that string exists.
+
+### Published immediately, retired afterwards
+
+There is no approval queue. A child who is told "it will appear in a few days"
+has been told nothing, and the account requirement is a far higher bar than an
+open upload box: every drawing has an identified adult behind it.
+
+Moderation is therefore retirement after the fact, at `/{locale}/admin/gallery`.
+Retiring sets `hidden_by_admin`, and the **owner's update policy refuses any row
+where that is true** — without it, "hide" would be a button the moderated party
+could press straight back. Deleting, on the other hand, stays available to the
+family whatever the shop has done: erasure is not moderation.
+
+Three states, and the admin counters keep them apart, because a family taking
+their own drawing down is not a moderation event:
+
+| | `status` | `hidden_by_admin` |
+|---|---|---|
+| On the wall | `published` | false |
+| Taken down by the family | `hidden` | false |
+| Withdrawn by the shop | `hidden` | true |
+
+A hidden drawing is not merely absent from the grid — it is unreadable with the
+anon key, the same rule the disabled promo messages get.
+
+### The studio
+
+A canvas, six tools (rotulador, lápiz, cera, spray, cubo, goma), four
+thicknesses, the palette, and five papers. No third-party library: the shop draws
+its own artwork everywhere else and this is no different.
+
+**The palette is the classic one, and the ordering is the point.** Columns are
+hues, rows are shades — light, full, dark — with a fourth row of neutrals that
+carries the greys, the browns and the skin tones, because children draw tree
+trunks, hair and their own faces. Finding "a darker green" means looking one row
+down from the green you already found. The first version was twenty-four colours
+in no particular order, which is fine for choosing *a* colour and useless for
+choosing *the* colour. Swatches sit flush so it reads as one palette rather than
+forty-odd buttons, the marker is drawn inside the chosen square in whichever of
+black or white shows up on it, and the colour in hand is shown beside the
+browser's own picker — a palette this size needs somewhere to answer "which one
+am I painting with?" without hunting for the marked square.
+
+A drawing is stored as **the list of things that were done to it**, never as a
+bitmap ([paint.ts](src/lib/gallery/paint.ts)). That one decision pays for itself
+three times:
+
+- **Undo is exact and free.** It drops the last operation and replays the rest.
+  The obvious alternative — a stack of `ImageData` snapshots — is 9 MB per step
+  on a 1500² canvas, which is a tablet running out of memory mid-drawing.
+- **The draft fits in `localStorage`.** A few hundred operations encode to
+  kilobytes; a PNG data URL does not reliably fit. Points go out as a flat
+  `[x, y, p, …]` array rounded to whole pixels — about a quarter of the bytes of
+  the obvious `{x, y, p}` objects, since the keys outweigh the numbers.
+- **Textured brushes stay put.** Crayon grain and spray mist are scattered
+  randomly, so replaying them needs the *same* random numbers. Hence a seed per
+  stroke and `mulberry32` rather than `Math.random()`, and hence
+  `strokePainter` being **resumable**: one implementation of what a crayon looks
+  like, called per pointer event while drawing and once per stroke on a redraw,
+  so the live drawing and the redraw cannot disagree.
+
+The fill tool is a scanline flood fill with a tolerance. The tolerance is not
+optional: every brush draws anti-aliased edges, so an exact-match fill would stop
+a pixel short everywhere and leave a halo around everything a child fills in.
+
+Details that are about a six-year-old at a table, not about canvas APIs:
+
+- **`touch-action: none`.** Without it the first stroke scrolls the drawing off
+  the screen, and there is no recovering that with a finger.
+- **Palm rejection.** Once a stylus has been seen, touches are ignored; children
+  rest their whole hand on the glass.
+- **Coalesced pointer events.** A stylus fires faster than the display refreshes
+  and the browser hands back what it skipped — the difference between a curve and
+  a polygon on a fast diagonal.
+- **A tap is a dot.** Children make a lot of them, and a stroke with one point has
+  no segment to draw.
+- **"Empezar de nuevo" is undoable**, because history is snapshots of the
+  operation *list* — cheap arrays of references. So it needs no confirmation
+  dialog, which a six-year-old would dismiss anyway.
+- **The draft is cleared when a drawing is published**, so the next child at the
+  stand does not find the previous one's work on the sheet.
+
+**Full screen is the sheet and the tools, and nothing else.** A button hands the
+studio the whole viewport: the masthead, the nav, the breadcrumbs, the footer and
+the page's own heading all go. Two mechanisms, and both are needed — a fixed
+overlay does the actual work, because `requestFullscreen` on an element still is
+not available on iPhone Safari, and the native call goes on top where it *is*
+supported, because on a tablet the browser's address bar is a third of the
+screen. So the overlay is the feature and native fullscreen is a bonus allowed to
+fail silently.
+
+The split follows how the device is **held**, not how wide it is: `landscape:`
+puts the tools down the side, `portrait:` along the bottom where a thumb reaches.
+A `lg:` breakpoint would get a tablet stood upright wrong. Leaving works through
+all three doors — the button, Escape, and whatever gesture the browser offers —
+because a `fullscreenchange` listener syncs the overlay back; without it, exiting
+native fullscreen any other way would leave a fixed layer covering the site.
+
+It is **one component tree for both modes**, and that is load-bearing rather than
+tidy: a `<canvas>` keeps its bitmap in the element, so rendering a different tree
+for full screen would unmount it and take the drawing along. Only the classes
+change. Resizing the CSS box is safe on its own — the backing store is fixed at
+`CANVAS_SIZE` and does not care how large it is drawn.
+
+### Finishing with a drawing nobody published
+
+"Terminar" is a separate act from "publicar", and it is the one that asks the
+question. With something on the sheet that never went to the gallery, leaving
+offers three answers, each labelled with what it costs:
+
+| | |
+|---|---|
+| **Guardarlo para la próxima vez** | the draft stays in this browser — what it always did, and what a family on their own phone wants |
+| **Espera, quiero publicarlo** | back to the studio with the publish form open |
+| **Borrarlo** | gone from this device, and the label says it cannot be undone |
+
+Keeping it is offered first, and deleting carries its warning on the label rather
+than behind a second confirmation — the person reading it is the one who drew the
+thing. The reason the question exists at all is the device this was built for: on
+a stand, silently keeping the draft means the next child finds somebody else's
+drawing on the sheet, and silently deleting it destroys the only copy. Neither is
+ours to decide.
+
+Closing the tab is closing too, and it is the one exit that cannot carry three
+buttons: the platform allows only the browser's own "leave site?" prompt, in its
+own words. A `beforeunload` guard arms it whenever there is an unpublished
+drawing. Worth having even so — it is the difference between losing a drawing to
+a stray gesture and being asked first.
+
+The sheet is square: it tiles the wall evenly, it prints, and it means no
+orientation to choose before drawing. The canvas is opaque — the eraser paints
+paper rather than cutting holes, because "put the paper back" is what a child
+means by rubbing something out.
+
+### No SVG from the public
+
+The `media` bucket allows `image/svg+xml` because the shop draws its own artwork.
+An SVG uploaded by the *public* is a different animal: it is a script container,
+and a public-read one served from our own origin is stored XSS the moment
+somebody opens the file URL directly. The bucket configuration cannot say "except
+in this folder", so the storage policy for `gallery/` refuses the extension and
+the Server Action refuses the MIME type.
+
+Uploads land in `gallery/<user_id>/<hash>.<ext>` — a path built on the server from
+the session and a hash of the bytes, never from the uploaded filename, with the
+folder enforced by the policy as well.
+
+### The t-shirt
+
+The call to action is on the **drawing**, not on the home page. Nobody arrives
+wanting a shirt with a child's drawing on it; they arrive having just made a
+drawing. So the home band invites you to draw, and the shirt is what the drawing
+offers you once it exists.
+
+Which garments can carry one is `products.artwork_printable`, ticked per product
+in the admin editor — the print area, the process and the price are not the same
+on a cap as on a tee. With none ticked there is no shirt section at all, the same
+rule the video and the framed preview follow.
+
+The mock-up is drawn by `ProductArt` itself, at the same `PRINT_ANCHOR` the
+shop's own chest prints use, so the preview and the real print cannot drift apart
+when somebody adjusts a garment drawing.
+
+The cart line carries the artwork id, and `lineKey` includes it: the same tee in
+the same size and colour with two different drawings is two things to make, and
+without the id in the key one of them would never be printed. As everywhere else,
+the browser sends choices and `placeOrder` re-reads the price *and the drawing*
+from the database — a drawing that is not published takes the order down rather
+than quietly printing a plain shirt.
+
+**It cannot be exchanged or returned, and that is said before the sale.** A
+printed drawing is made for one order and never goes back into the catalogue, so
+it has no right of withdrawal (art. 103(c) RDL 1/2007) and the shop's voluntary
+30-day returns policy does not reach it either — that policy rests on being able
+to sell the garment to somebody else. The law wants this said *before* the
+contract, not in a document nobody opens after paying, so it appears next to the
+button that commits to it, and again on every line of the bag, the drawer and the
+checkout summary. The warranty for a faulty or badly printed garment is untouched
+and says so.
+
+Legal documents carry the same term set apart from the prose around it. That is
+what the `note` block in [pages.ts](src/lib/pages.ts) is for: "this one cannot be
+returned" as the fourth paragraph of a page about returning things is a sentence
+a reader skims past. It gets a frame and an accent rule instead, in the terms of
+sale, in the returns article, and in the same visual language at the point of
+sale — so a shopper can tell at a glance that this line's terms are not the
+others'.
+
+`order_items` keeps `artwork_id` as a soft reference plus a snapshot of the title
+and the path. That is what lets a guardian delete a drawing without cancelling a
+shirt somebody has paid for: the gallery row goes, and the image survives only
+for as long as an order needs it. `artwork_in_use()` is `SECURITY DEFINER`
+because "has this been ordered" is a question about rows the asker cannot see —
+anybody may order a shirt with any published drawing.
+
 ## Admin panel
 
 `/{locale}/admin`, gated on `profiles.is_admin`.
@@ -477,11 +838,22 @@ mounted only once asked for, which is what guarantees the recording light goes o
   trilingual caption, saved with the rest of the product so a brand-new one can
   arrive with its video already on it. An address that cannot be played is refused
   rather than stored; removing the link removes the caption with it
+- **Gallery** — the children's drawings, with the counts kept apart (published, taken
+  down by the family, withdrawn by the shop) and the three moderation actions. A
+  withdrawn drawing cannot be re-published by its owner
+- **Discounts** — promotional codes: percentage, fixed amount or free delivery;
+  scoped to everything, a collection or a category; with a minimum order, a window,
+  a total and a per-customer ceiling, first-order-only, and a switch against stacking
+  on the outlet. Each row shows what it has done — uses, customers, euros given away,
+  last used — and can be paused in one click without losing that history
 - **Shop settings** — shipping rates, the free-delivery threshold, which services are
   offered, and the promo-bar messages
 - **Newsletter** — subscriber counts and state, read-only
 
-Every mutation is a Server Action in [src/lib/admin/actions.ts](src/lib/admin/actions.ts).
+Every mutation is a Server Action in [src/lib/admin/actions.ts](src/lib/admin/actions.ts),
+with the shop-wide ones in [settings-actions.ts](src/lib/admin/settings-actions.ts),
+[gallery-actions.ts](src/lib/admin/gallery-actions.ts) and
+[discount-actions.ts](src/lib/admin/discount-actions.ts).
 
 ---
 
@@ -505,8 +877,9 @@ produces a signature rather than just validating field formats.
 4. Redsys calls `POST /api/payments/redsys/notify`. That is the **only** thing
    that can mark an order paid — the browser returning to a success URL proves
    nothing. The callback verifies the HMAC, resolves the attempt by its gateway
-   reference, checks the amount matches, applies the status once, and decrements
-   stock.
+   reference, checks the amount matches, applies the status once, decrements
+   stock, and — if the order carried a discount code — records the redemption
+   that makes the code count as used.
 
 ### Retries (recobros)
 
@@ -750,6 +1123,19 @@ with real user tokens:
 | A cuadro vs a t-shirt | framed view offered / not offered |
 | The rendered frame | CSS gradients and shadows; no image request |
 | Framing enabled with no finish ticked | treated as off |
+| Anonymous publishes a drawing to the gallery | 401 — `anon` has no insert policy |
+| Publishing under another account's `user_id` | RLS violation |
+| Publishing with the consent box defeated in the DOM | refused; nothing written |
+| The owner rewrites a stored consent record | permission denied — the column is not granted |
+| The owner repoints a published drawing at another image | permission denied |
+| A stranger retitles somebody else's drawing | 0 rows |
+| The owner marks their own drawing as shop-retired | refused |
+| A drawing the family hid, read with the anon key | invisible; its own family still sees it |
+| The owner re-publishes a drawing the shop retired | 0 rows |
+| The family deletes a drawing the shop retired | allowed — erasure is not moderation |
+| An adult uploads outside their own gallery folder | refused |
+| An adult uploads into the shop's `products/` folder | refused |
+| An SVG uploaded to the gallery folder | refused |
 
 ### Still to do before taking real money
 
@@ -770,7 +1156,17 @@ with real user tokens:
   working basis with `[company details]` placeholders, and they say so. A lawyer
   has to sign them off.
 - **Rate limiting** on the login and resend actions (Supabase rate-limits its own
-  endpoints; the app adds nothing).
+  endpoints; the app adds nothing). The gallery leans on the account requirement
+  rather than on a rate limit; if one account ever floods the wall, a per-account
+  ceiling on drawings per day is the missing piece.
+- **An ordered drawing surviving its own deletion.** The columns and the
+  `artwork_in_use()` guard are in place and the function was checked, but the full
+  path — buy a shirt, delete the drawing, confirm the image is still there to
+  print — needs a payment to run end to end, which needs a real terminal.
+- **A discount code counted as used.** Everything up to the till is exercised — the
+  lookup, the evaluator (22 tests), the refusals, the snapshot on the order — but the
+  redemption row is written by the payment callback, so confirming that "used 1 / 100"
+  ticks over needs a payment to run end to end, which needs a real terminal.
 - **Reviews.** Ratings are seeded aggregates; the PDP shows the distribution but never
   invents review text. Wire a real provider before showing testimonials.
 - **HTTPS for the camera.** `getUserMedia` only runs in a secure context. `localhost`
@@ -792,6 +1188,7 @@ src/
 │   ├── collection/[slug]/      collection listing
 │   ├── product/[slug]/         PDP (+ Product JSON-LD)
 │   ├── authors/[slug]/         author page (+ Person JSON-LD)
+│   ├── gallery/                 children's art: the wall, the studio, one drawing
 │   ├── bibliography/           combined bibliography
 │   ├── search/ cart/ help/ legal/ login/ account/
 │   └── admin/                  guarded panel
@@ -801,8 +1198,16 @@ src/
 │   └── i18n/provider.tsx
 └── lib/
     ├── catalog.ts              types, palette, filtering/sorting/facets (pure)
+    ├── shipping.ts tax.ts discounts.ts
+    │                           the three neutral pricing modules: what delivery
+    │                           costs, how IVA splits, what a code takes off. No
+    │                           "use client", no "server-only" — the browser and
+    │                           the server must reach the same total
+    ├── gallery/                 artwork rules, the paint model and its renderer
     ├── db/catalog.ts           Supabase reads, flattened per locale
     ├── db/admin.ts             raw localised bundles for the editor
+    ├── db/discounts.ts         the one-code lookup, and the admin listing
+    ├── orders/                  line parsing, placeOrder, the code-checking action
     ├── admin/actions.ts        admin Server Actions
     ├── auth/actions.ts         sign in / sign out
     ├── i18n/                   config, routes, sections, dictionaries

@@ -7,7 +7,9 @@ import { ProductGrid } from "@/components/product/product-rail";
 import { Badge, Breadcrumbs } from "@/components/ui/bits";
 import { ButtonLink } from "@/components/ui/button";
 import { PrivacyPanel } from "@/app/[locale]/account/privacy-panel";
+import { ArtworkGrid } from "@/components/gallery/artwork-card";
 import { getAddresses, getConsentHistory, getWishlistIds } from "@/lib/db/account";
+import { listMyArtworks } from "@/lib/db/gallery";
 import { getMyOrders, type Order } from "@/lib/db/orders";
 import { getCatalog } from "@/lib/db/catalog";
 import { formatPrice } from "@/lib/utils";
@@ -23,7 +25,7 @@ export async function generateMetadata(props: PageProps<"/[locale]/account">): P
   return { title: t.auth.accountTitle, robots: { index: false, follow: false } };
 }
 
-const TABS = ["overview", "wishlist", "orders", "addresses"] as const;
+const TABS = ["overview", "wishlist", "drawings", "orders", "addresses"] as const;
 type Tab = (typeof TABS)[number];
 
 const ORDER_TONE = {
@@ -61,12 +63,13 @@ export default async function AccountPage(props: PageProps<"/[locale]/account">)
     ? (requested as Tab)
     : "overview";
 
-  const [catalog, wishlistIds, addresses, orders, consents] = await Promise.all([
+  const [catalog, wishlistIds, addresses, orders, consents, drawings] = await Promise.all([
     getCatalog(locale),
     getWishlistIds(),
     getAddresses(),
     getMyOrders(),
     getConsentHistory(),
+    listMyArtworks(),
   ]);
 
   // Current state is the newest record for each kind.
@@ -82,6 +85,7 @@ export default async function AccountPage(props: PageProps<"/[locale]/account">)
   const labels: Record<Tab, string> = {
     overview: t.account.profile,
     wishlist: t.account.wishlist,
+    drawings: t.gallery.myDrawings,
     orders: t.account.orders,
     addresses: t.account.addresses,
   };
@@ -146,6 +150,9 @@ export default async function AccountPage(props: PageProps<"/[locale]/account">)
                   {item === "wishlist" && saved.length > 0 && (
                     <span className="ml-1.5 text-mute">({saved.length})</span>
                   )}
+                  {item === "drawings" && drawings.length > 0 && (
+                    <span className="ml-1.5 text-mute">({drawings.length})</span>
+                  )}
                 </Link>
               </li>
             ))}
@@ -189,6 +196,34 @@ export default async function AccountPage(props: PageProps<"/[locale]/account">)
             </section>
           )}
 
+          {/*
+            Every drawing this account published, including the ones it has taken
+            off the wall — hidden rows come back through the "read own" policy, so
+            withdrawing one never means losing sight of it.
+          */}
+          {tab === "drawings" && (
+            <section>
+              <h2 className="mb-5 text-2xl">{t.gallery.myDrawings}</h2>
+
+              {drawings.length === 0 ? (
+                <div className="flex flex-col items-start gap-4 border border-line p-8">
+                  <p className="font-display text-xl font-bold uppercase">
+                    {t.gallery.emptyTitle}
+                  </p>
+                  <p className="max-w-md text-[0.9375rem] text-mute">{t.gallery.emptyBlurb}</p>
+                  <ButtonLink href={href(locale, "studio")}>{t.gallery.paintCta}</ButtonLink>
+                </div>
+              ) : (
+                <>
+                  <p className="mb-5 max-w-xl text-[0.9375rem] leading-relaxed text-mute">
+                    {t.gallery.myDrawingsBlurb}
+                  </p>
+                  <ArtworkGrid artworks={drawings} locale={locale} t={t} />
+                </>
+              )}
+            </section>
+          )}
+
           {tab === "orders" && (
             <section>
               <h2 className="mb-5 text-2xl">{t.account.orders}</h2>
@@ -215,6 +250,18 @@ export default async function AccountPage(props: PageProps<"/[locale]/account">)
                         <span className="mt-0.5 block text-[0.8125rem] text-mute">
                           {new Date(order.createdAt).toLocaleDateString(locale)} ·{" "}
                           {order.items.length} {order.items.length === 1 ? t.plp.item : t.plp.items}
+                          {/* Which code was used, from the order's own snapshot —
+                              so it still says the right thing after the campaign
+                              has been paused or deleted. */}
+                          {order.discountCode && (
+                            <>
+                              {" · "}
+                              <span className="font-mono">{order.discountCode}</span>{" "}
+                              <span className="text-pine">
+                                −{formatPrice(order.discountCents)}
+                              </span>
+                            </>
+                          )}
                         </span>
                       </span>
                       <Badge tone={ORDER_TONE[order.status]}>

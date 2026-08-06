@@ -82,6 +82,7 @@ export type ProductDraft = {
   /** Blank when the product has no video, which is the normal case. */
   videoUrl: string;
   videoCaption: Record<Locale, string>;
+  artworkPrintable: boolean;
   published: boolean;
   arrived: number;
 };
@@ -348,6 +349,28 @@ export function ProductEditor({
               })}
             </ul>
           </div>
+
+          {/*
+            Whether a drawing from the children's gallery can be printed on this
+            product. Off for everything by default: the print area, the process
+            and the price are not the same on a cap as on a tee, so this is a
+            decision per product rather than a shop-wide switch — and with none
+            ticked, an artwork page simply has no "put it on a t-shirt" section.
+          */}
+          <label className="flex items-start gap-2.5 pt-2 text-[0.875rem]">
+            <input
+              type="checkbox"
+              name="artwork_printable"
+              defaultChecked={draft.artworkPrintable}
+              className="mt-0.5 size-4 accent-black"
+            />
+            <span>
+              {t.admin.artworkPrintable}
+              <span className="block text-[0.8125rem] font-normal text-mute">
+                {t.admin.artworkPrintableHint}
+              </span>
+            </span>
+          </label>
 
           <label className="flex items-center gap-2.5 pt-2 text-[0.875rem]">
             <input

@@ -4,7 +4,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { LEGAL_VERSION } from "@/lib/legal/version";
 import { createClient, getUser } from "@/lib/supabase/server";
 
-export type ConsentKind = "terms" | "marketing";
+export type ConsentKind = "terms" | "marketing" | "gallery";
 
 /**
  * Appends a consent record. Withdrawal is a new row with `granted: false`, never
@@ -13,7 +13,7 @@ export type ConsentKind = "terms" | "marketing";
 export async function recordConsent(input: {
   kind: ConsentKind;
   granted: boolean;
-  source: "signup" | "account" | "newsletter";
+  source: "signup" | "account" | "newsletter" | "gallery";
   locale: Locale;
 }): Promise<boolean> {
   const user = await getUser();

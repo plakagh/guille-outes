@@ -581,6 +581,8 @@ export type Product = {
   framePreview: FramePreview | null;
   /** The product video and its caption; null when there is none to show. */
   video: ProductVideo | null;
+  /** Can be printed with a drawing from the children's gallery. */
+  artworkPrintable: boolean;
   variants: Variant[];
   images: ProductImage[];
   credits: Credit[];

@@ -9,6 +9,12 @@ export type OrderItem = {
   colorwayId: string;
   unitPriceCents: number;
   qty: number;
+  /**
+   * The drawing printed on this line, snapshotted at the time of the order.
+   * Survives the family taking the drawing down, which is the point: the shirt
+   * has been paid for and still has to be made.
+   */
+  artworkTitle: string | null;
 };
 
 export type Order = {
@@ -18,6 +24,10 @@ export type Order = {
   email: string;
   amountCents: number;
   shippingCents: number;
+  /** The code used, snapshotted; null on an order placed without one. */
+  discountCode: string | null;
+  /** Cents taken off, waived delivery included. */
+  discountCents: number;
   /** The rate charged on this order, kept so past invoices never change. */
   vatRate: number;
   shipName: string;
@@ -32,10 +42,11 @@ export type Order = {
 };
 
 const SELECT = `
-  id, order_ref, status, email, amount_cents, shipping_cents, vat_rate,
+  id, order_ref, status, email, amount_cents, shipping_cents,
+  discount_code, discount_cents, vat_rate,
   ship_name, ship_line1, ship_line2, ship_postcode, ship_city, ship_province,
   gateway_response, created_at,
-  order_items ( id, name, ref, size, colorway_id, unit_price_cents, qty )
+  order_items ( id, name, ref, size, colorway_id, unit_price_cents, qty, artwork_title )
 `;
 
 type OrderRow = {
@@ -45,6 +56,8 @@ type OrderRow = {
   email: string;
   amount_cents: number;
   shipping_cents: number;
+  discount_code: string | null;
+  discount_cents: number;
   vat_rate: number | string;
   ship_name: string;
   ship_line1: string;
@@ -63,6 +76,7 @@ type OrderRow = {
         colorway_id: string;
         unit_price_cents: number;
         qty: number;
+        artwork_title: string | null;
       }[]
     | null;
 };
@@ -75,6 +89,8 @@ function mapOrder(row: OrderRow): Order {
     email: row.email,
     amountCents: row.amount_cents,
     shippingCents: row.shipping_cents,
+    discountCode: row.discount_code,
+    discountCents: row.discount_cents,
     // numeric comes back as a string from PostgREST.
     vatRate: Number(row.vat_rate),
     shipName: row.ship_name,
@@ -93,6 +109,7 @@ function mapOrder(row: OrderRow): Order {
       colorwayId: item.colorway_id,
       unitPriceCents: item.unit_price_cents,
       qty: item.qty,
+      artworkTitle: item.artwork_title,
     })),
   };
 }

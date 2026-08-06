@@ -18,6 +18,7 @@ type TableBundle = {
 
 type RawBlock =
   | { type: "p"; text: Bundle }
+  | { type: "note"; text: Bundle }
   | { type: "list"; items: ListBundle }
   | { type: "table"; table: TableBundle };
 
@@ -41,6 +42,13 @@ export type Topic = "orders" | "product" | "brand" | "legal";
 
 export type Block =
   | { type: "p"; text: string }
+  /**
+   * A term that differs from the rest of the document and has to be *seen* to
+   * differ. Prose all looks the same at a glance, and "this one cannot be
+   * returned" is precisely the sentence a reader must not skim past — so it gets
+   * its own frame rather than a paragraph among paragraphs.
+   */
+  | { type: "note"; text: string }
   | { type: "list"; items: string[] }
   | { type: "table"; head: string[]; rows: string[][] };
 
@@ -66,6 +74,7 @@ function pick<T>(bundle: Partial<Record<Locale, T>> & { es: T }, locale: Locale)
 
 function resolveBlock(block: RawBlock, locale: Locale): Block {
   if (block.type === "p") return { type: "p", text: pick(block.text, locale) };
+  if (block.type === "note") return { type: "note", text: pick(block.text, locale) };
   if (block.type === "list") return { type: "list", items: pick(block.items, locale) };
   return {
     type: "table",
@@ -100,6 +109,11 @@ function resolveDoc(doc: RawDoc, locale: Locale): Doc {
 /* ------------------------------------------------------------- help docs */
 
 const p = (es: string, gl: string, en: string): RawBlock => ({ type: "p", text: { es, gl, en } });
+/** A term set apart from the surrounding text, because it differs from it. */
+const note = (es: string, gl: string, en: string): RawBlock => ({
+  type: "note",
+  text: { es, gl, en },
+});
 const items = (es: string[], gl: string[], en: string[]): RawBlock => ({
   type: "list",
   items: { es, gl, en },
@@ -181,9 +195,9 @@ const HELP: RawDoc[] = [
       en: "Returns and exchanges",
     },
     summary: {
-      es: "30 días, sin coste y sin dar explicaciones.",
-      gl: "30 días, sen custo e sen dar explicacións.",
-      en: "30 days, free, no questions asked.",
+      es: "30 días, sin coste y sin dar explicaciones, salvo lo personalizado.",
+      gl: "30 días, sen custo e sen dar explicacións, agás o personalizado.",
+      en: "30 days, free, no questions asked — except for personalised items.",
     },
     sections: [
       {
@@ -222,19 +236,24 @@ const HELP: RawDoc[] = [
           en: "What cannot be returned",
         },
         blocks: [
+          note(
+            "Las camisetas estampadas con un dibujo de la galería infantil no se pueden cambiar ni devolver. Se fabrican una a una para ese pedido, así que no tienen desistimiento legal ni entran en estos 30 días. Si llega defectuosa o mal estampada, eso sí lo cubrimos siempre.",
+            "As camisetas estampadas cun debuxo da galería infantil non se poden cambiar nin devolver. Fabrícanse unha a unha para ese pedido, así que non teñen desistimento legal nin entran nestes 30 días. Se chega defectuosa ou mal estampada, iso si o cubrimos sempre.",
+            "T-shirts printed with a drawing from the children's gallery cannot be exchanged or returned. Each one is made for that order, so there is no statutory right of withdrawal and they are not covered by these 30 days. If one arrives faulty or badly printed, that we always cover.",
+          ),
           items(
             [
-              "Artículos personalizados con nombre o dorsal.",
+              "Prendas estampadas con un dibujo de la galería infantil.",
               "Prendas lavadas, usadas o sin etiqueta.",
               "Tarjetas regalo.",
             ],
             [
-              "Artigos personalizados con nome ou dorsal.",
+              "Pezas estampadas cun debuxo da galería infantil.",
               "Pezas lavadas, usadas ou sen etiqueta.",
               "Tarxetas agasallo.",
             ],
             [
-              "Items personalised with a name or number.",
+              "Garments printed with a drawing from the children's gallery.",
               "Garments that have been washed, worn or had the tag removed.",
               "Gift cards.",
             ],
@@ -400,17 +419,17 @@ const HELP: RawDoc[] = [
     topic: "product",
     title: { es: "Personalización", gl: "Personalización", en: "Personalisation" },
     summary: {
-      es: "Añade nombre y dorsal a tu camiseta.",
-      gl: "Engade nome e dorsal á túa camiseta.",
-      en: "Add a name and number to your jersey.",
+      es: "Añade nombre y número a tu camiseta.",
+      gl: "Engade nome e número á túa camiseta.",
+      en: "Add a name and number to your t-shirt.",
     },
     sections: [
       {
         blocks: [
           p(
-            "Puedes personalizar cualquier camiseta de juego con nombre (hasta 12 caracteres) y dorsal (del 0 al 99), en vinilo termosellado y en la tipografía de la colección.",
-            "Podes personalizar calquera camiseta de xogo con nome (até 12 caracteres) e dorsal (do 0 ao 99), en vinilo termosellado e na tipografía da colección.",
-            "Any game jersey can be personalised with a name (up to 12 characters) and a number (0–99), in heat-sealed vinyl and the collection's own typeface.",
+            "Puedes personalizar cualquier camiseta de tirantes con nombre (hasta 12 caracteres) y número (del 0 al 99), en vinilo termosellado y en la tipografía de la colección.",
+            "Podes personalizar calquera camiseta de tirantes con nome (até 12 caracteres) e número (do 0 ao 99), en vinilo termosellado e na tipografía da colección.",
+            "Any tank can be personalised with a name (up to 12 characters) and a number (0–99), in heat-sealed vinyl and the collection's own typeface.",
           ),
           items(
             [
@@ -516,9 +535,9 @@ const HELP: RawDoc[] = [
       {
         blocks: [
           p(
-            "Guille Outes empezó con una serigrafía de garaje, veinte camisetas y una pista de barrio. La idea era sencilla: ropa de baloncesto que aguante, sin logos ajenos y sin tiradas infinitas.",
-            "Guille Outes empezou cunha serigrafía de garaxe, vinte camisetas e unha pista de barrio. A idea era sinxela: roupa de baloncesto que aguante, sen logos alleos e sen tiradas infinitas.",
-            "Guille Outes started with a garage screen-printing rig, twenty t-shirts and a neighbourhood court. The idea was simple: basketball clothing that lasts, with nobody else's logos and no endless production runs.",
+            "Guille Outes empezó con una serigrafía de garaje, veinte camisetas y un muro del barrio. La idea era sencilla: ropa con arte que aguante, sin logos ajenos y sin tiradas infinitas.",
+            "Guille Outes empezou cunha serigrafía de garaxe, vinte camisetas e un muro do barrio. A idea era sinxela: roupa con arte que aguante, sen logos alleos e sen tiradas infinitas.",
+            "Guille Outes started with a garage screen-printing rig, twenty t-shirts and a neighbourhood wall. The idea was simple: clothing with art that lasts, with nobody else's logos and no endless production runs.",
           ),
           p(
             "Hoy son cinco colecciones al año, producidas en series cortas. Cuando una referencia se agota, sólo vuelve si el tejido y el precio siguen teniendo sentido.",
@@ -598,7 +617,7 @@ const HELP: RawDoc[] = [
               "Reparación gratuíta de costuras durante o primeiro ano.",
             ],
             [
-              "Certified organic cotton across 80% of the jersey line.",
+              "Certified organic cotton across 80% of the knitted line.",
               "Short runs, so we do not create dead stock.",
               "Consolidated shipments and plastic-free packaging.",
               "Free seam repairs during the first year.",
@@ -619,17 +638,17 @@ const HELP: RawDoc[] = [
     topic: "brand",
     title: { es: "Colaboraciones", gl: "Colaboracións", en: "Collaborations" },
     summary: {
-      es: "Clubes, artistas y equipos.",
-      gl: "Clubes, artistas e equipos.",
-      en: "Clubs, artists and teams.",
+      es: "Colectivos, artistas y escuelas.",
+      gl: "Colectivos, artistas e escolas.",
+      en: "Collectives, artists and schools.",
     },
     sections: [
       {
         blocks: [
           p(
-            "Producimos equipaciones para clubes de base y colaboraciones puntuales con artistas. El mínimo por diseño es de 25 unidades y el plazo, de 4 a 6 semanas.",
-            "Producimos equipacións para clubes de base e colaboracións puntuais con artistas. O mínimo por deseño é de 25 unidades e o prazo, de 4 a 6 semanas.",
-            "We produce kits for grassroots clubs and occasional artist collaborations. The minimum is 25 units per design, with a 4–6 week lead time.",
+            "Producimos series para colectivos, escuelas de arte y colaboraciones puntuales con artistas. El mínimo por diseño es de 25 unidades y el plazo, de 4 a 6 semanas.",
+            "Producimos series para colectivos, escolas de arte e colaboracións puntuais con artistas. O mínimo por deseño é de 25 unidades e o prazo, de 4 a 6 semanas.",
+            "We produce short runs for collectives, art schools and occasional artist collaborations. The minimum is 25 units per design, with a 4–6 week lead time.",
           ),
         ],
       },
@@ -699,7 +718,7 @@ const LEGAL: RawDoc[] = [
               "Domicilio social: [dirección completa]",
               "Correo electrónico: hola@guilleoutes.com",
               "Registro Mercantil: [tomo, folio, hoja e inscripción]",
-              "Actividad: comercio al por menor de prendas de vestir y artículos deportivos",
+              "Actividad: comercio al por menor de prendas de vestir y obra gráfica",
             ],
             [
               "Titular: [razón social]",
@@ -707,7 +726,7 @@ const LEGAL: RawDoc[] = [
               "Domicilio social: [enderezo completo]",
               "Correo electrónico: ola@guilleoutes.com",
               "Rexistro Mercantil: [tomo, folio, folla e inscrición]",
-              "Actividade: comercio ao por menor de pezas de vestir e artigos deportivos",
+              "Actividade: comercio ao por menor de pezas de vestir e obra gráfica",
             ],
             [
               "Owner: [legal name]",
@@ -715,7 +734,7 @@ const LEGAL: RawDoc[] = [
               "Registered address: [full address]",
               "Email: hello@guilleoutes.com",
               "Companies Register: [volume, page, sheet and entry]",
-              "Activity: retail of clothing and sporting goods",
+              "Activity: retail of clothing and graphic artwork",
             ],
           ),
         ],
@@ -851,6 +870,12 @@ const LEGAL: RawDoc[] = [
                     "6 años (Código de Comercio)",
                   ],
                   [
+                    "Publicar un dibujo en la galería infantil",
+                    "Imagen del dibujo, título, nombre de pila y edad del menor; cuenta y correo de la persona adulta que lo autoriza",
+                    "Consentimiento del titular de la patria potestad o tutela (art. 6.1.a RGPD y art. 7 LOPDGDD)",
+                    "Hasta que se retire; el registro del consentimiento, 3 años más",
+                  ],
+                  [
                     "Enviarte novedades",
                     "Nombre y correo",
                     "Consentimiento (art. 6.1.a)",
@@ -889,6 +914,12 @@ const LEGAL: RawDoc[] = [
                     "6 anos (Código de Comercio)",
                   ],
                   [
+                    "Publicar un debuxo na galería infantil",
+                    "Imaxe do debuxo, título, nome de pía e idade do menor; conta e correo da persoa adulta que o autoriza",
+                    "Consentimento do titular da patria potestade ou tutela (art. 6.1.a RGPD e art. 7 LOPDGDD)",
+                    "Ata que se retire; o rexistro do consentimento, 3 anos máis",
+                  ],
+                  [
                     "Enviarche novidades",
                     "Nome e correo",
                     "Consentimento (art. 6.1.a)",
@@ -925,6 +956,12 @@ const LEGAL: RawDoc[] = [
                     "Tax details of the transaction",
                     "Legal obligation (art. 6(1)(c))",
                     "6 years (Spanish Commercial Code)",
+                  ],
+                  [
+                    "Publishing a drawing in the children's gallery",
+                    "The image, its title, the child's first name and age; the account and email of the adult who authorises it",
+                    "Consent of the holder of parental authority (art. 6(1)(a) GDPR, art. 7 LOPDGDD)",
+                    "Until it is taken down; the consent record, 3 years longer",
                   ],
                   [
                     "Sending you news",
@@ -984,6 +1021,80 @@ const LEGAL: RawDoc[] = [
         ],
       },
       {
+        heading: {
+          es: "La galería de los peques: datos de menores",
+          gl: "A galería dos cativos: datos de menores",
+          en: "The children's gallery: children's data",
+        },
+        blocks: [
+          p(
+            "En la galería infantil publicamos dibujos hechos por niñas y niños. Es una zona pública: cualquiera puede verla sin registrarse y los buscadores pueden indexarla. Como quien dibuja es un menor, esta parte funciona con reglas propias, y son estas.",
+            "Na galería infantil publicamos debuxos feitos por nenas e nenos. É unha zona pública: calquera pode vela sen rexistrarse e os buscadores poden indexala. Como quen debuxa é un menor, esta parte funciona con regras propias, e son estas.",
+            "The children's gallery publishes drawings made by children. It is a public area: anyone can see it without registering, and search engines may index it. Because the author is a minor, this part works under its own rules, and these are them.",
+          ),
+          p(
+            "Pintar en el taller no requiere cuenta ni deja ningún dato en nuestros servidores: el dibujo se queda en el navegador del dispositivo hasta que alguien pulsa publicar. Publicar sí exige la cuenta de una persona adulta, que es quien autoriza la publicación y quien responde de ella. Conforme al artículo 7 de la LOPDGDD, por debajo de los catorce años el consentimiento lo presta quien ostenta la patria potestad o la tutela; nosotros lo pedimos siempre, con independencia de la edad del menor.",
+            "Pintar no obradoiro non require conta nin deixa ningún dato nos nosos servidores: o debuxo queda no navegador do dispositivo ata que alguén preme publicar. Publicar si esixe a conta dunha persoa adulta, que é quen autoriza a publicación e quen responde dela. Conforme ao artigo 7 da LOPDGDD, por debaixo dos catorce anos o consentimento préstao quen ostenta a patria potestade ou a tutela; nós pedímolo sempre, con independencia da idade do menor.",
+            "Painting in the studio needs no account and leaves no data on our servers: the drawing stays in that device's browser until somebody presses publish. Publishing does require an adult's account — they are the ones authorising it and answering for it. Under article 7 of the Spanish LOPDGDD, consent for a child under fourteen is given by the holder of parental authority; we ask for it in every case, whatever the child's age.",
+          ),
+          p(
+            "Qué se publica, exactamente:",
+            "Que se publica, exactamente:",
+            "What is published, exactly:",
+          ),
+          items(
+            [
+              "La imagen del dibujo.",
+              "El título que le pone quien lo hizo.",
+              "Su nombre de pila y, solo si se rellena, su edad. El campo de edad es opcional.",
+              "La fecha en que se publicó.",
+            ],
+            [
+              "A imaxe do debuxo.",
+              "O título que lle pon quen o fixo.",
+              "O seu nome de pía e, só se se enche, a súa idade. O campo de idade é opcional.",
+              "A data en que se publicou.",
+            ],
+            [
+              "The image of the drawing.",
+              "The title given to it by whoever made it.",
+              "Their first name and, only if filled in, their age. The age field is optional.",
+              "The date it was published.",
+            ],
+          ),
+          p(
+            "Y qué no se publica nunca: apellidos, colegio, localidad, fotografías del menor, ni ningún dato de contacto suyo. El formulario rechaza los nombres que parecen nombre y apellidos, precisamente para que un apellido no acabe publicado por haberse escrito en la casilla equivocada. El correo de la persona adulta se guarda como prueba del permiso y no se muestra en ninguna página.",
+            "E que non se publica nunca: apelidos, colexio, localidade, fotografías do menor, nin ningún dato de contacto seu. O formulario rexeita os nomes que parecen nome e apelidos, precisamente para que un apelido non acabe publicado por terse escrito na casa equivocada. O correo da persoa adulta gárdase como proba do permiso e non se amosa en ningunha páxina.",
+            "And what is never published: surnames, school, town, photographs of the child, or any contact details for them. The form refuses names that look like a full name, precisely so that a surname does not end up published because it was typed into the wrong box. The adult's email is kept as evidence of the permission and is shown on no page.",
+          ),
+          p(
+            "Guardamos el consentimiento con el texto exacto que estaba en pantalla el día en que se dio, la versión de este documento y el idioma, porque el artículo 7.1 del RGPD nos obliga a poder demostrar qué se autorizó y cuándo. Es un consentimiento específico para ese dibujo: publicar uno no autoriza a publicar el siguiente.",
+            "Gardamos o consentimento co texto exacto que estaba en pantalla o día en que se deu, a versión deste documento e o idioma, porque o artigo 7.1 do RGPD obríganos a poder demostrar que se autorizou e cando. É un consentimento específico para ese debuxo: publicar un non autoriza a publicar o seguinte.",
+            "We store the consent together with the exact wording that was on screen on the day it was given, the version of this document and the language, because article 7(1) of the GDPR requires us to be able to demonstrate what was agreed and when. It is specific to that drawing: publishing one does not authorise publishing the next.",
+          ),
+          p(
+            "Retirarlo es tan fácil como haberlo dado, que es lo que exige el artículo 7.3. Desde «Mi cuenta» → «Mis dibujos», cada dibujo tiene un botón para quitarlo de la galería —deja de verse al instante y se puede volver a publicar— y otro para borrarlo definitivamente. No hay que dar explicaciones ni escribir a nadie. También puedes escribirnos a privacidad@guilleoutes.com y lo hacemos nosotros.",
+            "Retiralo é tan doado como telo dado, que é o que esixe o artigo 7.3. Desde «A miña conta» → «Os meus debuxos», cada debuxo ten un botón para quitalo da galería —deixa de verse ao instante e pódese volver publicar— e outro para borralo definitivamente. Non hai que dar explicacións nin escribir a ninguén. Tamén podes escribirnos a privacidade@guilleoutes.com e facémolo nós.",
+            "Withdrawing is as easy as giving it was, which is what article 7(3) requires. Under “My account” → “My drawings”, every drawing has a button to take it off the gallery — it disappears immediately and can be put back — and another to delete it for good. No explanation, no email to anybody. You can also write to privacy@guilleoutes.com and we will do it.",
+          ),
+          p(
+            "Una excepción, y la decimos claramente: si alguien ha comprado una camiseta estampada con ese dibujo, conservamos la imagen el tiempo necesario para fabricarla y para atender la garantía del pedido. El dibujo desaparece de la web igualmente; lo que se conserva es la copia que va unida a ese pedido, y se conserva porque hay un contrato que cumplir (art. 6.1.b), no porque siga habiendo consentimiento para publicarlo.",
+            "Unha excepción, e dicímola claramente: se alguén mercou unha camiseta estampada con ese debuxo, conservamos a imaxe o tempo necesario para fabricala e para atender a garantía do pedido. O debuxo desaparece da web igualmente; o que se conserva é a copia que vai unida a ese pedido, e consérvase porque hai un contrato que cumprir (art. 6.1.b), non porque siga habendo consentimento para publicalo.",
+            "One exception, stated plainly: if somebody has bought a t-shirt printed with that drawing, we keep the image for as long as it takes to make it and to honour the warranty on that order. The drawing still disappears from the site; what is kept is the copy attached to that order, and it is kept because there is a contract to perform (art. 6(1)(b)), not because there is still consent to publish it.",
+          ),
+          p(
+            "Por nuestra parte, podemos retirar cualquier dibujo de la galería si no debería estar ahí. Si crees que hemos retirado el tuyo por error, escríbenos.",
+            "Pola nosa parte, podemos retirar calquera debuxo da galería se non debería estar aí. Se cres que retiramos o teu por erro, escríbenos.",
+            "For our part, we may take any drawing off the gallery if it should not be there. If you think we have taken yours down by mistake, write to us.",
+          ),
+          p(
+            "Los dibujos se publican en el momento, sin revisión previa. Es una decisión consciente: hace falta la cuenta de una persona adulta identificada para publicar, y eso nos parece mejor garantía que una cola de moderación. Si ves algo que no debería estar en la galería, escríbenos a hola@guilleoutes.com y lo retiramos.",
+            "Os debuxos publícanse no momento, sen revisión previa. É unha decisión consciente: fai falta a conta dunha persoa adulta identificada para publicar, e iso parécenos mellor garantía que unha cola de moderación. Se ves algo que non debería estar na galería, escríbenos a hola@guilleoutes.com e retirámolo.",
+            "Drawings are published immediately, with no prior review. That is a deliberate choice: publishing requires the account of an identified adult, which we think is a better safeguard than a moderation queue. If you see something that should not be in the gallery, email hola@guilleoutes.com and we will take it down.",
+          ),
+        ],
+      },
+      {
         heading: { es: "Tus derechos", gl: "Os teus dereitos", en: "Your rights" },
         blocks: [
           items(
@@ -1013,9 +1124,9 @@ const LEGAL: RawDoc[] = [
             ],
           ),
           p(
-            "Escribe a privacidad@guilleoutes.com indicando qué derecho ejerces. Respondemos en el plazo máximo de un mes. Puedes retirar el consentimiento de marketing tú mismo desde «Mi cuenta». Si no estás conforme con nuestra respuesta, puedes reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).",
-            "Escribe a privacidade@guilleoutes.com indicando que dereito exerces. Respondemos no prazo máximo dun mes. Podes retirar o consentimento de marketing ti mesmo desde «A miña conta». Se non estás conforme coa nosa resposta, podes reclamar ante a Axencia Española de Protección de Datos (www.aepd.es).",
-            "Email privacy@guilleoutes.com saying which right you are exercising. We reply within one month. You can withdraw marketing consent yourself from “My account”. If you are unhappy with our answer, you may complain to the Spanish Data Protection Agency (www.aepd.es).",
+            "Escribe a privacidad@guilleoutes.com indicando qué derecho ejerces. Respondemos en el plazo máximo de un mes. Puedes retirar tú mismo, desde «Mi cuenta», tanto el consentimiento de marketing como la publicación de cualquier dibujo de la galería infantil. Si no estás conforme con nuestra respuesta, puedes reclamar ante la Agencia Española de Protección de Datos (www.aepd.es).",
+            "Escribe a privacidade@guilleoutes.com indicando que dereito exerces. Respondemos no prazo máximo dun mes. Podes retirar ti mesmo, desde «A miña conta», tanto o consentimento de marketing como a publicación de calquera debuxo da galería infantil. Se non estás conforme coa nosa resposta, podes reclamar ante a Axencia Española de Protección de Datos (www.aepd.es).",
+            "Email privacy@guilleoutes.com saying which right you are exercising. We reply within one month. From “My account” you can withdraw marketing consent yourself, and equally take any drawing out of the children\u2019s gallery. If you are unhappy with our answer, you may complain to the Spanish Data Protection Agency (www.aepd.es).",
           ),
         ],
       },
@@ -1169,20 +1280,52 @@ const LEGAL: RawDoc[] = [
           ),
           items(
             [
-              "Excepciones legales al desistimiento: artículos personalizados con nombre o dorsal, y prendas usadas, lavadas o sin etiqueta.",
+              "Excepciones legales al desistimiento (art. 103.c del RDL 1/2007): artículos confeccionados conforme a tus especificaciones o claramente personalizados. Es el caso de las prendas estampadas con un dibujo de la galería infantil, que tienen su propio apartado más abajo.",
+              "Tampoco se admiten prendas usadas, lavadas o sin etiqueta.",
               "Las tarjetas regalo no son reembolsables en efectivo.",
               "El coste de devolverlo lo asumimos nosotros dentro de la península.",
             ],
             [
-              "Excepcións legais ao desistimento: artigos personalizados con nome ou dorsal, e pezas usadas, lavadas ou sen etiqueta.",
+              "Excepcións legais ao desistimento (art. 103.c do RDL 1/2007): artigos confeccionados conforme ás túas especificacións ou claramente personalizados. É o caso das pezas estampadas cun debuxo da galería infantil, que teñen o seu propio apartado máis abaixo.",
+              "Tampouco se admiten pezas usadas, lavadas ou sen etiqueta.",
               "As tarxetas agasallo non son reembolsables en efectivo.",
               "O custo de devolvelo asumímolo nós dentro da península.",
             ],
             [
-              "Statutory exceptions: items personalised with a name or number, and garments that have been worn, washed or had the tag removed.",
+              "Statutory exceptions (art. 103(c) of Spanish RDL 1/2007): goods made to your specifications or clearly personalised. That covers garments printed with a drawing from the children's gallery, which have a section of their own below.",
+              "Garments that have been worn, washed or had the tag removed are also excluded.",
               "Gift cards are not exchangeable for cash.",
               "We cover the cost of returning items within mainland Spain.",
             ],
+          ),
+        ],
+      },
+      {
+        heading: {
+          es: "Prendas con un dibujo de la galería",
+          gl: "Pezas cun debuxo da galería",
+          en: "Garments printed with a gallery drawing",
+        },
+        blocks: [
+          note(
+            "Una camiseta estampada con un dibujo de la galería infantil no se puede cambiar ni devolver. No tiene derecho de desistimiento y tampoco entra en nuestros 30 días de devolución gratuita.",
+            "Unha camiseta estampada cun debuxo da galería infantil non se pode cambiar nin devolver. Non ten dereito de desistimento e tampouco entra nos nosos 30 días de devolución gratuíta.",
+            "A t-shirt printed with a drawing from the children's gallery cannot be exchanged or returned. It carries no right of withdrawal, and it is not covered by our 30-day free-returns policy either.",
+          ),
+          p(
+            "El motivo es que no existe hasta que la pides: cada una se estampa con ese dibujo concreto, para ese pedido, y no vuelve al catálogo. Es el supuesto del artículo 103.c del Real Decreto Legislativo 1/2007 —bienes confeccionados conforme a las especificaciones del consumidor o claramente personalizados—, que la ley excluye del desistimiento. Los 30 días que ofrecemos por encima de la ley son voluntarios y se apoyan en poder volver a vender la prenda, cosa que aquí no ocurre.",
+            "O motivo é que non existe ata que a pides: cada unha estámpase con ese debuxo concreto, para ese pedido, e non volve ao catálogo. É o suposto do artigo 103.c do Real Decreto Lexislativo 1/2007 —bens confeccionados conforme ás especificacións da persoa consumidora ou claramente personalizados—, que a lei exclúe do desistimento. Os 30 días que ofrecemos por riba da lei son voluntarios e apóianse en poder volver vender a peza, cousa que aquí non ocorre.",
+            "The reason is that it does not exist until you order it: each one is printed with that particular drawing, for that order, and never goes back into the catalogue. This is the case covered by article 103(c) of Spanish Royal Legislative Decree 1/2007 — goods made to the consumer's specifications or clearly personalised — which the law excludes from the right of withdrawal. The 30 days we offer over and above the law are voluntary, and they rest on being able to sell the garment to somebody else, which here we cannot.",
+          ),
+          p(
+            "Antes de añadirla a la cesta te lo decimos en la propia página del dibujo, y vuelve a aparecer en la cesta y en el resumen del pedido: es una información que tienes que tener antes de comprar, no después.",
+            "Antes de engadila ao carro dicímoscho na propia páxina do debuxo, e volve aparecer no carro e no resumo do pedido: é unha información que tes que ter antes de mercar, non despois.",
+            "We tell you so on the drawing's own page before you add it to the bag, and again in the bag and in the order summary: this is something you need to know before buying, not afterwards.",
+          ),
+          note(
+            "Lo que sí tienes, intacto: si la prenda llega defectuosa, mal estampada o distinta de lo que pediste, la reparamos, la sustituimos o te devolvemos el importe. La garantía por falta de conformidad no se pierde por estar personalizada.",
+            "O que si tes, intacto: se a peza chega defectuosa, mal estampada ou distinta do que pediches, reparámola, substituímola ou devolvémosche o importe. A garantía por falta de conformidade non se perde por estar personalizada.",
+            "What you do keep, in full: if the garment arrives faulty, badly printed or different from what you ordered, we repair it, replace it or refund you. The warranty for lack of conformity is not lost because something is personalised.",
           ),
         ],
       },

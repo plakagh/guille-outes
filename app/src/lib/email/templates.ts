@@ -99,9 +99,20 @@ export type OrderSummary = {
   orderRef: string;
   amountCents: number;
   shippingCents: number;
+  /** The code used, snapshotted on the order. Null when there was none. */
+  discountCode?: string | null;
+  /** Cents taken off, waived delivery included. */
+  discountCents?: number;
   /** Rate charged on this order, so the email matches the invoice. */
   vatRate: number;
-  items: { name: string; size: string; qty: number; unitPriceCents: number }[];
+  items: {
+    name: string;
+    size: string;
+    qty: number;
+    unitPriceCents: number;
+    /** The child's drawing printed on this line, when there is one. */
+    artworkTitle?: string | null;
+  }[];
   url: string;
 };
 
@@ -121,7 +132,11 @@ function itemsTable(order: OrderSummary, t: Dictionary): string {
                   <tr>
                     <td style="padding:8px 0;border-bottom:1px solid #ececec;font-family:Arial,sans-serif;font-size:14px;color:#444444;">
                       ${escapeHtml(item.name)}<br />
-                      <span style="color:${MUTE};font-size:12px;">${t.cart.size} ${escapeHtml(item.size)} · ×${item.qty}</span>
+                      <span style="color:${MUTE};font-size:12px;">${t.cart.size} ${escapeHtml(item.size)} · ×${item.qty}</span>${
+                        item.artworkTitle
+                          ? `<br /><span style="color:${MUTE};font-size:12px;">${t.gallery.printedWith} «${escapeHtml(item.artworkTitle)}»</span>`
+                          : ""
+                      }
                     </td>
                     <td align="right" style="padding:8px 0;border-bottom:1px solid #ececec;font-family:Arial,sans-serif;font-size:14px;color:${INK};font-weight:bold;white-space:nowrap;">
                       ${formatPrice(item.unitPriceCents * item.qty)}
@@ -143,6 +158,18 @@ function itemsTable(order: OrderSummary, t: Dictionary): string {
                       ${order.shippingCents === 0 ? t.cart.free : formatPrice(order.shippingCents)}
                     </td>
                   </tr>
+                  ${
+                    (order.discountCents ?? 0) > 0
+                      ? `<tr>
+                    <td style="padding:8px 0;font-family:Arial,sans-serif;font-size:13px;color:${MUTE};">${t.cart.discount}${
+                      order.discountCode ? ` ${escapeHtml(order.discountCode)}` : ""
+                    }</td>
+                    <td align="right" style="padding:8px 0;font-family:Arial,sans-serif;font-size:13px;color:#1f6f4a;">
+                      −${formatPrice(order.discountCents ?? 0)}
+                    </td>
+                  </tr>`
+                      : ""
+                  }
                   <tr>
                     <td style="padding:10px 0 0;border-top:2px solid ${INK};font-family:Arial,sans-serif;font-size:15px;font-weight:bold;color:${INK};text-transform:uppercase;">${t.cart.total}</td>
                     <td align="right" style="padding:10px 0 0;border-top:2px solid ${INK};font-family:Arial,sans-serif;font-size:17px;font-weight:bold;color:${INK};">
@@ -176,14 +203,21 @@ function plainItems(order: OrderSummary, t: Dictionary): string {
   const tax = vatBreakdown(order.amountCents, order.vatRate);
   const lines = order.items.map(
     (item) =>
-      `- ${item.name} (${t.cart.size} ${item.size}, ×${item.qty}) ${formatPrice(
-        item.unitPriceCents * item.qty,
-      )}`,
+      `- ${item.name} (${t.cart.size} ${item.size}, ×${item.qty})${
+        item.artworkTitle ? ` — ${t.gallery.printedWith} «${item.artworkTitle}»` : ""
+      } ${formatPrice(item.unitPriceCents * item.qty)}`,
   );
   return [
     `${t.order.reference} ${order.orderRef}`,
     ...lines,
     `${t.cart.shipping}: ${order.shippingCents === 0 ? t.cart.free : formatPrice(order.shippingCents)}`,
+    ...((order.discountCents ?? 0) > 0
+      ? [
+          `${t.cart.discount}${order.discountCode ? ` ${order.discountCode}` : ""}: −${formatPrice(
+            order.discountCents ?? 0,
+          )}`,
+        ]
+      : []),
     `${t.cart.total}: ${formatPrice(order.amountCents)}`,
     `${t.cart.taxBase}: ${formatPrice(tax.netCents)}`,
     `${t.cart.vat} (${formatVatRate(tax.rate)}): ${formatPrice(tax.vatCents)}`,

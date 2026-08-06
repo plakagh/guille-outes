@@ -6,13 +6,13 @@ const gl: Dictionary = {
     siteName: "Guille Outes",
     tagline: "Tenda oficial",
     description:
-      "Tenda oficial de Guille Outes: camisetas, sudadoiras, gorras e equipamento de baloncesto en series curtas. Envío gratis desde 60 € e 30 días para devolver.",
+      "Tenda oficial de Guille Outes: camisetas, sudadoiras, gorras e obra orixinal con arte en series curtas. Envío gratis desde 60 € e 30 días para devolver.",
     keywords: [
       "guille outes",
-      "roupa de baloncesto",
-      "camisetas de baloncesto",
-      "equipación baloncesto",
-      "tenda baloncesto",
+      "roupa de arte",
+      "camisetas de arte",
+      "obra orixinal",
+      "tenda de arte",
       "series curtas",
       "serigrafía",
     ],
@@ -95,9 +95,9 @@ const gl: Dictionary = {
     shopByCategory: "Compra por categoría",
     wholeCatalogue: "Todo o catálogo",
     shopByCollection: "Compra por colección",
-    fiveLines: "Cinco liñas, un vestiario",
+    fiveLines: "Cinco liñas, un mesmo taller",
     bestSellers: "O máis vendido",
-    fanChoice: "Escolla da afección",
+    fanChoice: "Escolla do público",
     justArrived: "Recén chegado",
     newIn: "Novidades",
     forKids: "Para os máis pequenos",
@@ -111,19 +111,24 @@ const gl: Dictionary = {
     authorsBlurb:
       "Cada peza vai asinada polas persoas que a deseñaron, ilustraron, patronaron ou fotografaron.",
     seeAllAuthors: "Ver todas as autorías",
+    kidsArtEyebrow: "Para os artistas da casa",
+    kidsArtTitle: "Crea o debuxo dos teus cativos",
+    kidsArtBlurb:
+      "Píntao aquí mesmo co dedo ou sube a foto dun feito en papel. Publicámolo asinado co seu nome e, se vos gusta como queda, estampámosllo nunha camiseta.",
+    kidsArtSecondary: "Ver a galería",
     personaliseEyebrow: "Personalización",
-    personaliseTitle: "O teu nome. O teu dorsal.",
+    personaliseTitle: "O teu nome. O teu número.",
     personaliseBlurb:
-      "Engade nome e número a calquera camiseta de xogo. Vinilo termosellado, listo en 48 h.",
+      "Engade nome e número a calquera camiseta de tirantes. Vinilo termosellado, listo en 48 h.",
     personaliseCta: "Personalizar agora",
     giftEyebrow: "Non sabes que agasallar",
     giftTitle: "Tarxeta agasallo",
     giftBlurb: "De 20 € a 200 €, sen data de caducidade. Chega ao instante por correo.",
     giftCta: "Comprar tarxeta",
     projectEyebrow: "O proxecto",
-    projectTitle: "Roupa de baloncesto feita en series curtas",
+    projectTitle: "Roupa con arte feita en series curtas",
     projectBody: [
-      "Guille Outes empezou como unha serigrafía de garaxe: vinte camisetas, un deseño e unha pista de barrio. Seguimos igual, con máis metros cadrados. Cada colección prodúcese en tiradas curtas e só se repón cando a calidade do tecido o permite.",
+      "Guille Outes empezou como unha serigrafía de garaxe: vinte camisetas, un deseño e un muro do barrio. Seguimos igual, con máis metros cadrados. Cada colección prodúcese en tiradas curtas e só se repón cando a calidade do tecido o permite.",
       "Deseñamos en Galicia, cortamos e cosemos en Portugal, e estampamos aquí, a man. Iso significa prazos máis longos e menos referencias, pero tamén pezas que aguantan tempada tras tempada.",
       "Se algo non che encaixa, tes 30 días para devolvelo sen dar explicacións. E se tes dúbidas de talla, escríbenos antes de comprar: contestamos nós, non un robot.",
     ],
@@ -132,10 +137,10 @@ const gl: Dictionary = {
     slides: {
       court: {
         eyebrow: "Nova tempada",
-        line1: "Court",
-        line2: "Series",
+        line1: "Serie",
+        line2: "Estudio",
         blurb:
-          "A equipación completa: camiseta de xogo en malla de dobre capa, short a conxunto e chaqueta de quecemento.",
+          "A liña completa: camiseta de tirantes en malla de dobre capa, short a conxunto e chaqueta de traballo.",
         primary: "Comprar a liña",
         secondary: "Ver novidades",
       },
@@ -149,11 +154,11 @@ const gl: Dictionary = {
         secondary: "Como o facemos",
       },
       hardwood: {
-        eyebrow: "Arquivo 1994",
-        line1: "Hardwood",
+        eyebrow: "Rescatado de 1994",
+        line1: "Arquivo",
         line2: "94",
         blurb:
-          "Tons de parqué, bloques de cor e tipografía condensada rescatados da tempada do 94.",
+          "Tons de papel vello, bloques de cor e tipografía condensada rescatados dos carteis do 94.",
         primary: "Entrar no arquivo",
         secondary: "Ver camisetas",
       },
@@ -187,7 +192,7 @@ const gl: Dictionary = {
     outletBlurb:
       "Tempadas anteriores e últimas tallas con até un 50 % de desconto. Mesma garantía de 30 días.",
     bestTitle: "O máis vendido",
-    bestEyebrow: "Escolla da afección",
+    bestEyebrow: "Escolla do público",
     bestBlurb: "As pezas que máis se repiten nos pedidos, por número de valoracións.",
     audienceBlurb: "Todo o catálogo de Guille Outes en tallas e cortes de",
     item: "artigo",
@@ -348,6 +353,23 @@ const gl: Dictionary = {
     checkout: "Tramitar pedido",
     goToPay: "Ir pagar",
     summary: "Resumo do pedido",
+    discount: "Desconto",
+    code: {
+      checking: "Comprobando…",
+      remove: "Quitar",
+      freeShipping: "Envío gratis",
+      refusal: {
+        notStarted: "Ese código aínda non está activo.",
+        expired: "Ese código xa caducou.",
+        exhausted: "Ese código chegou ao máximo de usos.",
+        alreadyUsed: "Xa usaches ese código.",
+        signIn: "Inicia sesión para usar ese código.",
+        notFirstOrder: "Ese código é só para o primeiro pedido.",
+        minSubtotal: "Ese código pide un pedido mínimo de {{amount}}.",
+        noEligibleItems: "Ese código non se aplica a nada do teu carro.",
+        nothingToTake: "Ese código non cambia nada neste pedido.",
+      },
+    },
     promoCode: "Código promocional",
     apply: "Aplicar",
     invalidCode: "Ese código non é válido ou caducou.",
@@ -419,7 +441,7 @@ const gl: Dictionary = {
       madeBody: "Serigrafía e bordado en taller, en series curtas.",
     },
     about:
-      "Tenda oficial. Roupa e equipamento de baloncesto deseñados en Galicia e producidos en series curtas.",
+      "Tenda oficial. Roupa e obra orixinal deseñadas en Galicia e producidas en series curtas.",
     columns: {
       help: "Axuda",
       account: "A miña conta",
@@ -677,6 +699,70 @@ const gl: Dictionary = {
       visible: "Visible",
       order: "Orde",
     },
+    discounts: {
+      tab: "Descontos",
+      title: "Códigos de desconto",
+      blurb:
+        "Os códigos compróbanse no servidor cada vez: ao escribilos, ao cambiar o carro e outra vez ao pagar. Un código cóntase como usado cando o pedido se cobra, non cando alguén o escribe, así que un carro abandonado non gasta usos dunha campaña limitada.",
+      newCode: "Novo código",
+      newCodeBlurb:
+        "O mínimo é o código e canto desconta. Todo o demais son límites, e en branco significa sen límite.",
+      existing: "Códigos",
+      empty: "Aínda non hai ningún código.",
+      edit: "Editar",
+      add: "Crear código",
+      code: "Código",
+      codeHint: "De 3 a 24 caracteres: letras, números e guións. Gárdase en maiúsculas.",
+      kind: "Tipo",
+      kindPercent: "Porcentaxe",
+      kindAmount: "Importe fixo",
+      kindFreeShipping: "Envío gratis",
+      percent: "Desconto",
+      amount: "Desconto",
+      maxDiscount: "Desconto máximo",
+      maxDiscountHint: "Tope para a porcentaxe. En branco, sen tope.",
+      minSubtotal: "Pedido mínimo",
+      minSubtotalHint: "Sobre o subtotal, sen gastos de envío. 0 para non esixir mínimo.",
+      minSubtotalShort: "mínimo {{amount}}",
+      scope: "A que se aplica",
+      appliesTo: "Alcance",
+      scopeAll: "Todo o catálogo",
+      scopeCollection: "Unha colección",
+      scopeCategory: "Unha categoría",
+      excludeDiscounted: "Non acumular co outlet",
+      excludeDiscountedHint:
+        "Os produtos que xa están rebaixados quedan fóra do desconto. É o habitual: un 20 % enriba dun −40 % adoita ser un despiste, non unha oferta.",
+      limits: "Límites",
+      maxRedemptions: "Usos totais",
+      maxPerCustomer: "Usos por cliente",
+      unlimitedHint: "En branco, sen límite.",
+      startsAt: "Comeza",
+      endsAt: "Remata",
+      firstOrderOnly: "Só para o primeiro pedido",
+      firstOrderOnlyHint:
+        "Conta o primeiro pedido pagado. Quen teña o carro a medias segue tendo dereito.",
+      note: "Nota interna",
+      noteHint: "Non se amosa a ninguén. Para lembrar para que era o código.",
+      notePlaceholder: "Feira de Ourense, impreso nos folletos",
+      enabled: "Activo",
+      active: "Activo",
+      paused: "Pausado",
+      pause: "Pausar",
+      resume: "Reactivar",
+      used: "Usos",
+      customers: "Clientes",
+      lastUsed: "Último uso",
+      deleteHint:
+        "Os pedidos que o usaron conservan o código e o importe. Pausalo case sempre é mellor.",
+      errors: {
+        badCode: "O código só admite letras, números e guións, de 3 a 24 caracteres.",
+        badPercent: "A porcentaxe ten que estar entre 1 e 100.",
+        badAmount: "O importe do desconto ten que ser maior que cero.",
+        badWindow: "A data de fin ten que ser posterior á de inicio.",
+        badScope: "Escolle a colección ou a categoría á que se aplica.",
+        codeTaken: "Xa existe un código con ese nome.",
+      },
+    },
     newsletter: {
       tab: "Newsletter",
       title: "Subscritores do boletín",
@@ -722,6 +808,9 @@ const gl: Dictionary = {
     delete: "Eliminar",
     confirmDelete: "Seguro? Esta acción non se pode desfacer.",
     published: "Publicado",
+    artworkPrintable: "Pódese estampar cun debuxo da galería",
+    artworkPrintableHint:
+      "Aparece como opción na ficha de cada debuxo infantil. Déixao sen marcar se esta peza non se estampa así.",
     unpublished: "Oculto",
     publish: "Publicar",
     unpublish: "Ocultar",
@@ -929,7 +1018,184 @@ const gl: Dictionary = {
     nothingFor: "Non atopamos nada para",
     nothingBlurb:
       "Revisa a ortografía, proba cun termo máis curto ou explora o catálogo completo.",
-    suggestions: ["Camiseta", "Sudadoira", "Gorra", "Court Series", "Outlet"],
+    suggestions: ["Camiseta", "Sudadoira", "Gorra", "Serie Estudio", "Outlet"],
+  },
+
+  /**
+   * A galería dos cativos.
+   *
+   * O texto dun debuxo (o seu título e o nome de quen o asina) escríbeo unha
+   * familia e non se traduce: son as súas palabras, no seu idioma. Aquí só está
+   * a sala arredor.
+   */
+  gallery: {
+    navLabel: "Galería dos cativos",
+    eyebrow: "Arte infantil",
+    title: "A galería dos cativos",
+    blurb:
+      "O sitio onde viven os debuxos dos nenos e das nenas que pasan polo noso posto. Sube unha foto do que traias feito ou píntao aquí mesmo, ponlle título e asínao co teu nome.",
+    keywords: [
+      "galería de debuxos infantís",
+      "debuxos de nenos",
+      "pintar en liña",
+      "camiseta co debuxo do teu fillo",
+      "arte infantil",
+    ],
+    metaDescription:
+      "Un debuxo da galería infantil de Guille Outes, asinado por quen o pintou.",
+    wall: "Os debuxos",
+    paintCta: "Pintar un debuxo",
+    uploadCta: "Subir unha foto",
+    consentNotice:
+      "Para publicar cómpre a conta dunha persoa adulta, que é quen autoriza que o debuxo se vexa na web. Pintar non a precisa.",
+    emptyTitle: "Aínda non hai ningún debuxo",
+    emptyBlurb: "Sé quen o estree: pinta un aquí ou sube a foto dun que xa teñas feito.",
+    by: "Un debuxo de",
+    years: "anos",
+    hidden: "Retirado pola familia",
+    retired: "Retirado pola tenda",
+    originPainted: "Pintado no obradoiro",
+    originUpload: "Foto dun debuxo",
+    backToWall: "Ver todos os debuxos",
+    moreDrawings: "Máis debuxos",
+    myDrawings: "Os meus debuxos",
+    myDrawingsBlurb:
+      "Todo o que publicaches, incluído o que quitases da galería. Entra en calquera para cambiar o título, quitalo da web ou borralo de todo.",
+    printedWith: "co debuxo",
+    consentRecord: "Publicación dun debuxo na galería",
+
+    publish: {
+      title: "Ponlle nome e asínao",
+      titleLabel: "Como se chama o debuxo?",
+      titlePlaceholder: "O meu can Nube",
+      nameLabel: "Quen o pintou?",
+      namePlaceholder: "Martina",
+      nameHint: "Só o nome, sen apelidos.",
+      ageLabel: "Idade",
+      ageHint: "Opcional",
+      consentLabel:
+        "Son a súa nai, pai ou titor/a e autorizo que este debuxo e o nome de pía se publiquen na galería pública de guilleoutes.com, segundo a",
+      consentDetail:
+        "Podo quitalo da web ou borralo cando queira desde a miña conta, sen dar explicacións.",
+      publish: "Publicar na galería",
+      publishing: "Publicando…",
+      withdrawNote:
+        "Non publicamos apelidos, nin o colexio, nin ningún dato de contacto do neno ou da nena. O teu correo queda gardado como proba do permiso, pero non se amosa en ningures.",
+      needsAccountTitle: "Falta o permiso dunha persoa adulta",
+      needsAccountBlurb:
+        "O debuxo xa está feito e non se perde. Para que se vexa na web cómpre que unha nai, un pai ou un titor entre coa súa conta e dea o permiso.",
+      draftKept: "O teu debuxo queda gardado neste dispositivo mentres tanto.",
+    },
+
+    errors: {
+      titleEmpty: "Ponlle un título ao debuxo.",
+      titleTooLong: "O título é longo de máis.",
+      nameEmpty: "Escribe o nome de quen o pintou.",
+      nameTooLong: "Ese nome é longo de máis.",
+      nameFullName: "Escribe só o nome de pía, sen apelidos.",
+      ageRange: "A idade ten que estar entre 1 e 17.",
+      needsAccount: "Tes que entrar coa túa conta para publicar.",
+      consentRequired: "Hai que marcar a caixa de permiso para poder publicar.",
+      noImage: "Non atopamos a imaxe. Téntao de novo.",
+      unsupportedType: "Ese tipo de ficheiro non vale. Usa unha foto JPG, PNG ou WEBP.",
+      tooLarge: "A imaxe pesa de máis. O máximo son 8 MB.",
+      uploadFailed: "Non puidemos subir a imaxe. Téntao outra vez.",
+      unknown: "Algo foi mal. Téntao outra vez.",
+    },
+
+    studio: {
+      title: "O obradoiro",
+      blurb:
+        "Pinta co dedo ou cun lapis dixital. Non cómpre conta para pintar: só para publicalo despois.",
+      canvasLabel: "Folla para debuxar",
+      maximise: "Pantalla completa",
+      exitMaximise: "Saír de pantalla completa",
+      leave:
+        "Terminar",
+      pendingTitle:
+        "Tes un debuxo sen publicar",
+      pendingBlurb:
+        "Aínda non está na galería. Que facemos con el?",
+      pendingKeep:
+        "Gardalo para a próxima vez",
+      pendingKeepHint:
+        "Queda neste dispositivo e aparecerá cando volvas entrar no obradoiro.",
+      pendingDelete:
+        "Borralo",
+      pendingDeleteHint:
+        "Desaparece deste dispositivo. Isto non se pode desfacer.",
+      pendingPublish:
+        "Agarda, quero publicalo",
+      pendingPublishHint:
+        "Volve ao obradoiro e abre o formulario para poñerlle nome e asinalo.",
+      pendingWarnOnUnload:
+        "Tes un debuxo sen publicar.",
+      tool: "Ferramenta",
+      tools: {
+        marker: "Rotulador",
+        pencil: "Lapis",
+        crayon: "Cera",
+        spray: "Spray",
+        fill: "Caldeiro",
+        eraser: "Goma",
+      },
+      thickness: "Grosor",
+      colour: "Cor",
+      customColour: "Outra cor",
+      paper: "Papel",
+      undo: "Desfacer",
+      redo: "Refacer",
+      startOver: "Comezar de novo",
+      undoHint: "Todo se pode desfacer, mesmo comezar de novo.",
+      publish: "Publicar o meu debuxo",
+      publishHint: "Verase na galería co nome que lle poñas.",
+      publishHintSignedOut:
+        "Para publicalo fará falta a conta dunha persoa adulta. O debuxo non se perde polo camiño.",
+    },
+
+    tee: {
+      eyebrow: "Lévao posto",
+      title: "Ponno nunha camiseta",
+      blurb:
+        "Estampamos este debuxo na peza que elixas. Facémolo nós, en serie curta, coma o resto da tenda.",
+      garment: "Peza",
+      addToCart: "Engadir ao carro",
+      noReturns:
+        "Ollo: ao levar un debuxo, esta peza fabrícase só para ti e non se pode cambiar nin devolver. Se chega defectuosa, si a cubrimos.",
+      cartNote: "Non admite cambio nin devolución",
+      note:
+        "A imaxe é unha simulación: o tamaño e a posición do estampado axústanse á talla que elixas.",
+    },
+
+    owner: {
+      title: "Este debuxo é teu",
+      blurb: "Podes corrixir o título ou o nome, quitalo da web ou borralo.",
+      save: "Gardar cambios",
+      saved: "Gardado.",
+      hide: "Quitar da galería",
+      show: "Volver publicalo",
+      delete: "Borrar de todo",
+      deleteConfirm: "Si, bórrao",
+      deleteNote:
+        "Ao borralo desaparece da web. Se alguén xa mercou unha camiseta con el, gardamos a imaxe só para poder estampala: é un pedido pagado que hai que cumprir.",
+      retiredNote:
+        "A tenda retirou este debuxo da galería. Escríbenos se cres que foi un erro.",
+    },
+
+    admin: {
+      tab: "Galería",
+      title: "Galería dos cativos",
+      blurb:
+        "Os debuxos publícanse no momento: publicar esixe unha conta, así que detrás de cada un hai unha persoa adulta identificada que deu o permiso. Aquí retírase o que non deba estar.",
+      published: "Publicados",
+      withdrawn: "Retirados pola familia",
+      retiredCount: "Retirados pola tenda",
+      empty: "Aínda non hai debuxos.",
+      retire: "Retirar",
+      restore: "Volver publicar",
+      delete: "Borrar",
+      deleteConfirm: "Si, bórrao",
+    },
   },
 
   notFound: {

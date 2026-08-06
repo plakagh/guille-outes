@@ -270,6 +270,146 @@ export function StarIcon({ fillLevel = 1, ...props }: IconProps & { fillLevel?: 
   );
 }
 
+/* ------------------------------------------------ the paint studio toolbar */
+
+export function BrushIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M18.5 4.2a2.4 2.4 0 0 1 1.3 4l-7 6.6-3.3-3.3 6.7-6.9a2.4 2.4 0 0 1 2.3-.4Z" />
+      <path d="M9.5 11.5c-2 .4-3.3 1.8-3.7 3.6-.2 1-.7 1.7-1.6 2.2 1.2 1.4 3 2 4.7 1.5 1.9-.5 3-2 3.1-4Z" />
+    </Stroke>
+  );
+}
+
+export function PencilIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M16.6 3.8 20.2 7.4 8.9 18.7l-4.6 1 1-4.6z" />
+      <path d="m14.3 6.1 3.6 3.6" />
+    </Stroke>
+  );
+}
+
+export function CrayonIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M9.4 3.6h5.2l1.1 4v10.9a1.5 1.5 0 0 1-1.5 1.5h-4.4a1.5 1.5 0 0 1-1.5-1.5V7.6z" />
+      <path d="M8.3 7.6h7.4" />
+    </Stroke>
+  );
+}
+
+export function SprayIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M8.5 8.5h6V20h-6z" />
+      <path d="M10.5 8.5V5.5h4" />
+      <path d="M18 5h.01M20 8.5h.01M17.5 11.5h.01M20.5 12.5h.01" />
+    </Stroke>
+  );
+}
+
+export function EraserIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="m13.5 4.5 6 6-8 8h-4l-3-3z" />
+      <path d="m8.5 9.5 6 6" />
+      <path d="M11.5 18.5h8.5" />
+    </Stroke>
+  );
+}
+
+export function BucketIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M9 3.5 19 13.5l-6.5 6.5a1.4 1.4 0 0 1-2 0L4.6 14a1.4 1.4 0 0 1 0-2z" />
+      <path d="m7 6 2.4 2.4" />
+      <path d="M21 16.5c0 1-.7 1.8-1.6 1.8s-1.6-.8-1.6-1.8 1.6-2.8 1.6-2.8 1.6 1.8 1.6 2.8Z" />
+    </Stroke>
+  );
+}
+
+export function UndoIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M4.5 9.5h9a5 5 0 0 1 0 10H8" />
+      <path d="M8 5 4.5 9.5 8 14" />
+    </Stroke>
+  );
+}
+
+export function RedoIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M19.5 9.5h-9a5 5 0 0 0 0 10H16" />
+      <path d="M16 5l3.5 4.5L16 14" />
+    </Stroke>
+  );
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M4.5 6.5h15" />
+      <path d="M9.5 6.5V4.8h5v1.7" />
+      <path d="M6.5 6.5 7.4 20h9.2l.9-13.5" />
+      <path d="M10.5 10v6M13.5 10v6" />
+    </Stroke>
+  );
+}
+
+export function EyeIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M2.8 12S6.5 5.8 12 5.8 21.2 12 21.2 12 17.5 18.2 12 18.2 2.8 12 2.8 12Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </Stroke>
+  );
+}
+
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M9.9 6.1A8.6 8.6 0 0 1 12 5.8c5.5 0 9.2 6.2 9.2 6.2a17 17 0 0 1-2.8 3.5" />
+      <path d="M6.3 8A17.4 17.4 0 0 0 2.8 12S6.5 18.2 12 18.2c1.4 0 2.6-.4 3.7-1" />
+      <path d="M4.5 4.5 19.5 19.5" />
+    </Stroke>
+  );
+}
+
+/** Four corners pushing out: "give this the whole screen". */
+export function ExpandIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M9.5 4.5h-5v5" />
+      <path d="M14.5 4.5h5v5" />
+      <path d="M14.5 19.5h5v-5" />
+      <path d="M9.5 19.5h-5v-5" />
+    </Stroke>
+  );
+}
+
+/** The same corners pulling back in. */
+export function CollapseIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M4.5 9.5h5v-5" />
+      <path d="M19.5 9.5h-5v-5" />
+      <path d="M19.5 14.5h-5v5" />
+      <path d="M4.5 14.5h5v5" />
+    </Stroke>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <Stroke {...props}>
+      <path d="M12 19.5V8m0 0L8.4 11.6M12 8l3.6 3.6" />
+      <path d="M5.5 5.5h13" />
+    </Stroke>
+  );
+}
+
 /* ---------------------------------------------------------------- social */
 
 export function InstagramIcon(props: IconProps) {

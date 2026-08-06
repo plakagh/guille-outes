@@ -6,11 +6,13 @@ import {
   CategoryTiles,
   CollectionCards,
   EditorialSplit,
+  KidsGalleryBand,
   OutletBand,
 } from "@/components/home/sections";
 import { ProductRail } from "@/components/product/product-rail";
 import { colorway, hasOutlet, listProducts, type Catalog } from "@/lib/catalog";
 import { getCatalog } from "@/lib/db/catalog";
+import { listArtworks } from "@/lib/db/gallery";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
 import { href } from "@/lib/i18n/routes";
@@ -113,8 +115,16 @@ export default async function HomePage(props: PageProps<"/[locale]">) {
   const { locale } = await props.params;
   if (!isLocale(locale)) notFound();
 
-  const [t, catalog] = await Promise.all([getDictionary(locale), getCatalog(locale)]);
+  const [t, catalog, artworks] = await Promise.all([
+    getDictionary(locale),
+    getCatalog(locale),
+    listArtworks(12),
+  ]);
   const { products } = catalog;
+
+  // The band shows the wall, so a drawing its family has hidden is not on it —
+  // `listArtworks` hands back the viewer's own hidden rows for the account tab.
+  const drawings = artworks.filter((artwork) => artwork.status === "published");
 
   const bestsellers = listProducts(products, { sort: "destacados" }).slice(0, 10);
   const newIn = listProducts(products, { sort: "novedades" }).slice(0, 10);
@@ -137,6 +147,8 @@ export default async function HomePage(props: PageProps<"/[locale]">) {
         href={href(locale, "shop", curatedSlug("mas-vendido", locale))}
         linkLabel={t.common.viewAll}
       />
+
+      <KidsGalleryBand locale={locale} t={t} artworks={drawings} />
 
       <CollectionCards {...common} />
 

@@ -188,6 +188,7 @@ export async function saveProduct(form: FormData): Promise<ActionResult> {
     colorways,
     video_url: video?.url ?? null,
     video_caption: video ? optionalBundle(form, "video_caption") : null,
+    artwork_printable: form.get("artwork_printable") === "on",
     published: form.get("published") === "on",
     arrived: int(form, "arrived") ?? 50,
   };

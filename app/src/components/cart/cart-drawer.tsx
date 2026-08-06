@@ -11,7 +11,8 @@ import { formatPrice } from "@/lib/utils";
 
 export function CartDrawer() {
   const { t, href } = useI18n();
-  const { isOpen, close, lines, subtotal, shipping, total, count, freeShipping } = useCart();
+  const { isOpen, close, lines, subtotal, shipping, discountCents, total, count, freeShipping, discount } =
+    useCart();
   if (!isOpen) return null;
 
   const { missing, percent: progress } = freeShipping;
@@ -94,6 +95,18 @@ export function CartDrawer() {
                     {shipping === 0 ? t.cart.free : formatPrice(shipping)}
                   </dd>
                 </div>
+                {/* No code box in the drawer — it is a glance at the basket,
+                    not a checkout. A code applied on the cart page still shows
+                    here, because the total would otherwise contradict itself. */}
+                {discountCents > 0 && discount.applied && (
+                  <div className="flex justify-between text-pine">
+                    <dt>
+                      {t.cart.discount}{" "}
+                      <span className="font-mono text-[0.75rem]">{discount.applied.code}</span>
+                    </dt>
+                    <dd className="font-semibold">−{formatPrice(discountCents)}</dd>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-line pt-2 text-base">
                   <dt className="font-display font-bold uppercase">{t.cart.total}</dt>
                   <dd className="font-bold">{formatPrice(total)}</dd>
@@ -129,7 +142,14 @@ function CartRow({ line }: { line: CartLine }) {
   return (
     <li className="flex gap-3 p-4">
       <Link href={productHref} onClick={close} className="size-20 shrink-0 bg-shell">
-        <ProductArt shape={line.shape} colorway={line.colorway} print={line.print} />
+        {/* A line with a drawing on it is shown wearing the drawing — same
+            chest anchor as the real print, so the cart shows what gets made. */}
+        <ProductArt
+          shape={line.shape}
+          colorway={line.colorway}
+          print={line.print}
+          artworkUrl={line.artwork?.imageUrl}
+        />
       </Link>
 
       <div className="min-w-0 flex-1">
@@ -143,6 +163,16 @@ function CartRow({ line }: { line: CartLine }) {
         <p className="mt-0.5 text-[0.75rem] text-mute">
           {line.colorway.name} · {t.cart.size} {line.size}
         </p>
+        {line.artwork && (
+          <>
+            <p className="mt-0.5 truncate text-[0.75rem] text-mute">
+              {t.gallery.printedWith} «{line.artwork.title}» · {line.artwork.author}
+            </p>
+            <p className="mt-1 inline-block border-l-2 border-flame bg-shell px-1.5 py-0.5 text-[0.6875rem] font-semibold">
+              {t.gallery.tee.cartNote}
+            </p>
+          </>
+        )}
 
         <div className="mt-2 flex items-center justify-between gap-3">
           <div className="flex items-center border border-line">

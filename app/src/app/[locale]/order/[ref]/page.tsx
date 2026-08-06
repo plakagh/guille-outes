@@ -192,6 +192,16 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
                     {colorway(item.colorwayId, locale).name} · {t.cart.size} {item.size} · ×
                     {item.qty}
                   </span>
+                  {/*
+                    Which drawing is printed on it. Read from the order's own
+                    snapshot, so it still says the right thing after the family
+                    has taken the drawing off the gallery.
+                  */}
+                  {item.artworkTitle && (
+                    <span className="block text-[0.8125rem] text-mute">
+                      {t.gallery.printedWith} «{item.artworkTitle}»
+                    </span>
+                  )}
                 </span>
                 <span className="text-[0.9375rem] font-semibold">
                   {formatPrice(item.unitPriceCents * item.qty)}
@@ -229,6 +239,21 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
             <dd className="mt-1">
               {order.shippingCents === 0 ? t.cart.free : formatPrice(order.shippingCents)}
             </dd>
+
+            {/*
+              Read from the order's own snapshot, not from the code: the campaign
+              may since have ended, changed or been deleted, and what this order
+              was given does not change with it.
+            */}
+            {order.discountCents > 0 && (
+              <>
+                <dt className="eyebrow mt-3 text-mute">
+                  {t.cart.discount}{" "}
+                  {order.discountCode && <span className="font-mono">{order.discountCode}</span>}
+                </dt>
+                <dd className="mt-1 text-pine">−{formatPrice(order.discountCents)}</dd>
+              </>
+            )}
 
             <dt className="eyebrow mt-3 text-mute">{t.cart.total}</dt>
             <dd className="mt-1 font-display text-2xl font-bold">

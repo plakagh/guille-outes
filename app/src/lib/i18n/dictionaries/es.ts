@@ -8,13 +8,13 @@ const es = {
     siteName: "Guille Outes",
     tagline: "Tienda oficial",
     description:
-      "Tienda oficial de Guille Outes: camisetas, sudaderas, gorras y equipamiento de baloncesto en series cortas. Envío gratis desde 60 € y 30 días para devolver.",
+      "Tienda oficial de Guille Outes: camisetas, sudaderas, gorras y obra original con arte en series cortas. Envío gratis desde 60 € y 30 días para devolver.",
     keywords: [
       "guille outes",
-      "ropa de baloncesto",
-      "camisetas de baloncesto",
-      "equipación baloncesto",
-      "tienda baloncesto",
+      "ropa de arte",
+      "camisetas de arte",
+      "obra original",
+      "tienda de arte",
       "series cortas",
       "serigrafía",
     ],
@@ -97,9 +97,9 @@ const es = {
     shopByCategory: "Compra por categoría",
     wholeCatalogue: "Todo el catálogo",
     shopByCollection: "Compra por colección",
-    fiveLines: "Cinco líneas, un vestuario",
+    fiveLines: "Cinco líneas, un mismo taller",
     bestSellers: "Lo más vendido",
-    fanChoice: "Elección de la afición",
+    fanChoice: "Elección del público",
     justArrived: "Recién llegado",
     newIn: "Novedades",
     forKids: "Para los más pequeños",
@@ -113,19 +113,24 @@ const es = {
     authorsBlurb:
       "Cada pieza va firmada por las personas que la han diseñado, ilustrado, patronado o fotografiado.",
     seeAllAuthors: "Ver todas las autorías",
+    kidsArtEyebrow: "Para los artistas de la casa",
+    kidsArtTitle: "Crea el dibujo de tus niños",
+    kidsArtBlurb:
+      "Píntalo aquí mismo con el dedo o sube la foto de uno hecho en papel. Lo publicamos firmado con su nombre, y si os gusta cómo queda, se lo estampamos en una camiseta.",
+    kidsArtSecondary: "Ver la galería",
     personaliseEyebrow: "Personalización",
-    personaliseTitle: "Tu nombre. Tu dorsal.",
+    personaliseTitle: "Tu nombre. Tu número.",
     personaliseBlurb:
-      "Añade nombre y número a cualquier camiseta de juego. Vinilo termosellado, listo en 48 h.",
+      "Añade nombre y número a cualquier camiseta de tirantes. Vinilo termosellado, listo en 48 h.",
     personaliseCta: "Personalizar ahora",
     giftEyebrow: "No sabes qué regalar",
     giftTitle: "Tarjeta regalo",
     giftBlurb: "De 20 € a 200 €, sin fecha de caducidad. Llega al instante por correo.",
     giftCta: "Comprar tarjeta",
     projectEyebrow: "El proyecto",
-    projectTitle: "Ropa de baloncesto hecha en series cortas",
+    projectTitle: "Ropa con arte hecha en series cortas",
     projectBody: [
-      "Guille Outes empezó como una serigrafía de garaje: veinte camisetas, un diseño y una pista de barrio. Seguimos igual, con más metros cuadrados. Cada colección se produce en tiradas cortas y sólo se repone cuando la calidad del tejido lo permite.",
+      "Guille Outes empezó como una serigrafía de garaje: veinte camisetas, un diseño y un muro del barrio. Seguimos igual, con más metros cuadrados. Cada colección se produce en tiradas cortas y sólo se repone cuando la calidad del tejido lo permite.",
       "Diseñamos en Galicia, cortamos y cosemos en Portugal, y estampamos aquí, a mano. Eso significa plazos más largos y menos referencias, pero también prendas que aguantan temporada tras temporada.",
       "Si algo no te encaja, tienes 30 días para devolverlo sin dar explicaciones. Y si tienes dudas de talla, escríbenos antes de comprar: contestamos nosotros, no un robot.",
     ],
@@ -134,10 +139,10 @@ const es = {
     slides: {
       court: {
         eyebrow: "Nueva temporada",
-        line1: "Court",
-        line2: "Series",
+        line1: "Serie",
+        line2: "Estudio",
         blurb:
-          "La equipación completa: camiseta de juego en malla de doble capa, short a conjunto y chaqueta de calentamiento.",
+          "La línea completa: camiseta de tirantes en malla de doble capa, short a conjunto y chaqueta de trabajo.",
         primary: "Comprar la línea",
         secondary: "Ver novedades",
       },
@@ -151,11 +156,11 @@ const es = {
         secondary: "Cómo lo hacemos",
       },
       hardwood: {
-        eyebrow: "Archivo 1994",
-        line1: "Hardwood",
+        eyebrow: "Rescatado de 1994",
+        line1: "Archivo",
         line2: "94",
         blurb:
-          "Tonos de parqué, bloques de color y tipografía condensada rescatados de la temporada del 94.",
+          "Tonos de papel viejo, bloques de color y tipografía condensada rescatados de los carteles del 94.",
         primary: "Entrar al archivo",
         secondary: "Ver camisetas",
       },
@@ -189,7 +194,7 @@ const es = {
     outletBlurb:
       "Temporadas anteriores y últimas tallas con hasta un 50 % de descuento. Misma garantía de 30 días.",
     bestTitle: "Lo más vendido",
-    bestEyebrow: "Elección de la afición",
+    bestEyebrow: "Elección del público",
     bestBlurb: "Las piezas que más se repiten en los pedidos, por número de valoraciones.",
     audienceBlurb: "Todo el catálogo de Guille Outes en tallas y cortes de",
     item: "artículo",
@@ -355,6 +360,28 @@ const es = {
     promoCode: "Código promocional",
     apply: "Aplicar",
     invalidCode: "Ese código no es válido o ha caducado.",
+    discount: "Descuento",
+    /**
+     * Un motivo, una frase. «Ya lo has usado» y «ese código no existe» mandan a
+     * la clienta a sitios muy distintos, y llamar a las dos cosas «no válido» es
+     * la forma más rápida de llenar el buzón de soporte.
+     */
+    code: {
+      checking: "Comprobando…",
+      remove: "Quitar",
+      freeShipping: "Envío gratis",
+      refusal: {
+        notStarted: "Ese código todavía no está activo.",
+        expired: "Ese código ya ha caducado.",
+        exhausted: "Ese código ha llegado al máximo de usos.",
+        alreadyUsed: "Ya has usado ese código.",
+        signIn: "Inicia sesión para usar ese código.",
+        notFirstOrder: "Ese código es solo para el primer pedido.",
+        minSubtotal: "Ese código pide un pedido mínimo de {{amount}}.",
+        noEligibleItems: "Ese código no se aplica a nada de tu cesta.",
+        nothingToTake: "Ese código no cambia nada en este pedido.",
+      },
+    },
     securePayment: "Pago cifrado. No guardamos los datos de tu tarjeta.",
     nothingToPay: "No hay nada que pagar",
     nothingToPayBlurb: "Tu cesta está vacía, así que no hay pedido que tramitar.",
@@ -423,7 +450,7 @@ const es = {
       madeBody: "Serigrafía y bordado en taller, en series cortas.",
     },
     about:
-      "Tienda oficial. Ropa y equipamiento de baloncesto diseñados en Galicia y producidos en series cortas.",
+      "Tienda oficial. Ropa y obra original diseñadas en Galicia y producidas en series cortas.",
     columns: {
       help: "Ayuda",
       account: "Mi cuenta",
@@ -682,6 +709,70 @@ const es = {
       visible: "Visible",
       order: "Orden",
     },
+    discounts: {
+      tab: "Descuentos",
+      title: "Códigos de descuento",
+      blurb:
+        "Los códigos se comprueban en el servidor cada vez: al escribirlos, al cambiar la cesta y otra vez al pagar. Un código se cuenta como usado cuando el pedido se cobra, no cuando alguien lo escribe, así que una cesta abandonada no gasta usos de una campaña limitada.",
+      newCode: "Nuevo código",
+      newCodeBlurb:
+        "Lo mínimo es el código y cuánto descuenta. Todo lo demás son límites, y en blanco significa sin límite.",
+      existing: "Códigos",
+      empty: "Todavía no hay ningún código.",
+      edit: "Editar",
+      add: "Crear código",
+      code: "Código",
+      codeHint: "De 3 a 24 caracteres: letras, números y guiones. Se guarda en mayúsculas.",
+      kind: "Tipo",
+      kindPercent: "Porcentaje",
+      kindAmount: "Importe fijo",
+      kindFreeShipping: "Envío gratis",
+      percent: "Descuento",
+      amount: "Descuento",
+      maxDiscount: "Descuento máximo",
+      maxDiscountHint: "Tope para el porcentaje. En blanco, sin tope.",
+      minSubtotal: "Pedido mínimo",
+      minSubtotalHint: "Sobre el subtotal, sin gastos de envío. 0 para no exigir mínimo.",
+      minSubtotalShort: "mínimo {{amount}}",
+      scope: "A qué se aplica",
+      appliesTo: "Alcance",
+      scopeAll: "Todo el catálogo",
+      scopeCollection: "Una colección",
+      scopeCategory: "Una categoría",
+      excludeDiscounted: "No acumular con el outlet",
+      excludeDiscountedHint:
+        "Los productos que ya están rebajados quedan fuera del descuento. Es lo habitual: un 20 % encima de un −40 % suele ser un despiste, no una oferta.",
+      limits: "Límites",
+      maxRedemptions: "Usos totales",
+      maxPerCustomer: "Usos por cliente",
+      unlimitedHint: "En blanco, sin límite.",
+      startsAt: "Empieza",
+      endsAt: "Termina",
+      firstOrderOnly: "Solo para el primer pedido",
+      firstOrderOnlyHint:
+        "Cuenta el primer pedido pagado. Quien tenga la cesta a medias sigue teniendo derecho.",
+      note: "Nota interna",
+      noteHint: "No se muestra a nadie. Para acordarse de para qué era el código.",
+      notePlaceholder: "Feria de Ourense, impreso en los folletos",
+      enabled: "Activo",
+      active: "Activo",
+      paused: "Pausado",
+      pause: "Pausar",
+      resume: "Reactivar",
+      used: "Usos",
+      customers: "Clientes",
+      lastUsed: "Último uso",
+      deleteHint:
+        "Los pedidos que lo usaron conservan el código y el importe. Pausarlo casi siempre es mejor.",
+      errors: {
+        badCode: "El código solo admite letras, números y guiones, de 3 a 24 caracteres.",
+        badPercent: "El porcentaje tiene que estar entre 1 y 100.",
+        badAmount: "El importe del descuento tiene que ser mayor que cero.",
+        badWindow: "La fecha de fin tiene que ser posterior a la de inicio.",
+        badScope: "Elige la colección o la categoría a la que se aplica.",
+        codeTaken: "Ya existe un código con ese nombre.",
+      },
+    },
     newsletter: {
       tab: "Newsletter",
       title: "Suscriptores del boletín",
@@ -727,6 +818,9 @@ const es = {
     delete: "Eliminar",
     confirmDelete: "¿Seguro? Esta acción no se puede deshacer.",
     published: "Publicado",
+    artworkPrintable: "Se puede estampar con un dibujo de la galería",
+    artworkPrintableHint:
+      "Aparece como opción en la ficha de cada dibujo infantil. Déjalo sin marcar si esta prenda no se estampa así.",
     unpublished: "Oculto",
     publish: "Publicar",
     unpublish: "Ocultar",
@@ -935,7 +1029,184 @@ const es = {
     nothingFor: "No encontramos nada para",
     nothingBlurb:
       "Revisa la ortografía, prueba con un término más corto o explora el catálogo completo.",
-    suggestions: ["Camiseta", "Sudadera", "Gorra", "Court Series", "Outlet"],
+    suggestions: ["Camiseta", "Sudadera", "Gorra", "Serie Estudio", "Outlet"],
+  },
+
+  /**
+   * La galería de los peques.
+   *
+   * El texto de un dibujo (su título y el nombre de quien lo firma) lo escribe
+   * una familia y no se traduce: son sus palabras, en su idioma. Lo que hay aquí
+   * es solo la sala alrededor.
+   */
+  gallery: {
+    navLabel: "Galería de los peques",
+    eyebrow: "Arte infantil",
+    title: "La galería de los peques",
+    blurb:
+      "El sitio donde viven los dibujos de los niños y las niñas que pasan por nuestro puesto. Sube una foto del que traigas hecho o píntalo aquí mismo, ponle título y fírmalo con tu nombre.",
+    keywords: [
+      "galería de dibujos infantiles",
+      "dibujos de niños",
+      "pintar online",
+      "camiseta con el dibujo de tu hijo",
+      "arte infantil",
+    ],
+    metaDescription:
+      "Un dibujo de la galería infantil de Guille Outes, firmado por quien lo pintó.",
+    wall: "Los dibujos",
+    paintCta: "Pintar un dibujo",
+    uploadCta: "Subir una foto",
+    consentNotice:
+      "Para publicar hace falta una cuenta de una persona adulta, que es quien autoriza que el dibujo se vea en la web. Pintar no la necesita.",
+    emptyTitle: "Todavía no hay ningún dibujo",
+    emptyBlurb: "Sé quien lo estrene: pinta uno aquí o sube la foto de uno que ya tengas hecho.",
+    by: "Un dibujo de",
+    years: "años",
+    hidden: "Retirado por la familia",
+    retired: "Retirado por la tienda",
+    originPainted: "Pintado en el taller",
+    originUpload: "Foto de un dibujo",
+    backToWall: "Ver todos los dibujos",
+    moreDrawings: "Más dibujos",
+    myDrawings: "Mis dibujos",
+    myDrawingsBlurb:
+      "Todo lo que has publicado, incluido lo que hayas quitado de la galería. Entra en cualquiera para cambiar el título, quitarlo de la web o borrarlo del todo.",
+    printedWith: "con el dibujo",
+    consentRecord: "Publicación de un dibujo en la galería",
+
+    publish: {
+      title: "Ponle nombre y fírmalo",
+      titleLabel: "¿Cómo se llama el dibujo?",
+      titlePlaceholder: "Mi perro Nube",
+      nameLabel: "¿Quién lo ha pintado?",
+      namePlaceholder: "Martina",
+      nameHint: "Solo el nombre, sin apellidos.",
+      ageLabel: "Edad",
+      ageHint: "Opcional",
+      consentLabel:
+        "Soy su madre, padre o tutor/a y autorizo que este dibujo y el nombre de pila se publiquen en la galería pública de guilleoutes.com, según la",
+      consentDetail:
+        "Puedo quitarlo de la web o borrarlo cuando quiera desde mi cuenta, sin dar explicaciones.",
+      publish: "Publicar en la galería",
+      publishing: "Publicando…",
+      withdrawNote:
+        "No publicamos apellidos, ni el colegio, ni ningún dato de contacto del niño o la niña. Tu correo queda guardado como prueba del permiso, pero no se muestra en ningún sitio.",
+      needsAccountTitle: "Falta un permiso de una persona adulta",
+      needsAccountBlurb:
+        "El dibujo ya está hecho y no se pierde. Para que se vea en la web hace falta que una madre, un padre o un tutor entre con su cuenta y dé el permiso.",
+      draftKept: "Tu dibujo se queda guardado en este dispositivo mientras tanto.",
+    },
+
+    errors: {
+      titleEmpty: "Ponle un título al dibujo.",
+      titleTooLong: "El título es demasiado largo.",
+      nameEmpty: "Escribe el nombre de quien lo ha pintado.",
+      nameTooLong: "Ese nombre es demasiado largo.",
+      nameFullName: "Escribe solo el nombre de pila, sin apellidos.",
+      ageRange: "La edad tiene que estar entre 1 y 17.",
+      needsAccount: "Tienes que entrar con tu cuenta para publicar.",
+      consentRequired: "Hay que marcar la casilla de permiso para poder publicar.",
+      noImage: "No hemos encontrado la imagen. Vuelve a intentarlo.",
+      unsupportedType: "Ese tipo de archivo no vale. Usa una foto JPG, PNG o WEBP.",
+      tooLarge: "La imagen pesa demasiado. El máximo son 8 MB.",
+      uploadFailed: "No hemos podido subir la imagen. Inténtalo otra vez.",
+      unknown: "Algo ha ido mal. Inténtalo otra vez.",
+    },
+
+    studio: {
+      title: "El taller",
+      blurb:
+        "Pinta con el dedo o con un lápiz digital. No hace falta cuenta para pintar: solo para publicarlo después.",
+      canvasLabel: "Hoja para dibujar",
+      maximise: "Pantalla completa",
+      exitMaximise: "Salir de pantalla completa",
+      leave:
+        "Terminar",
+      pendingTitle:
+        "Tienes un dibujo sin publicar",
+      pendingBlurb:
+        "Todavía no está en la galería. ¿Qué hacemos con él?",
+      pendingKeep:
+        "Guardarlo para la próxima vez",
+      pendingKeepHint:
+        "Se queda en este dispositivo y aparecerá cuando vuelvas a entrar en el taller.",
+      pendingDelete:
+        "Borrarlo",
+      pendingDeleteHint:
+        "Desaparece de este dispositivo. Esto no se puede deshacer.",
+      pendingPublish:
+        "Espera, quiero publicarlo",
+      pendingPublishHint:
+        "Vuelve al taller y abre el formulario para ponerle nombre y firmarlo.",
+      pendingWarnOnUnload:
+        "Tienes un dibujo sin publicar.",
+      tool: "Herramienta",
+      tools: {
+        marker: "Rotulador",
+        pencil: "Lápiz",
+        crayon: "Cera",
+        spray: "Spray",
+        fill: "Cubo",
+        eraser: "Goma",
+      },
+      thickness: "Grosor",
+      colour: "Color",
+      customColour: "Otro color",
+      paper: "Papel",
+      undo: "Deshacer",
+      redo: "Rehacer",
+      startOver: "Empezar de nuevo",
+      undoHint: "Todo se puede deshacer, incluso empezar de nuevo.",
+      publish: "Publicar mi dibujo",
+      publishHint: "Se verá en la galería con el nombre que le pongas.",
+      publishHintSignedOut:
+        "Para publicarlo hará falta la cuenta de una persona adulta. El dibujo no se pierde por el camino.",
+    },
+
+    tee: {
+      eyebrow: "Llévatelo puesto",
+      title: "Ponlo en una camiseta",
+      blurb:
+        "Estampamos este dibujo en la prenda que elijas. Lo hacemos nosotros, en serie corta, como el resto de la tienda.",
+      garment: "Prenda",
+      addToCart: "Añadir a la cesta",
+      noReturns:
+        "Ojo: al llevar un dibujo, esta prenda se fabrica solo para ti y no se puede cambiar ni devolver. Si llega defectuosa, sí la cubrimos.",
+      cartNote: "No admite cambio ni devolución",
+      note:
+        "La imagen es una simulación: el tamaño y la posición del estampado se ajustan a la talla que elijas.",
+    },
+
+    owner: {
+      title: "Este dibujo es tuyo",
+      blurb: "Puedes corregir el título o el nombre, quitarlo de la web o borrarlo.",
+      save: "Guardar cambios",
+      saved: "Guardado.",
+      hide: "Quitar de la galería",
+      show: "Volver a publicarlo",
+      delete: "Borrar del todo",
+      deleteConfirm: "Sí, bórralo",
+      deleteNote:
+        "Al borrarlo desaparece de la web. Si alguien ya ha comprado una camiseta con él, guardamos la imagen solo para poder estamparla: es un pedido pagado que hay que cumplir.",
+      retiredNote:
+        "La tienda ha retirado este dibujo de la galería. Escríbenos si crees que ha sido un error.",
+    },
+
+    admin: {
+      tab: "Galería",
+      title: "Galería de los peques",
+      blurb:
+        "Los dibujos se publican en el momento: publicar exige una cuenta, así que detrás de cada uno hay una persona adulta identificada que dio el permiso. Aquí se retira lo que no deba estar.",
+      published: "Publicados",
+      withdrawn: "Retirados por la familia",
+      retiredCount: "Retirados por la tienda",
+      empty: "Todavía no hay dibujos.",
+      retire: "Retirar",
+      restore: "Volver a publicar",
+      delete: "Borrar",
+      deleteConfirm: "Sí, bórralo",
+    },
   },
 
   notFound: {

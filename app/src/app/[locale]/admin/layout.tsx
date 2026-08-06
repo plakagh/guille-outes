@@ -50,6 +50,8 @@ export default async function AdminLayout({ children, params }: LayoutProps<"/[l
   const tabs = [
     { label: t.admin.overview, href: href(locale, "admin") },
     { label: t.admin.products, href: `${href(locale, "admin")}/products` },
+    { label: t.gallery.admin.tab, href: `${href(locale, "admin")}/gallery` },
+    { label: t.admin.discounts.tab, href: `${href(locale, "admin")}/discounts` },
     { label: t.payments.title, href: `${href(locale, "admin")}/payments` },
     { label: t.admin.shop.tab, href: `${href(locale, "admin")}/settings` },
     { label: t.admin.newsletter.tab, href: `${href(locale, "admin")}/newsletter` },

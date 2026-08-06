@@ -20,6 +20,7 @@ and then runs the dev server.
 |---|---|
 | `pnpm dev:all` | Bring everything up (see above) |
 | `pnpm dev:fresh` | Same, but wipes and re-seeds the database first (**drops all accounts**) |
+| `pnpm dev:clean` | Same as `dev:all`, after deleting `app/.next` — the fix for a hydration error that names markup you no longer have |
 | `pnpm dev` | App only, assuming Supabase is already up |
 | `pnpm stop:all` | Stop the Supabase containers |
 | `pnpm db:urls` | Print the local URLs and keys |

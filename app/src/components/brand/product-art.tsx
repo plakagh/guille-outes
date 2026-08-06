@@ -53,6 +53,17 @@ type Props = {
    * one orientation and that is that.
    */
   orientation?: ArtOrientation;
+  /**
+   * A drawing from the children's gallery, printed where the shop's own print
+   * goes — it takes the place of `print` rather than joining it, because a
+   * garment carries one chest print and not two.
+   *
+   * It reuses `PRINT_ANCHOR`, which is the whole reason it lives in here instead
+   * of being an absolutely-positioned `<img>` over the top: the mock-up and the
+   * shop's own print land in the same place on every shape, and they cannot
+   * drift apart when someone adjusts a garment drawing.
+   */
+  artworkUrl?: string;
   className?: string;
 };
 
@@ -87,6 +98,7 @@ export function ProductArt({
   number = 23,
   bare = false,
   orientation = "portrait",
+  artworkUrl,
   className,
 }: Props) {
   const ink = colorway.print ?? colorway.trim;
@@ -113,7 +125,13 @@ export function ProductArt({
         />
       )}
       <Garment shape={shape} colorway={colorway} bare={bare} orientation={orientation} />
-      <ChestPrint shape={shape} kind={print} ink={ink} number={number} />
+      <ChestPrint
+        shape={shape}
+        kind={print}
+        ink={ink}
+        number={number}
+        artworkUrl={artworkUrl}
+      />
     </svg>
   );
 }
@@ -482,14 +500,39 @@ function ChestPrint({
   kind,
   ink,
   number,
+  artworkUrl,
 }: {
   shape: ArtShape;
   kind: NonNullable<Props["print"]>;
   ink: string;
   number: number;
+  artworkUrl?: string;
 }) {
   const anchor = PRINT_ANCHOR[shape];
-  if (kind === "none" || !anchor) return null;
+  if (!anchor) return null;
+
+  /*
+    A child's drawing, printed bigger than the wordmark because that is how it
+    would actually be printed — and squared, because the studio canvas is square
+    and a photograph is letterboxed into the same box rather than cropped. The
+    vertical offset puts its centre a little above the wordmark's baseline,
+    which is where the middle of a chest print sits.
+  */
+  if (artworkUrl) {
+    const side = anchor.w * 1.35;
+    return (
+      <image
+        href={artworkUrl}
+        x={anchor.x - side / 2}
+        y={anchor.y - side * 0.58}
+        width={side}
+        height={side}
+        preserveAspectRatio="xMidYMid meet"
+      />
+    );
+  }
+
+  if (kind === "none") return null;
 
   if (kind === "number") {
     return (

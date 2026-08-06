@@ -83,6 +83,20 @@ function BlockView({ block }: { block: Block }) {
     return <p className="text-[0.9375rem] leading-relaxed text-ink/80">{block.text}</p>;
   }
 
+  /*
+    A term that is not the same as the surrounding ones. The frame and the accent
+    rule are doing real work here rather than decorating: "this cannot be
+    returned" sitting as the fourth paragraph of a page about returning things is
+    a sentence a reader skims past, and then finds out about after paying.
+  */
+  if (block.type === "note") {
+    return (
+      <p className="border border-line border-l-2 border-l-flame bg-shell p-4 text-[0.9375rem] font-semibold leading-relaxed text-ink">
+        {block.text}
+      </p>
+    );
+  }
+
   if (block.type === "list") {
     return (
       <ul className="space-y-2">

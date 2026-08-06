@@ -8,7 +8,7 @@ import { setMarketingConsent } from "@/lib/legal/actions";
 
 export type ConsentRecord = {
   id: string;
-  kind: "terms" | "marketing";
+  kind: "terms" | "marketing" | "gallery";
   granted: boolean;
   docVersion: string;
   createdAt: string;
@@ -90,10 +90,15 @@ export function PrivacyPanel({
                     <span className={row.granted ? "text-pine" : "text-mute"}>
                       {row.granted ? "✓" : "✕"}
                     </span>
+                    {/*
+                      Each kind gets its own label. Publishing a drawing is a
+                      third, separate consent — folding it into "terms" would
+                      make the trail say the wrong thing about what was agreed.
+                    */}
                     <span className="flex-1">
-                      {row.kind === "marketing"
-                        ? t.auth.acceptMarketingLabel
-                        : t.checkout.termsLink}
+                      {row.kind === "marketing" && t.auth.acceptMarketingLabel}
+                      {row.kind === "gallery" && t.gallery.consentRecord}
+                      {row.kind === "terms" && t.checkout.termsLink}
                     </span>
                     <span className="text-mute">{row.docVersion}</span>
                     <span className="text-mute">

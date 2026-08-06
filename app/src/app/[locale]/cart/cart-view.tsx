@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { ProductArt } from "@/components/brand/product-art";
 import { useCart } from "@/components/cart/cart-context";
+import { DiscountForm } from "@/components/cart/discount-form";
 import { useI18n } from "@/components/i18n/provider";
 import {
   BagIcon,
@@ -15,7 +15,7 @@ import {
   TruckIcon,
 } from "@/components/icons";
 import { Breadcrumbs } from "@/components/ui/bits";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { curatedSlug } from "@/lib/i18n/sections";
 import { VatLines } from "@/components/cart/vat-lines";
 import { formatPrice } from "@/lib/utils";
@@ -29,10 +29,19 @@ const PAYMENTS = ["Visa", "Mastercard", "Amex", "PayPal", "Bizum", "Apple Pay"];
  */
 export function CartView({ outlet }: { outlet: boolean }) {
   const { t, href, locale } = useI18n();
-  const { lines, subtotal, shipping, total, count, setQty, remove, ready, freeShipping } =
-    useCart();
-  const [code, setCode] = useState("");
-  const [codeState, setCodeState] = useState<"idle" | "invalid">("idle");
+  const {
+    lines,
+    subtotal,
+    shipping,
+    discountCents,
+    total,
+    count,
+    setQty,
+    remove,
+    ready,
+    freeShipping,
+    discount,
+  } = useCart();
 
   if (!ready) return <div className="shell py-20" aria-busy="true" />;
 
@@ -85,7 +94,12 @@ export function CartView({ outlet }: { outlet: boolean }) {
                   href={href("product", line.slug)}
                   className="size-24 shrink-0 bg-shell sm:size-32"
                 >
-                  <ProductArt shape={line.shape} colorway={line.colorway} print={line.print} />
+                  <ProductArt
+                    shape={line.shape}
+                    colorway={line.colorway}
+                    print={line.print}
+                    artworkUrl={line.artwork?.imageUrl}
+                  />
                 </Link>
 
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -100,6 +114,19 @@ export function CartView({ outlet }: { outlet: boolean }) {
                       <p className="mt-1 text-[0.8125rem] text-mute">
                         {line.colorway.name} · {t.cart.size} {line.size} · {t.pdp.ref} {line.ref}
                       </p>
+                      {line.artwork && (
+                        <>
+                          <p className="mt-0.5 truncate text-[0.8125rem] text-mute">
+                            {t.gallery.printedWith} «{line.artwork.title}» · {line.artwork.author}
+                          </p>
+                          {/* A line that is made to order carries different terms
+                              from the one above it, so it has to be possible to
+                              tell them apart at a glance. */}
+                          <p className="mt-1 inline-block border-l-2 border-flame bg-shell px-2 py-1 text-[0.75rem] font-semibold">
+                            {t.gallery.tee.cartNote}
+                          </p>
+                        </>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -166,6 +193,17 @@ export function CartView({ outlet }: { outlet: boolean }) {
                   {shipping === 0 ? t.cart.free : formatPrice(shipping)}
                 </dd>
               </div>
+              {/* Waived delivery is shown here rather than as a zero shipping
+                  line, so the three figures still add up to the total. */}
+              {discountCents > 0 && discount.applied && (
+                <div className="flex justify-between text-pine">
+                  <dt>
+                    {t.cart.discount}{" "}
+                    <span className="font-mono text-[0.8125rem]">{discount.applied.code}</span>
+                  </dt>
+                  <dd className="font-semibold">−{formatPrice(discountCents)}</dd>
+                </div>
+              )}
               <div className="flex justify-between border-t border-line pt-3 text-lg">
                 <dt className="font-display font-bold uppercase">{t.cart.total}</dt>
                 <dd className="font-bold">{formatPrice(total)}</dd>
@@ -188,37 +226,7 @@ export function CartView({ outlet }: { outlet: boolean }) {
               </p>
             )}
 
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                setCodeState("invalid");
-              }}
-              className="mt-5"
-            >
-              <label htmlFor="promo" className="eyebrow mb-2 block text-mute">
-                {t.cart.promoCode}
-              </label>
-              <div className="flex gap-2">
-                <input
-                  id="promo"
-                  value={code}
-                  onChange={(event) => {
-                    setCode(event.target.value);
-                    setCodeState("idle");
-                  }}
-                  placeholder="BIENVENIDA10"
-                  className="h-11 min-w-0 flex-1 border border-line px-3 text-[0.875rem] outline-none transition focus:border-ink"
-                />
-                <Button type="submit" variant="outline" size="sm" className="h-11 px-4">
-                  {t.cart.apply}
-                </Button>
-              </div>
-              {codeState === "invalid" && (
-                <p role="alert" className="mt-2 text-[0.8125rem] text-flame">
-                  {t.cart.invalidCode}
-                </p>
-              )}
-            </form>
+            <DiscountForm className="mt-5" />
 
             <ButtonLink href={href("checkout")} block size="lg" className="mt-5">
               {t.cart.goToPay}

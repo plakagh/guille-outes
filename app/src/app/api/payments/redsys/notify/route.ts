@@ -158,6 +158,7 @@ export async function POST(request: NextRequest) {
 
   if (outcome === "paid") {
     await decrementStock(supabase, attempt.order_id);
+    await recordRedemption(supabase, attempt.order_id);
     await notifyPaid(supabase, attempt.order_id);
   } else {
     await notifyNotPaid(supabase, attempt.order_id);
@@ -187,6 +188,61 @@ async function decrementStock(supabase: Elevated, orderId: string) {
   }
 }
 
+/**
+ * Marks a discount code as used.
+ *
+ * This is the only place a redemption is ever written, and it runs here rather
+ * than at checkout for one reason: a code should be spent when somebody pays
+ * with it, not when somebody types it. An abandoned basket must not take the
+ * last slot on a limited campaign, and "used 47 times" in the admin panel has to
+ * mean forty-seven sales.
+ *
+ * It never refuses. The limits were checked when the order was placed; by the
+ * time we are here the card has been charged, and telling the bank otherwise is
+ * not on the table. If two shoppers race for the last redemption of a code, both
+ * get it and the shop finds out from this ledger.
+ *
+ * Idempotent through the UNIQUE constraint on `order_id`: Redsys retries land on
+ * a duplicate insert, which is ignored.
+ */
+async function recordRedemption(supabase: Elevated, orderId: string) {
+  const { data } = await supabase
+    .from("orders")
+    .select("user_id, discount_code, discount_cents")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  const order = data as {
+    user_id: string | null;
+    discount_code: string | null;
+    discount_cents: number;
+  } | null;
+
+  if (!order?.discount_code) return;
+
+  // Soft reference: a code deleted between the order and its payment leaves the
+  // redemption in place with its own copy of the string, which is what the
+  // reports read anyway.
+  const { data: codeRow } = await supabase
+    .from("discount_codes")
+    .select("id")
+    .eq("code", order.discount_code)
+    .maybeSingle();
+
+  const { error } = await supabase.from("discount_redemptions").insert({
+    discount_id: (codeRow as { id: string } | null)?.id ?? null,
+    order_id: orderId,
+    user_id: order.user_id,
+    code: order.discount_code,
+    amount_cents: order.discount_cents,
+  });
+
+  // 23505 is the replay landing on the unique order_id — expected, not a fault.
+  if (error && error.code !== "23505") {
+    console.error("[redsys] could not record redemption", error);
+  }
+}
+
 /* ---------------------------------------------------------------- emails */
 
 type OrderRow = {
@@ -196,6 +252,8 @@ type OrderRow = {
   locale: string;
   amount_cents: number;
   shipping_cents: number;
+  discount_code: string | null;
+  discount_cents: number;
   vat_rate: number | string;
   failure_notified_at: string | null;
 };
@@ -204,7 +262,7 @@ async function loadOrder(supabase: Elevated, orderId: string) {
   const { data } = await supabase
     .from("orders")
     .select(
-      "id, order_ref, email, locale, amount_cents, shipping_cents, vat_rate, failure_notified_at",
+      "id, order_ref, email, locale, amount_cents, shipping_cents, discount_code, discount_cents, vat_rate, failure_notified_at",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -214,7 +272,7 @@ async function loadOrder(supabase: Elevated, orderId: string) {
 
   const { data: itemRows } = await supabase
     .from("order_items")
-    .select("name, size, qty, unit_price_cents")
+    .select("name, size, qty, unit_price_cents, artwork_title")
     .eq("order_id", orderId);
 
   const locale: Locale = isLocale(order.locale) ? order.locale : "es";
@@ -223,15 +281,24 @@ async function loadOrder(supabase: Elevated, orderId: string) {
     orderRef: order.order_ref,
     amountCents: order.amount_cents,
     shippingCents: order.shipping_cents,
+    discountCode: order.discount_code,
+    discountCents: order.discount_cents,
     // numeric arrives as a string from PostgREST.
     vatRate: Number(order.vat_rate),
     items: (
-      (itemRows ?? []) as { name: string; size: string; qty: number; unit_price_cents: number }[]
+      (itemRows ?? []) as {
+        name: string;
+        size: string;
+        qty: number;
+        unit_price_cents: number;
+        artwork_title: string | null;
+      }[]
     ).map((item) => ({
       name: item.name,
       size: item.size,
       qty: item.qty,
       unitPriceCents: item.unit_price_cents,
+      artworkTitle: item.artwork_title,
     })),
     // `?ver=1` shows the summary instead of bouncing straight back to the bank.
     url: `${SITE_URL}${href(locale, "order", order.order_ref)}?ver=1`,

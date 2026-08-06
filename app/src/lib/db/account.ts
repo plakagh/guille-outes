@@ -1,4 +1,5 @@
 import { cache } from "react";
+import type { ConsentKind } from "@/lib/legal/consent";
 import { createClient, getUser } from "@/lib/supabase/server";
 
 export type CustomerAddress = {
@@ -75,7 +76,7 @@ export const getAddresses = cache(async (): Promise<CustomerAddress[]> => {
 
 export type ConsentRow = {
   id: string;
-  kind: "terms" | "marketing";
+  kind: ConsentKind;
   granted: boolean;
   docVersion: string;
   createdAt: string;
@@ -98,7 +99,7 @@ export const getConsentHistory = cache(async (): Promise<ConsentRow[]> => {
   return (
     data as {
       id: string;
-      kind: "terms" | "marketing";
+      kind: ConsentKind;
       granted: boolean;
       doc_version: string;
       created_at: string;

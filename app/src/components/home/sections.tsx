@@ -7,6 +7,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Rail } from "@/components/ui/rail";
 import { mediaUrl } from "@/lib/supabase/env";
 import type { Catalog, Product } from "@/lib/catalog";
+import type { Artwork } from "@/lib/db/gallery";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { href } from "@/lib/i18n/routes";
@@ -228,6 +229,82 @@ export function EditorialSplit({ locale, t }: Omit<Common, "catalog">) {
           </div>
         </article>
       ))}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------ kids' art gallery */
+
+/**
+ * "Crea el dibujo de tus niños."
+ *
+ * The invitation on the home page is to **draw**, not to buy: nobody arrives
+ * wanting a t-shirt with a child's drawing on it. That offer waits on the
+ * drawing's own page, once there is a drawing to put on one.
+ *
+ * The strip underneath is the last few published drawings, and it is the reason
+ * the band works — a child who can see five other children's drawings knows
+ * exactly what is being asked of them. With none published yet the band still
+ * stands: the invitation is the point, and an empty strip simply does not
+ * render.
+ */
+export function KidsGalleryBand({
+  locale,
+  t,
+  artworks,
+}: Omit<Common, "catalog"> & { artworks: Artwork[] }) {
+  return (
+    <section className="shell py-10 lg:py-14">
+      <div className="grid gap-8 bg-[#0b3d5c] p-8 text-white lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-center lg:gap-12 lg:p-12">
+        <div>
+          <p className="eyebrow mb-3 text-[#ffd400]">{t.home.kidsArtEyebrow}</p>
+          <h2 className="text-[clamp(1.875rem,4.5vw,3rem)] leading-[0.95]">
+            {t.home.kidsArtTitle}
+          </h2>
+          <p className="mt-4 max-w-sm text-[0.9375rem] leading-relaxed text-white/70">
+            {t.home.kidsArtBlurb}
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <ButtonLink href={href(locale, "studio")} variant="inverse">
+              {t.gallery.paintCta}
+            </ButtonLink>
+            <ButtonLink
+              href={href(locale, "gallery")}
+              variant="ghost"
+              className="bg-white/10 text-white hover:bg-white/20"
+            >
+              {t.home.kidsArtSecondary}
+            </ButtonLink>
+          </div>
+        </div>
+
+        {artworks.length > 0 && (
+          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+            {artworks.slice(0, 5).map((artwork) => (
+              <li key={artwork.id}>
+                <Link
+                  href={href(locale, "gallery", artwork.slug)}
+                  className="group block focus-visible:outline-offset-4"
+                  title={artwork.title}
+                >
+                  <span className="flex aspect-square items-center justify-center overflow-hidden bg-white/10 p-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL, sized by CSS */}
+                    <img
+                      src={artwork.imageUrl}
+                      alt={artwork.title}
+                      loading="lazy"
+                      className="max-h-full max-w-full object-contain transition-transform duration-500 ease-[var(--ease-out-quint)] group-hover:scale-105"
+                    />
+                  </span>
+                  <span className="mt-1.5 block truncate text-[0.75rem] text-white/60">
+                    {artwork.authorName}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

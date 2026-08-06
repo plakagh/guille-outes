@@ -2,9 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { getCatalog } from "@/lib/db/catalog";
+import { lookupDiscount } from "@/lib/db/discounts";
 import { getShippingSettings } from "@/lib/db/settings";
+import { evaluateDiscount, totalWithDiscount, type AppliedDiscount } from "@/lib/discounts";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { href } from "@/lib/i18n/routes";
+import { discountLines, parseLines, type CheckoutLineInput } from "@/lib/orders/lines";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { stockFor } from "@/lib/catalog";
 import { isShippingMethod, shippingCost } from "@/lib/shipping";
@@ -20,15 +23,17 @@ import { VAT_RATE } from "@/lib/tax";
  * hand to the bank.
  */
 
-export type CheckoutLineInput = {
-  slug: string;
-  size: string;
-  colorwayId: string;
-  qty: number;
-};
+export type { CheckoutLineInput };
 
 export type CheckoutState = {
-  error?: "empty" | "out_of_stock" | "invalid" | "not_signed_in" | "unknown";
+  error?:
+    | "empty"
+    | "out_of_stock"
+    | "invalid"
+    | "not_signed_in"
+    | "artwork_unavailable"
+    | "discount_refused"
+    | "unknown";
   /** Which line failed, so the UI can point at it. */
   detail?: string;
 };
@@ -36,31 +41,6 @@ export type CheckoutState = {
 function text(form: FormData, key: string): string {
   const value = form.get(key);
   return typeof value === "string" ? value.trim() : "";
-}
-
-/** Cart lines arrive as JSON in a hidden field, then get validated here. */
-function parseLines(raw: string): CheckoutLineInput[] {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.flatMap((item) => {
-      if (typeof item !== "object" || item === null) return [];
-      const line = item as Partial<CheckoutLineInput>;
-      if (
-        typeof line.slug !== "string" ||
-        typeof line.size !== "string" ||
-        typeof line.colorwayId !== "string" ||
-        !Number.isFinite(line.qty)
-      ) {
-        return [];
-      }
-      // Clamp rather than trust: the same ceiling the UI enforces.
-      const qty = Math.min(10, Math.max(1, Math.floor(Number(line.qty))));
-      return [{ slug: line.slug, size: line.size, colorwayId: line.colorwayId, qty }];
-    });
-  } catch {
-    return [];
-  }
 }
 
 export async function placeOrder(
@@ -98,8 +78,40 @@ export async function placeOrder(
   const shippingSettings = await getShippingSettings();
   if (!shippingSettings.enabled[shippingMethod]) return { error: "invalid" };
 
+  const supabase = await createClient();
+
   // Re-price from the catalogue. This is the authoritative amount.
   const catalog = await getCatalog(locale);
+
+  /**
+   * The drawings, resolved once from the database.
+   *
+   * The browser sends ids and nothing else, so the title that ends up on the
+   * order and the file the shop prints from are both read here — the cart's
+   * snapshot is for display and has no say in what gets made. A drawing that is
+   * not published (retired by the shop, or hidden by the family since the tab
+   * was opened) resolves to nothing and takes the order down with it rather than
+   * quietly printing a plain shirt somebody did not order.
+   */
+  const artworkIds = [...new Set(lines.map((line) => line.artworkId).filter(Boolean))] as string[];
+
+  const artworks = new Map<string, { id: string; title: string; storage_path: string }>();
+  if (artworkIds.length > 0) {
+    const { data } = await supabase
+      .from("artworks")
+      .select("id, title, storage_path, status")
+      .in("id", artworkIds)
+      .eq("status", "published");
+
+    for (const row of (data ?? []) as {
+      id: string;
+      title: string;
+      storage_path: string;
+    }[]) {
+      artworks.set(row.id, row);
+    }
+  }
+
   let subtotal = 0;
   const items: {
     product_id: string;
@@ -110,6 +122,9 @@ export async function placeOrder(
     colorway_id: string;
     unit_price_cents: number;
     qty: number;
+    artwork_id: string | null;
+    artwork_title: string | null;
+    artwork_path: string | null;
   }[] = [];
 
   for (const line of lines) {
@@ -125,6 +140,17 @@ export async function placeOrder(
       (candidate) => candidate.size === line.size && candidate.colorwayId === line.colorwayId,
     );
 
+    // A drawing may only be printed on a product the shop has said can carry
+    // one. Checked here as well as in the picker, because "which products accept
+    // a drawing" is a rule about what the workshop can make, and a stale tab
+    // must not be able to order a printed cap the shop does not print.
+    let artwork: { id: string; title: string; storage_path: string } | null = null;
+    if (line.artworkId) {
+      if (!product.artworkPrintable) return { error: "invalid", detail: line.slug };
+      artwork = artworks.get(line.artworkId) ?? null;
+      if (!artwork) return { error: "artwork_unavailable", detail: product.name };
+    }
+
     subtotal += product.price * line.qty;
     items.push({
       product_id: product.id,
@@ -135,12 +161,54 @@ export async function placeOrder(
       colorway_id: line.colorwayId,
       unit_price_cents: product.price,
       qty: line.qty,
+      // The reference is soft, so the title and the path travel with the line:
+      // a shirt that has been paid for stays printable after the family takes
+      // the drawing down.
+      artwork_id: artwork?.id ?? null,
+      artwork_title: artwork?.title ?? null,
+      artwork_path: artwork?.storage_path ?? null,
     });
   }
 
-  const shipping = shippingCost(subtotal, shippingMethod, shippingSettings);
+  const quotedShipping = shippingCost(subtotal, shippingMethod, shippingSettings);
 
-  const supabase = await createClient();
+  /**
+   * The discount code, re-checked from scratch.
+   *
+   * The cart already asked, and the answer is deliberately not carried over: a
+   * tab left open through the end of a campaign, a code that hit its last
+   * redemption while the shopper filled in an address, a basket edited in
+   * another tab — all of them make a cart-time quote wrong by the time it
+   * matters. So the only thing that travels is the string.
+   *
+   * A code that no longer works stops the order rather than quietly charging
+   * full price. Being taken to the bank for more than the page said is the one
+   * outcome worse than being told to try again.
+   */
+  let discount: AppliedDiscount | null = null;
+  const code = text(form, "code");
+
+  if (code) {
+    const rules = await lookupDiscount(code);
+    const verdict = rules
+      ? evaluateDiscount({
+          rules,
+          lines: discountLines(catalog, lines),
+          shippingCents: quotedShipping,
+          signedIn: true,
+          now: new Date(),
+        })
+      : ({ ok: false, reason: "unknown" } as const);
+
+    if (!verdict.ok) return { error: "discount_refused", detail: verdict.reason };
+    discount = verdict.discount;
+  }
+
+  const priced = totalWithDiscount({
+    subtotalCents: subtotal,
+    shippingCents: quotedShipping,
+    discount,
+  });
 
   // `order_ref` is generated by a database default (a zero-padded sequence), so
   // it is unique per merchant without a round trip to check.
@@ -151,8 +219,13 @@ export async function placeOrder(
       email,
       phone: text(form, "tel") || null,
       locale,
-      amount_cents: subtotal + shipping,
-      shipping_cents: shipping,
+      amount_cents: priced.totalCents,
+      shipping_cents: priced.shippingCents,
+      // Snapshotted, like the address and the line prices: what this order was
+      // given, at the moment it was placed. The code itself may later be edited,
+      // switched off or deleted.
+      discount_code: discount?.code ?? null,
+      discount_cents: priced.discountCents,
       // Recorded per order, so a future rate change never rewrites this invoice.
       vat_rate: VAT_RATE,
       ship_name: shipName,

@@ -6,13 +6,13 @@ const en: Dictionary = {
     siteName: "Guille Outes",
     tagline: "Official store",
     description:
-      "The official Guille Outes store: basketball t-shirts, hoodies, caps and kit made in short runs. Free shipping over €60 and 30 days to return.",
+      "The official Guille Outes store: art t-shirts, hoodies, caps and original artwork made in short runs. Free shipping over €60 and 30 days to return.",
     keywords: [
       "guille outes",
-      "basketball clothing",
-      "basketball t-shirts",
-      "basketball kit",
-      "basketball store",
+      "art clothing",
+      "art t-shirts",
+      "original artwork",
+      "art store",
       "short runs",
       "screen printing",
     ],
@@ -95,9 +95,9 @@ const en: Dictionary = {
     shopByCategory: "Shop by category",
     wholeCatalogue: "Whole catalogue",
     shopByCollection: "Shop by collection",
-    fiveLines: "Five lines, one wardrobe",
+    fiveLines: "Five lines, one workshop",
     bestSellers: "Best sellers",
-    fanChoice: "Fan favourites",
+    fanChoice: "Customer favourites",
     justArrived: "Just arrived",
     newIn: "New in",
     forKids: "For the little ones",
@@ -111,19 +111,24 @@ const en: Dictionary = {
     authorsBlurb:
       "Every piece is credited to the people who designed, illustrated, pattern-cut or photographed it.",
     seeAllAuthors: "See all credits",
+    kidsArtEyebrow: "For the artists of the house",
+    kidsArtTitle: "Make your children's drawing",
+    kidsArtBlurb:
+      "Paint it right here with a finger, or upload a photo of one made on paper. We publish it signed with their name — and if you like how it looks, we will print it on a t-shirt.",
+    kidsArtSecondary: "See the gallery",
     personaliseEyebrow: "Personalisation",
     personaliseTitle: "Your name. Your number.",
     personaliseBlurb:
-      "Add a name and number to any game jersey. Heat-sealed vinyl, ready in 48 hours.",
+      "Add a name and number to any tank. Heat-sealed vinyl, ready in 48 hours.",
     personaliseCta: "Personalise now",
     giftEyebrow: "Not sure what to give",
     giftTitle: "Gift card",
     giftBlurb: "From €20 to €200, no expiry date. Delivered instantly by email.",
     giftCta: "Buy a gift card",
     projectEyebrow: "The project",
-    projectTitle: "Basketball clothing made in short runs",
+    projectTitle: "Clothing with art made in short runs",
     projectBody: [
-      "Guille Outes started as a garage screen-printing setup: twenty t-shirts, one design and a neighbourhood court. Not much has changed except the square metres. Every collection is produced in short runs and only restocked when the fabric quality allows it.",
+      "Guille Outes started as a garage screen-printing setup: twenty t-shirts, one design and a neighbourhood wall. Not much has changed except the square metres. Every collection is produced in short runs and only restocked when the fabric quality allows it.",
       "We design in Galicia, cut and sew in Portugal, and print here, by hand. That means longer lead times and fewer lines, but also garments that survive season after season.",
       "If something does not fit, you have 30 days to send it back, no explanation needed. And if you are unsure about sizing, email us before you buy: you get a person, not a bot.",
     ],
@@ -132,10 +137,10 @@ const en: Dictionary = {
     slides: {
       court: {
         eyebrow: "New season",
-        line1: "Court",
+        line1: "Studio",
         line2: "Series",
         blurb:
-          "The full kit: double-layer mesh game jersey, matching shorts and a warm-up jacket.",
+          "The full line: double-layer mesh tank, matching shorts and a work jacket.",
         primary: "Shop the line",
         secondary: "See new arrivals",
       },
@@ -149,11 +154,11 @@ const en: Dictionary = {
         secondary: "How we make it",
       },
       hardwood: {
-        eyebrow: "1994 archive",
-        line1: "Hardwood",
+        eyebrow: "Recovered from 1994",
+        line1: "Archive",
         line2: "94",
         blurb:
-          "Hardwood tones, colour blocking and condensed type pulled from the 1994 season.",
+          "Aged-paper tones, colour blocking and condensed type pulled from the 1994 posters.",
         primary: "Enter the archive",
         secondary: "See t-shirts",
       },
@@ -186,7 +191,7 @@ const en: Dictionary = {
     outletBlurb:
       "Previous seasons and last sizes at up to 50% off. Same 30-day guarantee.",
     bestTitle: "Best sellers",
-    bestEyebrow: "Fan favourites",
+    bestEyebrow: "Customer favourites",
     bestBlurb: "The pieces that come up most often in orders, by number of reviews.",
     audienceBlurb: "The full Guille Outes catalogue in sizes and fits for",
     item: "item",
@@ -347,6 +352,23 @@ const en: Dictionary = {
     checkout: "Checkout",
     goToPay: "Go to payment",
     summary: "Order summary",
+    discount: "Discount",
+    code: {
+      checking: "Checking…",
+      remove: "Remove",
+      freeShipping: "Free delivery",
+      refusal: {
+        notStarted: "That code is not active yet.",
+        expired: "That code has expired.",
+        exhausted: "That code has reached its limit.",
+        alreadyUsed: "You have already used that code.",
+        signIn: "Sign in to use that code.",
+        notFirstOrder: "That code is for first orders only.",
+        minSubtotal: "That code needs a minimum order of {{amount}}.",
+        noEligibleItems: "That code does not apply to anything in your basket.",
+        nothingToTake: "That code changes nothing on this order.",
+      },
+    },
     promoCode: "Promo code",
     apply: "Apply",
     invalidCode: "That code is not valid or has expired.",
@@ -414,7 +436,7 @@ const en: Dictionary = {
       madeBody: "Screen printing and embroidery in our workshop, in short runs.",
     },
     about:
-      "Official store. Basketball clothing and kit designed in Galicia and produced in short runs.",
+      "Official store. Clothing and original artwork designed in Galicia and produced in short runs.",
     columns: {
       help: "Help",
       account: "My account",
@@ -670,6 +692,70 @@ const en: Dictionary = {
       visible: "Visible",
       order: "Order",
     },
+    discounts: {
+      tab: "Discounts",
+      title: "Discount codes",
+      blurb:
+        "Codes are checked on the server every time: when they are typed, when the basket changes, and again at the till. A code counts as used when the order is paid for, not when someone types it, so an abandoned basket never burns a slot on a limited campaign.",
+      newCode: "New code",
+      newCodeBlurb:
+        "The code and what it takes off are the only required parts. Everything else is a limit, and blank means no limit.",
+      existing: "Codes",
+      empty: "No codes yet.",
+      edit: "Edit",
+      add: "Create code",
+      code: "Code",
+      codeHint: "3–24 characters: letters, numbers and dashes. Stored upper-case.",
+      kind: "Type",
+      kindPercent: "Percentage",
+      kindAmount: "Fixed amount",
+      kindFreeShipping: "Free delivery",
+      percent: "Discount",
+      amount: "Discount",
+      maxDiscount: "Maximum discount",
+      maxDiscountHint: "Ceiling for the percentage. Blank for none.",
+      minSubtotal: "Minimum order",
+      minSubtotalHint: "On the subtotal, delivery excluded. 0 for no minimum.",
+      minSubtotalShort: "min. {{amount}}",
+      scope: "What it applies to",
+      appliesTo: "Scope",
+      scopeAll: "The whole catalogue",
+      scopeCollection: "One collection",
+      scopeCategory: "One category",
+      excludeDiscounted: "Do not stack with the outlet",
+      excludeDiscountedHint:
+        "Products that are already reduced are left out of the discount. Usually what you want: 20 % on top of −40 % is normally an accident rather than an offer.",
+      limits: "Limits",
+      maxRedemptions: "Total uses",
+      maxPerCustomer: "Uses per customer",
+      unlimitedHint: "Blank for no limit.",
+      startsAt: "Starts",
+      endsAt: "Ends",
+      firstOrderOnly: "First order only",
+      firstOrderOnlyHint:
+        "Counts the first paid order. Someone with a basket half-finished still qualifies.",
+      note: "Internal note",
+      noteHint: "Never shown to anyone. For remembering what the code was for.",
+      notePlaceholder: "Ourense fair, printed on the flyers",
+      enabled: "Active",
+      active: "Active",
+      paused: "Paused",
+      pause: "Pause",
+      resume: "Resume",
+      used: "Uses",
+      customers: "Customers",
+      lastUsed: "Last used",
+      deleteHint:
+        "Orders that used it keep the code and the amount. Pausing is nearly always better.",
+      errors: {
+        badCode: "A code takes letters, numbers and dashes only, 3–24 characters.",
+        badPercent: "The percentage has to be between 1 and 100.",
+        badAmount: "The discount amount has to be greater than zero.",
+        badWindow: "The end date has to be after the start date.",
+        badScope: "Choose the collection or category it applies to.",
+        codeTaken: "A code with that name already exists.",
+      },
+    },
     newsletter: {
       tab: "Newsletter",
       title: "Newsletter subscribers",
@@ -715,6 +801,9 @@ const en: Dictionary = {
     delete: "Delete",
     confirmDelete: "Are you sure? This cannot be undone.",
     published: "Published",
+    artworkPrintable: "Can be printed with a drawing from the gallery",
+    artworkPrintableHint:
+      "Appears as an option on every children's drawing page. Leave it unticked if this garment is not printed that way.",
     unpublished: "Hidden",
     publish: "Publish",
     unpublish: "Hide",
@@ -921,7 +1010,184 @@ const en: Dictionary = {
     results: "results",
     nothingFor: "We found nothing for",
     nothingBlurb: "Check the spelling, try a shorter term, or browse the full catalogue.",
-    suggestions: ["T-shirt", "Hoodie", "Cap", "Court Series", "Outlet"],
+    suggestions: ["T-shirt", "Hoodie", "Cap", "Studio Series", "Outlet"],
+  },
+
+  /**
+   * The children's gallery.
+   *
+   * A drawing's own text — its title and the name of whoever signed it — is
+   * written by a family and is never translated: those are their words, in their
+   * language. What is here is only the room around them.
+   */
+  gallery: {
+    navLabel: "Kids' gallery",
+    eyebrow: "Children's art",
+    title: "The kids' gallery",
+    blurb:
+      "Where the drawings made by the children who come by our stand live. Upload a photo of one you brought along, or paint one right here, give it a title and sign it with your name.",
+    keywords: [
+      "children's art gallery",
+      "kids drawings",
+      "paint online",
+      "t-shirt with your child's drawing",
+      "children's art",
+    ],
+    metaDescription:
+      "A drawing from the Guille Outes children's gallery, signed by whoever painted it.",
+    wall: "The drawings",
+    paintCta: "Paint a drawing",
+    uploadCta: "Upload a photo",
+    consentNotice:
+      "Publishing needs a grown-up's account — they are the one giving permission for the drawing to appear on the site. Painting needs no account at all.",
+    emptyTitle: "No drawings yet",
+    emptyBlurb: "Be the first: paint one here, or upload a photo of one you have already made.",
+    by: "A drawing by",
+    years: "years old",
+    hidden: "Taken down by the family",
+    retired: "Withdrawn by the shop",
+    originPainted: "Painted in the studio",
+    originUpload: "Photo of a drawing",
+    backToWall: "See every drawing",
+    moreDrawings: "More drawings",
+    myDrawings: "My drawings",
+    myDrawingsBlurb:
+      "Everything you have published, including what you have taken off the wall. Open any of them to change the title, take it down, or delete it for good.",
+    printedWith: "printed with",
+    consentRecord: "Publishing a drawing in the gallery",
+
+    publish: {
+      title: "Give it a name and sign it",
+      titleLabel: "What is the drawing called?",
+      titlePlaceholder: "My dog Nube",
+      nameLabel: "Who painted it?",
+      namePlaceholder: "Martina",
+      nameHint: "First name only, no surnames.",
+      ageLabel: "Age",
+      ageHint: "Optional",
+      consentLabel:
+        "I am their parent or guardian and I agree to this drawing and first name being published in the public gallery on guilleoutes.com, under the",
+      consentDetail:
+        "I can take it down or delete it whenever I want from my account, without giving a reason.",
+      publish: "Publish to the gallery",
+      publishing: "Publishing…",
+      withdrawNote:
+        "We never publish surnames, schools, or any contact details for the child. Your email is kept as evidence of the permission, and is shown nowhere.",
+      needsAccountTitle: "A grown-up's permission is missing",
+      needsAccountBlurb:
+        "The drawing is made and it is not going anywhere. For it to appear on the site, a parent or guardian has to sign in with their account and give permission.",
+      draftKept: "Your drawing stays saved on this device in the meantime.",
+    },
+
+    errors: {
+      titleEmpty: "Give the drawing a title.",
+      titleTooLong: "That title is too long.",
+      nameEmpty: "Write the name of whoever painted it.",
+      nameTooLong: "That name is too long.",
+      nameFullName: "First name only, please — no surnames.",
+      ageRange: "The age has to be between 1 and 17.",
+      needsAccount: "You have to sign in to publish.",
+      consentRequired: "The permission box has to be ticked before this can be published.",
+      noImage: "We could not find the image. Try again.",
+      unsupportedType: "That file type will not do. Use a JPG, PNG or WEBP photo.",
+      tooLarge: "That image is too heavy. The limit is 8 MB.",
+      uploadFailed: "We could not upload the image. Try again.",
+      unknown: "Something went wrong. Try again.",
+    },
+
+    studio: {
+      title: "The studio",
+      blurb:
+        "Paint with a finger or a stylus. No account is needed to paint — only to publish it afterwards.",
+      canvasLabel: "Drawing sheet",
+      maximise: "Full screen",
+      exitMaximise: "Leave full screen",
+      leave:
+        "Finish",
+      pendingTitle:
+        "You have a drawing that is not published",
+      pendingBlurb:
+        "It is not in the gallery yet. What shall we do with it?",
+      pendingKeep:
+        "Keep it for next time",
+      pendingKeepHint:
+        "It stays on this device and will be here the next time you open the studio.",
+      pendingDelete:
+        "Delete it",
+      pendingDeleteHint:
+        "It disappears from this device. This cannot be undone.",
+      pendingPublish:
+        "Wait, I want to publish it",
+      pendingPublishHint:
+        "Go back to the studio and open the form to name it and sign it.",
+      pendingWarnOnUnload:
+        "You have a drawing that is not published.",
+      tool: "Tool",
+      tools: {
+        marker: "Marker",
+        pencil: "Pencil",
+        crayon: "Crayon",
+        spray: "Spray",
+        fill: "Fill",
+        eraser: "Eraser",
+      },
+      thickness: "Thickness",
+      colour: "Colour",
+      customColour: "Another colour",
+      paper: "Paper",
+      undo: "Undo",
+      redo: "Redo",
+      startOver: "Start again",
+      undoHint: "Everything can be undone, including starting again.",
+      publish: "Publish my drawing",
+      publishHint: "It will appear in the gallery under the name you give it.",
+      publishHintSignedOut:
+        "Publishing will need a grown-up's account. The drawing does not get lost on the way.",
+    },
+
+    tee: {
+      eyebrow: "Wear it",
+      title: "Put it on a t-shirt",
+      blurb:
+        "We print this drawing on whichever garment you pick. Made by us, in short runs, like everything else in the shop.",
+      garment: "Garment",
+      addToCart: "Add to bag",
+      noReturns:
+        "Note: with a drawing on it, this garment is made only for you and cannot be exchanged or returned. If it arrives faulty, that we do cover.",
+      cartNote: "No exchanges or returns",
+      note:
+        "The image is a simulation: the size and position of the print are adjusted to the size you choose.",
+    },
+
+    owner: {
+      title: "This drawing is yours",
+      blurb: "You can correct the title or the name, take it off the site, or delete it.",
+      save: "Save changes",
+      saved: "Saved.",
+      hide: "Take it off the gallery",
+      show: "Publish it again",
+      delete: "Delete for good",
+      deleteConfirm: "Yes, delete it",
+      deleteNote:
+        "Deleting removes it from the site. If somebody has already bought a t-shirt with it, we keep the image only so that it can be printed: that is a paid order we still have to fulfil.",
+      retiredNote:
+        "The shop has withdrawn this drawing from the gallery. Write to us if you think that was a mistake.",
+    },
+
+    admin: {
+      tab: "Gallery",
+      title: "Children's gallery",
+      blurb:
+        "Drawings go up immediately: publishing requires an account, so behind every one of them is an identified adult who gave permission. This is where anything that should not be here comes down.",
+      published: "Published",
+      withdrawn: "Taken down by the family",
+      retiredCount: "Withdrawn by the shop",
+      empty: "No drawings yet.",
+      retire: "Withdraw",
+      restore: "Publish again",
+      delete: "Delete",
+      deleteConfirm: "Yes, delete it",
+    },
   },
 
   notFound: {

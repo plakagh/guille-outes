@@ -213,6 +213,24 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
         },
       ],
     },
+    /*
+      The gallery is not a shop section, so it has no facets and no product
+      columns — it is one destination with two doors: the wall, and the studio.
+      It sits next to "niños" because that is where a parent looks for it.
+    */
+    {
+      label: t.gallery.navLabel,
+      href: href(locale, "gallery"),
+      columns: [
+        {
+          heading: t.gallery.title,
+          links: [
+            { label: t.gallery.wall, href: href(locale, "gallery") },
+            { label: t.gallery.paintCta, href: href(locale, "studio"), flag: "nuevo" },
+          ],
+        },
+      ],
+    },
     {
       label: t.nav.tees,
       href: shop(bySlug("camisetas")),
@@ -321,6 +339,7 @@ export function buildFooterColumns(
       heading: t.footer.columns.brand,
       links: [
         { label: t.footer.links.authors, href: href(locale, "authors") },
+        { label: t.gallery.navLabel, href: href(locale, "gallery") },
         { label: t.footer.links.bibliography, href: href(locale, "bibliography") },
         { label: t.footer.links.project, href: help("sobre-nosotros") },
         { label: t.footer.links.making, href: help("fabricacion") },

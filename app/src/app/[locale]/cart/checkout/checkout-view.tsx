@@ -4,17 +4,20 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { ProductArt } from "@/components/brand/product-art";
 import { useCart } from "@/components/cart/cart-context";
+import { DiscountForm, refusalMessage } from "@/components/cart/discount-form";
 import { VatLines } from "@/components/cart/vat-lines";
 import { shippingCost, type ShippingMethod } from "@/lib/shipping";
 import { useI18n } from "@/components/i18n/provider";
 import { CheckIcon, ShieldIcon } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { totalWithDiscount, type DiscountRefusal } from "@/lib/discounts";
 import { placeOrder, type CheckoutState } from "@/lib/orders/actions";
 import { cn, formatPrice } from "@/lib/utils";
 
 export function CheckoutView() {
   const { t, href, locale } = useI18n();
-  const { lines, subtotal, count, ready, shippingSettings } = useCart();
+  const { lines, subtotal, count, ready, shippingSettings, discount, setQuoteMethod, linesJson } =
+    useCart();
   const [state, action, submitting] = useActionState<CheckoutState, FormData>(placeOrder, {});
 
   // Built from the shop's live rates, and filtered to the services it actually
@@ -45,6 +48,19 @@ export function CheckoutView() {
 
   const [shippingId, setShippingId] = useState<ShippingMethod>("standard");
 
+  /**
+   * Picking a delivery service also re-asks about the code.
+   *
+   * A free-delivery code is worth nothing on an order that already ships free
+   * and 8,95 € on an express one, so the verdict depends on the choice. Done in
+   * the handler rather than in an effect watching `shippingId`: it is one event
+   * with two consequences, not a state change to synchronise afterwards.
+   */
+  const chooseShipping = (method: ShippingMethod) => {
+    setShippingId(method);
+    setQuoteMethod(method);
+  };
+
   if (!ready) return <div className="shell py-20" aria-busy="true" />;
 
   if (lines.length === 0) {
@@ -58,10 +74,15 @@ export function CheckoutView() {
   }
 
   const chosen = delivery.find((option) => option.id === shippingId) ?? delivery[0];
-  // Same helper the server uses to price the order, so the total shown is the
+  // Same helpers the server uses to price the order, so the total shown is the
   // total charged — and the amount signed for the bank.
   const shipping = shippingCost(subtotal, chosen.id, shippingSettings);
-  const total = subtotal + shipping;
+  const priced = totalWithDiscount({
+    subtotalCents: subtotal,
+    shippingCents: shipping,
+    discount: discount.applied,
+  });
+  const total = priced.totalCents;
 
   return (
     <div className="shell py-6 lg:py-10">
@@ -77,18 +98,27 @@ export function CheckoutView() {
           stock are recomputed server-side, so a tampered cart cannot change
           what gets charged, and the amount we sign for the bank is ours.
         */}
-        <input
-          type="hidden"
-          name="lines"
-          value={JSON.stringify(
-            lines.map((line) => ({
-              slug: line.slug,
-              size: line.size,
-              colorwayId: line.colorway.id,
-              qty: line.qty,
-            })),
-          )}
-        />
+        {/*
+          Built by the cart provider, so the basket the code was checked against
+          and the basket being ordered are the same string. Which drawing goes on
+          a line travels as an id and nothing else: the title and the file are
+          read from the database on the server, like the price.
+        */}
+        <input type="hidden" name="lines" value={linesJson} />
+        {/*
+          The code, not the saving. `placeOrder` looks it up and applies it again
+          from scratch — a discount posted from the browser would be a discount
+          anyone could invent.
+
+          Posted while the answer is still in flight as well as after it arrives:
+          somebody who types a code and hits pay in the same breath must not be
+          charged full price because the round trip lost the race. The server
+          reaches its own verdict either way, and refuses the order rather than
+          silently dropping the code.
+        */}
+        {discount.code && (discount.state === "applied" || discount.state === "checking") && (
+          <input type="hidden" name="code" value={discount.code} />
+        )}
         <div className="space-y-10">
           <Step number={1} title={t.checkout.contact}>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -120,7 +150,7 @@ export function CheckoutView() {
                         name="shipping"
                         value={option.id}
                         checked={shippingId === option.id}
-                        onChange={() => setShippingId(option.id)}
+                        onChange={() => chooseShipping(option.id)}
                       />
                       <span className="flex-1">
                         <span className="block text-[0.9375rem] font-semibold">{option.label}</span>
@@ -162,13 +192,28 @@ export function CheckoutView() {
               {lines.map((line) => (
                 <li key={line.key} className="flex items-center gap-3">
                   <span className="size-14 shrink-0 bg-shell">
-                    <ProductArt shape={line.shape} colorway={line.colorway} print="none" />
+                    <ProductArt
+                      shape={line.shape}
+                      colorway={line.colorway}
+                      print="none"
+                      artworkUrl={line.artwork?.imageUrl}
+                    />
                   </span>
                   <span className="min-w-0 flex-1 text-[0.8125rem]">
                     <span className="block truncate font-semibold">{line.name}</span>
                     <span className="block text-mute">
                       {line.colorway.name} · {line.size} · ×{line.qty}
                     </span>
+                    {line.artwork && (
+                      <>
+                        <span className="block truncate text-mute">
+                          {t.gallery.printedWith} «{line.artwork.title}»
+                        </span>
+                        <span className="mt-1 inline-block border-l-2 border-flame bg-shell px-1.5 py-0.5 text-[0.6875rem] font-semibold text-ink">
+                          {t.gallery.tee.cartNote}
+                        </span>
+                      </>
+                    )}
                   </span>
                   <span className="text-[0.8125rem] font-semibold">
                     {formatPrice(line.lineTotal)}
@@ -190,6 +235,15 @@ export function CheckoutView() {
                   {shipping === 0 ? t.cart.free : formatPrice(shipping)}
                 </dd>
               </div>
+              {priced.discountCents > 0 && discount.applied && (
+                <div className="flex justify-between text-pine">
+                  <dt>
+                    {t.cart.discount}{" "}
+                    <span className="font-mono text-[0.8125rem]">{discount.applied.code}</span>
+                  </dt>
+                  <dd className="font-semibold">−{formatPrice(priced.discountCents)}</dd>
+                </div>
+              )}
               <div className="flex justify-between border-t border-line pt-3 text-lg">
                 <dt className="font-display font-bold uppercase">{t.cart.total}</dt>
                 <dd className="font-bold">{formatPrice(total)}</dd>
@@ -198,6 +252,8 @@ export function CheckoutView() {
                 <VatLines grossCents={total} t={t} />
               </div>
             </dl>
+
+            <DiscountForm className="mt-5" />
 
             <Button type="submit" block size="lg" disabled={submitting} className="mt-5">
               {submitting ? t.admin.saving : `${t.checkout.pay} ${formatPrice(total)}`}
@@ -209,7 +265,12 @@ export function CheckoutView() {
                   ? `${t.pdp.soldOut}: ${state.detail ?? ""}`
                   : state.error === "not_signed_in"
                     ? t.account.signInToSave
-                    : t.admin.error}
+                    : state.error === "discount_refused"
+                      ? // The code stopped working between the cart and the till.
+                        // Nobody is charged more than the page said; they are told
+                        // why and the box is theirs to clear.
+                        refusalMessage((state.detail ?? "unknown") as DiscountRefusal, null, t)
+                      : t.admin.error}
               </p>
             )}
 
