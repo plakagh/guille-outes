@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { ProductArt } from "@/components/brand/product-art";
+import { LineShot } from "@/components/product/product-shot";
 import { useCart } from "@/components/cart/cart-context";
 import { DiscountForm, refusalMessage } from "@/components/cart/discount-form";
 import { VatLines } from "@/components/cart/vat-lines";
@@ -10,6 +10,7 @@ import { shippingCost, type ShippingMethod } from "@/lib/shipping";
 import { useI18n } from "@/components/i18n/provider";
 import { CheckIcon, ShieldIcon } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { frameLabel } from "@/lib/catalog";
 import { totalWithDiscount, type DiscountRefusal } from "@/lib/discounts";
 import { placeOrder, type CheckoutState } from "@/lib/orders/actions";
 import { cn, formatPrice } from "@/lib/utils";
@@ -191,18 +192,26 @@ export function CheckoutView() {
             <ul className="mt-4 space-y-3 border-b border-line pb-4">
               {lines.map((line) => (
                 <li key={line.key} className="flex items-center gap-3">
-                  <span className="size-14 shrink-0 bg-shell">
-                    <ProductArt
+                  {/* A div, not a span: a framed line draws a frame, and a
+                      frame is boxes — inside an inline element the browser
+                      would re-parent them and the summary would come apart. */}
+                  <div className="size-14 shrink-0 bg-shell">
+                    <LineShot
+                      imageUrl={line.imageUrl}
+                      artworkUrl={line.artwork?.imageUrl}
                       shape={line.shape}
                       colorway={line.colorway}
                       print="none"
-                      artworkUrl={line.artwork?.imageUrl}
+                      frame={line.frame}
+                      frameFinish={line.frameFinish}
+                      alt={line.name}
                     />
-                  </span>
+                  </div>
                   <span className="min-w-0 flex-1 text-[0.8125rem]">
                     <span className="block truncate font-semibold">{line.name}</span>
                     <span className="block text-mute">
                       {line.colorway.name} · {line.size} · ×{line.qty}
+                      {line.frameFinish && ` · ${frameLabel(line.frameFinish, t.pdp)}`}
                     </span>
                     {line.artwork && (
                       <>

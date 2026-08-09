@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ProductArt } from "@/components/brand/product-art";
+import { LineShot } from "@/components/product/product-shot";
 import { useCart, type CartLine } from "@/components/cart/cart-context";
+import { CartSuggestions } from "@/components/cart/cart-suggestions";
 import { VatLines } from "@/components/cart/vat-lines";
 import { useI18n } from "@/components/i18n/provider";
 import { BagIcon, CloseIcon, MinusIcon, PlusIcon, TruckIcon } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { frameLabel } from "@/lib/catalog";
 import { formatPrice } from "@/lib/utils";
 
 export function CartDrawer() {
@@ -77,11 +79,19 @@ export function CartDrawer() {
               </div>
             </div>
 
-            <ul className="flex-1 divide-y divide-line-soft overflow-y-auto">
-              {lines.map((line) => (
-                <CartRow key={line.key} line={line} />
-              ))}
-            </ul>
+            {/* The lines and what to look at next share one scroller, so the
+                shelf sits under the basket rather than pinned above the total,
+                and the total stays where it is. */}
+            <div className="flex-1 overflow-y-auto">
+              <ul className="divide-y divide-line-soft">
+                {lines.map((line) => (
+                  <CartRow key={line.key} line={line} />
+                ))}
+              </ul>
+              {/* The shelf brings its own rule and its own shading — it has to
+                  stop looking like one more line of the order. */}
+              <CartSuggestions limit={3} />
+            </div>
 
             <div className="space-y-3 border-t border-line px-5 py-4">
               <dl className="space-y-1.5 text-[0.875rem]">
@@ -143,12 +153,18 @@ function CartRow({ line }: { line: CartLine }) {
     <li className="flex gap-3 p-4">
       <Link href={productHref} onClick={close} className="size-20 shrink-0 bg-shell">
         {/* A line with a drawing on it is shown wearing the drawing — same
-            chest anchor as the real print, so the cart shows what gets made. */}
-        <ProductArt
+            chest anchor as the real print, so the cart shows what gets made.
+            A cuadro is shown in the frame it was bought in, for the same
+            reason: the moulding is on the bill, so it is on the thumbnail. */}
+        <LineShot
+          imageUrl={line.imageUrl}
+          artworkUrl={line.artwork?.imageUrl}
           shape={line.shape}
           colorway={line.colorway}
           print={line.print}
-          artworkUrl={line.artwork?.imageUrl}
+          frame={line.frame}
+          frameFinish={line.frameFinish}
+          alt={line.name}
         />
       </Link>
 
@@ -162,6 +178,10 @@ function CartRow({ line }: { line: CartLine }) {
         </Link>
         <p className="mt-0.5 text-[0.75rem] text-mute">
           {line.colorway.name} · {t.cart.size} {line.size}
+          {/* The frame is part of what was bought, so it is part of what the
+              line says — a cuadro can be in this basket twice, once framed and
+              once not, and they are otherwise identical. */}
+          {line.frameFinish && ` · ${frameLabel(line.frameFinish, t.pdp)}`}
         </p>
         {line.artwork && (
           <>

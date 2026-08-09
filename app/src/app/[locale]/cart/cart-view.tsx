@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ProductArt } from "@/components/brand/product-art";
+import { LineShot } from "@/components/product/product-shot";
 import { useCart } from "@/components/cart/cart-context";
+import { CartSuggestions } from "@/components/cart/cart-suggestions";
 import { DiscountForm } from "@/components/cart/discount-form";
 import { useI18n } from "@/components/i18n/provider";
 import {
@@ -16,6 +17,7 @@ import {
 } from "@/components/icons";
 import { Breadcrumbs } from "@/components/ui/bits";
 import { ButtonLink } from "@/components/ui/button";
+import { frameLabel } from "@/lib/catalog";
 import { curatedSlug } from "@/lib/i18n/sections";
 import { VatLines } from "@/components/cart/vat-lines";
 import { formatPrice } from "@/lib/utils";
@@ -94,11 +96,15 @@ export function CartView({ outlet }: { outlet: boolean }) {
                   href={href("product", line.slug)}
                   className="size-24 shrink-0 bg-shell sm:size-32"
                 >
-                  <ProductArt
+                  <LineShot
+                    imageUrl={line.imageUrl}
+                    artworkUrl={line.artwork?.imageUrl}
                     shape={line.shape}
                     colorway={line.colorway}
                     print={line.print}
-                    artworkUrl={line.artwork?.imageUrl}
+                    frame={line.frame}
+                    frameFinish={line.frameFinish}
+                    alt={line.name}
                   />
                 </Link>
 
@@ -113,6 +119,7 @@ export function CartView({ outlet }: { outlet: boolean }) {
                       </Link>
                       <p className="mt-1 text-[0.8125rem] text-mute">
                         {line.colorway.name} · {t.cart.size} {line.size} · {t.pdp.ref} {line.ref}
+                        {line.frameFinish && ` · ${frameLabel(line.frameFinish, t.pdp)}`}
                       </p>
                       {line.artwork && (
                         <>
@@ -175,6 +182,11 @@ export function CartView({ outlet }: { outlet: boolean }) {
           >
             {t.cart.keepShopping}
           </Link>
+
+          {/* Four here rather than the drawer's three: the column is wide enough
+              for a row of them, and this is the page someone reads rather than
+              glances at. */}
+          <CartSuggestions limit={4} layout="grid" className="mt-10" />
         </div>
 
         {/* Summary */}

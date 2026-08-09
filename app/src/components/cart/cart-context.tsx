@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { ArtPrint, ArtShape, Colorway } from "@/components/brand/product-art";
 import { useI18n } from "@/components/i18n/provider";
+import { isFrameChoice, type FrameChoice, type FrameShot } from "@/lib/catalog";
 import {
   normalizeCode,
   totalWithDiscount,
@@ -72,10 +73,34 @@ export type CartLine = {
   qty: number;
   /** Integer cents, as displayed when the item was added. */
   price: number;
+  /**
+   * The photograph shown when the line was added, if the product had one.
+   * Snapshotted like the rest of the line so the drawer never has to re-fetch
+   * the catalogue; absent falls back to the drawn artwork.
+   */
+  imageUrl?: string;
   shape: ArtShape;
   print: ArtPrint;
   colorway: Colorway;
   artwork?: CartArtwork;
+  /**
+   * The frame this line was added with: a finish, or `"none"` for the print on
+   * its own. Absent for everything that is not sold framed.
+   *
+   * `price` already includes what the frame costs, like every other snapshot in
+   * the line — and like every other snapshot, `placeOrder` recomputes it from the
+   * catalogue rather than believing it.
+   */
+  frameFinish?: FrameChoice;
+  /**
+   * What that frame looks like: mount width and the format behind the glass.
+   *
+   * A snapshot for the same reason as the photograph — the basket is drawn in
+   * the browser and has no catalogue to ask. Display only, and separate from
+   * `frameFinish` because it is the shop's measurements rather than a choice:
+   * a line saved before the shop was measured simply draws unframed.
+   */
+  frame?: FrameShot;
   lineTotal: number;
 };
 
@@ -116,6 +141,10 @@ function isStoredLine(value: unknown): value is StoredLine {
     }
   }
 
+  // A frame nobody offers is not a line to half-trust either: dropping it is one
+  // click of re-adding, where keeping it is an order for a frame with no colour.
+  if (line.frameFinish !== undefined && !isFrameChoice(String(line.frameFinish))) return false;
+
   return (
     typeof line.slug === "string" &&
     typeof line.size === "string" &&
@@ -128,13 +157,35 @@ function isStoredLine(value: unknown): value is StoredLine {
   );
 }
 
+/** Measurements a frame can actually be drawn from — see {@link StoredLine}. */
+function isFrameShot(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const frame = value as Partial<FrameShot>;
+  const positive = (size?: number) => typeof size === "number" && Number.isFinite(size) && size > 0;
+
+  return (
+    typeof frame.mount === "number" &&
+    Number.isFinite(frame.mount) &&
+    typeof frame.print === "object" &&
+    frame.print !== null &&
+    positive(frame.print.width) &&
+    positive(frame.print.height)
+  );
+}
+
 function readStorage(): StoredLine[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return EMPTY;
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return EMPTY;
-    const lines = parsed.filter(isStoredLine);
+    // A frame's measurements only draw a picture, so a malformed one is
+    // forgotten rather than fatal: the line stays and its thumbnail shows the
+    // print on its own, where dropping the line would lose a sale over a number
+    // nobody is ever charged.
+    const lines = parsed
+      .filter(isStoredLine)
+      .map((line) => (line.frame && !isFrameShot(line.frame) ? { ...line, frame: undefined } : line));
     return lines.length ? lines : EMPTY;
   } catch {
     return EMPTY;
@@ -307,9 +358,16 @@ const CartContext = createContext<CartValue | null>(null);
  * colour with two different children's drawings on it is two different things to
  * make. Without the id in the key the second one would silently increment the
  * quantity of the first, and one of the two drawings would never be printed.
+ *
+ * The frame is part of it for the same reason, and it is why the same cuadro can
+ * sit in the basket twice: one in black to hang, one unframed for a folder.
  */
-const lineKey = (line: Pick<StoredLine, "slug" | "size" | "colorway" | "artwork">) =>
-  `${line.slug}|${line.size}|${line.colorway.id}|${line.artwork?.id ?? ""}`;
+const lineKey = (
+  line: Pick<StoredLine, "slug" | "size" | "colorway" | "artwork" | "frameFinish">,
+) =>
+  `${line.slug}|${line.size}|${line.colorway.id}|${line.artwork?.id ?? ""}|${
+    line.frameFinish ?? ""
+  }`;
 
 export function CartProvider({
   children,
@@ -395,6 +453,7 @@ export function CartProvider({
           colorwayId: line.colorway.id,
           qty: line.qty,
           artworkId: line.artwork?.id,
+          frameFinish: line.frameFinish,
         })),
       ),
     [stored],
