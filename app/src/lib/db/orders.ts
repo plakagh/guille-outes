@@ -1,4 +1,5 @@
 import { cache } from "react";
+import type { FrameChoice } from "@/lib/catalog";
 import { createClient } from "@/lib/supabase/server";
 
 export type OrderItem = {
@@ -15,6 +16,14 @@ export type OrderItem = {
    * has been paid for and still has to be made.
    */
   artworkTitle: string | null;
+  /**
+   * The frame this line was bought with, or `"none"` for the print on its own.
+   * Null for a product that is not sold framed, and for any order placed before
+   * the frame was something you could choose.
+   */
+  frameFinish: FrameChoice | null;
+  /** The part of `unitPriceCents` that is the frame. Zero without one. */
+  frameSurchargeCents: number;
 };
 
 export type Order = {
@@ -46,7 +55,10 @@ const SELECT = `
   discount_code, discount_cents, vat_rate,
   ship_name, ship_line1, ship_line2, ship_postcode, ship_city, ship_province,
   gateway_response, created_at,
-  order_items ( id, name, ref, size, colorway_id, unit_price_cents, qty, artwork_title )
+  order_items (
+    id, name, ref, size, colorway_id, unit_price_cents, qty, artwork_title,
+    frame_finish, frame_surcharge_cents
+  )
 `;
 
 type OrderRow = {
@@ -77,6 +89,8 @@ type OrderRow = {
         unit_price_cents: number;
         qty: number;
         artwork_title: string | null;
+        frame_finish: FrameChoice | null;
+        frame_surcharge_cents: number;
       }[]
     | null;
 };
@@ -110,6 +124,8 @@ function mapOrder(row: OrderRow): Order {
       unitPriceCents: item.unit_price_cents,
       qty: item.qty,
       artworkTitle: item.artwork_title,
+      frameFinish: item.frame_finish,
+      frameSurchargeCents: item.frame_surcharge_cents,
     })),
   };
 }

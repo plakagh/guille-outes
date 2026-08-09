@@ -3,9 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RedsysRedirect } from "@/app/[locale]/order/[ref]/redsys-redirect";
 import { ProductArt } from "@/components/brand/product-art";
+import { ProductShot } from "@/components/product/product-shot";
 import { Badge, Breadcrumbs } from "@/components/ui/bits";
 import { ButtonLink } from "@/components/ui/button";
-import { colorway } from "@/lib/catalog";
+import { colorway, frameLabel } from "@/lib/catalog";
+import { getCatalog } from "@/lib/db/catalog";
 import { getOrderByRef } from "@/lib/db/orders";
 import { isLocale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
@@ -54,8 +56,14 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
   const [{ locale, ref }, searchParams] = await Promise.all([props.params, props.searchParams]);
   if (!isLocale(locale)) notFound();
 
-  const t = await getDictionary(locale);
-  const order = await getOrderByRef(ref);
+  const [t, order, catalog] = await Promise.all([
+    getDictionary(locale),
+    getOrderByRef(ref),
+    getCatalog(locale),
+  ]);
+
+  // Lines are matched to the catalogue by reference — see the item list below.
+  const productsByRef = new Map(catalog.products.map((product) => [product.ref, product]));
 
   // RLS means a customer can only ever load their own order, so "not found" and
   // "not yours" look the same from here — which is what we want.
@@ -180,11 +188,29 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
             {order.items.map((item) => (
               <li key={item.id} className="flex items-center gap-4 py-4">
                 <span className="size-16 shrink-0 bg-shell">
-                  <ProductArt
-                    shape="tee"
-                    colorway={colorway(item.colorwayId, locale)}
-                    print="none"
-                  />
+                  {(() => {
+                    /*
+                      The line snapshots what was bought, not what it looked
+                      like, so the picture is found by reference in today's
+                      catalogue. A product that has since been withdrawn — or
+                      never photographed — falls back to the drawing, which is
+                      the only thing a line without a match can show.
+                    */
+                    const product = item.ref ? productsByRef.get(item.ref) : undefined;
+                    return product ? (
+                      <ProductShot
+                        product={product}
+                        colorway={colorway(item.colorwayId, locale)}
+                        print="none"
+                      />
+                    ) : (
+                      <ProductArt
+                        shape="tee"
+                        colorway={colorway(item.colorwayId, locale)}
+                        print="none"
+                      />
+                    );
+                  })()}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[0.9375rem] font-semibold">{item.name}</span>
@@ -197,6 +223,20 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
                     snapshot, so it still says the right thing after the family
                     has taken the drawing off the gallery.
                   */}
+                  {/* Which frame was ordered, and what it cost. Read from the
+                      order's own snapshot: what the product page offers today
+                      has no say over what this parcel contains. */}
+                  {item.frameFinish && (
+                    <span className="block text-[0.8125rem]">
+                      {frameLabel(item.frameFinish, t.pdp)}
+                      {item.frameSurchargeCents > 0 && (
+                        <span className="text-mute">
+                          {" "}
+                          (+{formatPrice(item.frameSurchargeCents)})
+                        </span>
+                      )}
+                    </span>
+                  )}
                   {item.artworkTitle && (
                     <span className="block text-[0.8125rem] text-mute">
                       {t.gallery.printedWith} «{item.artworkTitle}»

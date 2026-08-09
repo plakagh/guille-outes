@@ -1,5 +1,6 @@
 import "server-only";
 
+import { frameLabel, type FrameChoice } from "@/lib/catalog";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { formatVatRate, vatBreakdown } from "@/lib/tax";
 import { formatPrice } from "@/lib/utils";
@@ -112,6 +113,11 @@ export type OrderSummary = {
     unitPriceCents: number;
     /** The child's drawing printed on this line, when there is one. */
     artworkTitle?: string | null;
+    /**
+     * The frame this line was bought with, or `"none"` for the print alone. Null
+     * for anything not sold framed — a t-shirt has no answer to give here.
+     */
+    frameFinish?: FrameChoice | null;
   }[];
   url: string;
 };
@@ -133,6 +139,15 @@ function itemsTable(order: OrderSummary, t: Dictionary): string {
                     <td style="padding:8px 0;border-bottom:1px solid #ececec;font-family:Arial,sans-serif;font-size:14px;color:#444444;">
                       ${escapeHtml(item.name)}<br />
                       <span style="color:${MUTE};font-size:12px;">${t.cart.size} ${escapeHtml(item.size)} · ×${item.qty}</span>${
+                        item.frameFinish
+                          ? // The frame is what the workshop has to fit and what
+                            // the buyer chose, so it is on the line rather than
+                            // in a footnote.
+                            `<br /><span style="color:${INK};font-size:12px;font-weight:bold;">${escapeHtml(
+                              frameLabel(item.frameFinish, t.pdp),
+                            )}</span>`
+                          : ""
+                      }${
                         item.artworkTitle
                           ? `<br /><span style="color:${MUTE};font-size:12px;">${t.gallery.printedWith} «${escapeHtml(item.artworkTitle)}»</span>`
                           : ""
@@ -204,8 +219,10 @@ function plainItems(order: OrderSummary, t: Dictionary): string {
   const lines = order.items.map(
     (item) =>
       `- ${item.name} (${t.cart.size} ${item.size}, ×${item.qty})${
-        item.artworkTitle ? ` — ${t.gallery.printedWith} «${item.artworkTitle}»` : ""
-      } ${formatPrice(item.unitPriceCents * item.qty)}`,
+        item.frameFinish ? ` — ${frameLabel(item.frameFinish, t.pdp)}` : ""
+      }${item.artworkTitle ? ` — ${t.gallery.printedWith} «${item.artworkTitle}»` : ""} ${formatPrice(
+        item.unitPriceCents * item.qty,
+      )}`,
   );
   return [
     `${t.order.reference} ${order.orderRef}`,
@@ -222,6 +239,157 @@ function plainItems(order: OrderSummary, t: Dictionary): string {
     `${t.cart.taxBase}: ${formatPrice(tax.netCents)}`,
     `${t.cart.vat} (${formatVatRate(tax.rate)}): ${formatPrice(tax.vatCents)}`,
   ].join("\n");
+}
+
+/* ------------------------------------------------- the shop's own notice --
+ *
+ * Not a customer email: this one goes to the shop, once when an order is placed
+ * and again when the bank confirms it. Two notices rather than one because they
+ * answer different questions — "somebody is buying this" and "this is now paid
+ * for and can be made" — and an order that never gets the second one is exactly
+ * the thing worth noticing.
+ *
+ * Its reason for existing is the frame. A cuadro can be ordered in black, white,
+ * wood or on its own, and nothing else in the shop's day tells them which, so the
+ * finishes get their own block above the order rather than living as small print
+ * on a line.
+ */
+
+export type ShopNotice = {
+  order: OrderSummary;
+  /** `placed` is the order being created; `paid` is the bank confirming it. */
+  stage: "placed" | "paid";
+  customer: {
+    name: string;
+    email: string;
+    phone: string | null;
+    /** The shipping address, one line per line, already in order. */
+    address: string[];
+  };
+};
+
+/**
+ * Every line that had a frame to decide about, and what was decided.
+ *
+ * "Sin marco" is listed as loudly as an acabado: it is the difference between
+ * posting a parcel and building one, and it is not something to infer from an
+ * absence halfway down an invoice.
+ */
+function framedLines(order: OrderSummary, t: Dictionary) {
+  return order.items.flatMap((item) =>
+    item.frameFinish
+      ? [{ item, label: frameLabel(item.frameFinish, t.pdp) }]
+      : [],
+  );
+}
+
+/** The frames to fit, spelled out above everything else in the notice. */
+function frameBlock(order: OrderSummary, t: Dictionary): string {
+  const framed = framedLines(order, t);
+  const s = t.mail.shop;
+
+  const rows = framed.length
+    ? framed
+        .map(
+          ({ item, label }) => `
+                    <li style="margin:0 0 6px;">
+                      <strong>${escapeHtml(label)}</strong> —
+                      ${escapeHtml(item.name)} · ${t.cart.size} ${escapeHtml(item.size)} · ×${item.qty}
+                    </li>`,
+        )
+        .join("")
+    : `<li style="margin:0;color:${MUTE};">${s.noFrames}</li>`;
+
+  return `
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
+                  <tr>
+                    <td style="border-left:4px solid ${FLAME};background-color:${SHELL};padding:16px 18px;">
+                      <p style="font-family:Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:${MUTE};margin:0 0 10px;">
+                        ${s.frames}
+                      </p>
+                      <ul style="font-family:Arial,sans-serif;font-size:14px;color:${INK};line-height:1.6;margin:0;padding-left:18px;">${rows}
+                      </ul>
+                    </td>
+                  </tr>
+                </table>`;
+}
+
+/** Who bought it and where it goes — everything needed to pack the parcel. */
+function customerBlock(notice: ShopNotice, t: Dictionary): string {
+  const s = t.mail.shop;
+  const { customer } = notice;
+
+  const contact = [
+    escapeHtml(customer.name),
+    `<a href="mailto:${escapeHtml(customer.email)}" style="color:${INK};">${escapeHtml(customer.email)}</a>`,
+    ...(customer.phone ? [escapeHtml(customer.phone)] : []),
+  ].join("<br />");
+
+  const address = customer.address.map(escapeHtml).join("<br />");
+
+  return `
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
+                  <tr>
+                    <td style="border:1px solid #ececec;padding:16px 18px;">
+                      <p style="font-family:Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:${MUTE};margin:0 0 10px;">
+                        ${s.customer}
+                      </p>
+                      <p style="font-family:Arial,sans-serif;font-size:14px;color:#444444;line-height:1.7;margin:0 0 12px;">
+                        ${contact}
+                      </p>
+                      <p style="font-family:Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:${MUTE};margin:0 0 6px;">
+                        ${s.shipTo}
+                      </p>
+                      <p style="font-family:Arial,sans-serif;font-size:14px;color:#444444;line-height:1.7;margin:0;">
+                        ${address}
+                      </p>
+                    </td>
+                  </tr>
+                </table>`;
+}
+
+export function shopOrderEmail(notice: ShopNotice, t: Dictionary) {
+  const s = t.mail.shop;
+  const { order, stage } = notice;
+  const paid = stage === "paid";
+
+  const subject = `${paid ? s.paidSubject : s.placedSubject} · ${order.orderRef}`;
+
+  return {
+    subject,
+    html: shell({
+      title: subject,
+      heading: paid ? s.paidHeading : s.placedHeading,
+      intro: paid ? s.paidBody : s.placedBody,
+      body: frameBlock(order, t) + customerBlock(notice, t) + itemsTable(order, t),
+      cta: { label: t.mail.viewOrder, href: order.url },
+    }),
+    text: [
+      paid ? s.paidHeading : s.placedHeading,
+      "",
+      paid ? s.paidBody : s.placedBody,
+      "",
+      s.frames,
+      ...(framedLines(order, t).length > 0
+        ? framedLines(order, t).map(
+            ({ item, label }) =>
+              `- ${label} — ${item.name} · ${t.cart.size} ${item.size} · ×${item.qty}`,
+          )
+        : [s.noFrames]),
+      "",
+      s.customer,
+      notice.customer.name,
+      notice.customer.email,
+      ...(notice.customer.phone ? [notice.customer.phone] : []),
+      "",
+      s.shipTo,
+      ...notice.customer.address,
+      "",
+      plainItems(order, t),
+      "",
+      order.url,
+    ].join("\n"),
+  };
 }
 
 /* ------------------------------------------------------- payment confirmed */
@@ -300,27 +468,94 @@ export function newsletterConfirmEmail(
   };
 }
 
-/** Sent once, after the address has proved it wants to be on the list. */
+/**
+ * The welcome discount, set as type in a box.
+ *
+ * The code is the only thing in this email that has to survive being copied by
+ * hand off a phone screen, so it is large, monospaced, letter-spaced and on its
+ * own line — and it is text rather than an image, because a code inside a blocked
+ * image is a code nobody can use. The expiry sits under it: a discount with a date
+ * on it is a discount somebody uses.
+ */
+function codeBlock(discount: WelcomeDiscount, t: Dictionary): string {
+  const n = t.mail.newsletter;
+
+  return `
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 26px;">
+                  <tr>
+                    <td align="center" style="border:2px dashed ${INK};background-color:${SHELL};padding:22px 18px;">
+                      <p style="font-family:Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:${MUTE};margin:0 0 10px;">
+                        ${n.codeEyebrow.replace("{{percent}}", String(discount.percent))}
+                      </p>
+                      <p style="font-family:'Courier New',Courier,monospace;font-size:26px;font-weight:bold;letter-spacing:2px;color:${INK};margin:0;">
+                        ${escapeHtml(discount.code)}
+                      </p>
+                      <p style="font-family:Arial,sans-serif;font-size:12px;color:${MUTE};margin:12px 0 0;line-height:1.6;">
+                        ${n.codeExpires.replace("{{date}}", escapeHtml(discount.expires))}<br />${n.codeSingleUse}
+                      </p>
+                    </td>
+                  </tr>
+                </table>`;
+}
+
+/** The offer as the welcome email needs it: no cents, no ids, a formatted date. */
+export type WelcomeDiscount = {
+  code: string;
+  percent: number;
+  /** Already formatted for the subscriber's locale by the caller. */
+  expires: string;
+};
+
+/**
+ * Sent once, after the address has proved it wants to be on the list.
+ *
+ * The discount is optional and its absence is not a failure: someone who
+ * unsubscribed and came back has already had their welcome offer, and this email
+ * then says welcome back without inventing a second one.
+ */
 export function newsletterWelcomeEmail(
-  subscription: { email: string; shopUrl: string; unsubscribeUrl: string },
+  subscription: {
+    email: string;
+    shopUrl: string;
+    unsubscribeUrl: string;
+    discount?: WelcomeDiscount | null;
+  },
   t: Dictionary,
 ) {
   const n = t.mail.newsletter;
   const unsubscribe = `<a href="${subscription.unsubscribeUrl}" style="color:${MUTE};">${n.unsubscribeLink}</a>`;
+  const { discount } = subscription;
+
+  const subject = discount
+    ? n.welcomeCodeSubject.replace("{{percent}}", String(discount.percent))
+    : n.welcomeSubject;
+
+  const intro = discount
+    ? n.welcomeCodeBody.replace("{{percent}}", String(discount.percent))
+    : n.welcomeBody;
 
   return {
-    subject: n.welcomeSubject,
+    subject,
     html: shell({
-      title: n.welcomeSubject,
+      title: subject,
       heading: n.welcomeHeading,
-      intro: n.welcomeBody,
-      cta: { label: n.welcomeCta, href: subscription.shopUrl },
+      intro,
+      body: discount ? codeBlock(discount, t) : "",
+      cta: { label: discount ? n.welcomeCodeCta : n.welcomeCta, href: subscription.shopUrl },
       footerNote: unsubscribe,
     }),
     text: [
       n.welcomeHeading,
       "",
-      n.welcomeBody,
+      intro,
+      ...(discount
+        ? [
+            "",
+            `${n.codeEyebrow.replace("{{percent}}", String(discount.percent))}: ${discount.code}`,
+            n.codeExpires.replace("{{date}}", discount.expires),
+            n.codeSingleUse,
+          ]
+        : []),
       "",
       subscription.shopUrl,
       "",

@@ -5,11 +5,13 @@ import { getCatalog } from "@/lib/db/catalog";
 import { lookupDiscount } from "@/lib/db/discounts";
 import { getShippingSettings } from "@/lib/db/settings";
 import { evaluateDiscount, totalWithDiscount, type AppliedDiscount } from "@/lib/discounts";
+import { sendShopNotice } from "@/lib/email/shop-notice";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { href } from "@/lib/i18n/routes";
+import { SITE_URL } from "@/lib/supabase/env";
 import { discountLines, parseLines, type CheckoutLineInput } from "@/lib/orders/lines";
 import { createClient, getUser } from "@/lib/supabase/server";
-import { stockFor } from "@/lib/catalog";
+import { frameSurcharge, stockFor, type FrameChoice } from "@/lib/catalog";
 import { isShippingMethod, shippingCost } from "@/lib/shipping";
 import { VAT_RATE } from "@/lib/tax";
 
@@ -125,6 +127,8 @@ export async function placeOrder(
     artwork_id: string | null;
     artwork_title: string | null;
     artwork_path: string | null;
+    frame_finish: FrameChoice | null;
+    frame_surcharge_cents: number;
   }[] = [];
 
   for (const line of lines) {
@@ -151,7 +155,37 @@ export async function placeOrder(
       if (!artwork) return { error: "artwork_unavailable", detail: product.name };
     }
 
-    subtotal += product.price * line.qty;
+    /*
+      The frame, which is a thing being bought and not a way of looking at the
+      piece: it decides what the workshop makes and what the line costs.
+
+      A finish this piece is not sold in stops the order. It cannot happen from
+      our own product page, so it is either a stale tab or a crafted request —
+      and quietly fitting a different moulding, or fitting one for free, are both
+      worse answers than asking the shopper to choose again.
+
+      No frame asked for at all is "sin marco": the price of the paper, which is
+      what the catalogue figure has always been.
+    */
+    const frame = product.framePreview;
+    let frameChoice: FrameChoice | null = null;
+
+    if (frame) {
+      const asked = line.frameFinish ?? "none";
+      if (asked !== "none" && !frame.finishes.includes(asked)) {
+        return { error: "invalid", detail: product.name };
+      }
+      frameChoice = asked;
+    }
+
+    const frameCents = frameSurcharge(frame, frameChoice);
+
+    // The product price is a "from" figure once a variant can carry a surcharge
+    // — a large framed print is not the price shown in the listing. Taken from
+    // the variant the shopper actually chose, never from the browser.
+    const unitPrice = product.price + (variant?.priceDeltaCents ?? 0) + frameCents;
+
+    subtotal += unitPrice * line.qty;
     items.push({
       product_id: product.id,
       variant_id: variant?.id ?? null,
@@ -159,7 +193,7 @@ export async function placeOrder(
       ref: product.ref,
       size: line.size,
       colorway_id: line.colorwayId,
-      unit_price_cents: product.price,
+      unit_price_cents: unitPrice,
       qty: line.qty,
       // The reference is soft, so the title and the path travel with the line:
       // a shirt that has been paid for stays printable after the family takes
@@ -167,6 +201,10 @@ export async function placeOrder(
       artwork_id: artwork?.id ?? null,
       artwork_title: artwork?.title ?? null,
       artwork_path: artwork?.storage_path ?? null,
+      // Inside `unit_price_cents` already; kept apart so the line can still be
+      // read as "the print, plus this much for the frame".
+      frame_finish: frameChoice,
+      frame_surcharge_cents: frameCents,
     });
   }
 
@@ -254,6 +292,48 @@ export async function placeOrder(
     console.error("placeOrder: could not insert order items", itemsError);
     return { error: "unknown", detail: itemsError.message };
   }
+
+  /*
+    Tell the shop. This is the "somebody is buying this" notice — the one that
+    says which frames were chosen — and it goes out before the bank has said
+    anything, which is the point: it is the first warning that a cuadro needs
+    mounting. The payment callback sends the second one when the money lands.
+
+    Built from what is already in hand rather than read back: these are the exact
+    rows that were just written, and a checkout should not wait on another query
+    to send an email that cannot fail it either way.
+  */
+  await sendShopNotice({
+    stage: "placed",
+    customer: {
+      name: shipName,
+      email,
+      phone: text(form, "tel") || null,
+      address: [
+        line1,
+        text(form, "addressExtra"),
+        `${postcode} ${city}`,
+        province,
+      ].filter(Boolean),
+    },
+    order: {
+      orderRef: created.order_ref,
+      amountCents: priced.totalCents,
+      shippingCents: priced.shippingCents,
+      discountCode: discount?.code ?? null,
+      discountCents: priced.discountCents,
+      vatRate: VAT_RATE,
+      items: items.map((item) => ({
+        name: item.name,
+        size: item.size,
+        qty: item.qty,
+        unitPriceCents: item.unit_price_cents,
+        artworkTitle: item.artwork_title,
+        frameFinish: item.frame_finish,
+      })),
+      url: `${SITE_URL}${href(locale, "order", created.order_ref)}`,
+    },
+  });
 
   redirect(href(locale, "order", created.order_ref));
 }

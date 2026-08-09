@@ -3,12 +3,14 @@ import { getDictionary } from "@/lib/i18n/dictionary";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { href } from "@/lib/i18n/routes";
 import { canSendMail, sendMail } from "@/lib/email/mailer";
+import { sendShopNotice } from "@/lib/email/shop-notice";
 import {
   orderPaidEmail,
   paymentFailedEmail,
   paymentRetryEmail,
   type OrderSummary,
 } from "@/lib/email/templates";
+import type { FrameChoice } from "@/lib/catalog";
 import { classifyResponse, verifyRedsysNotification } from "@/lib/payments/redsys";
 import { getRedsysCredentials } from "@/lib/payments/settings";
 import { createElevatedClient } from "@/lib/supabase/elevated";
@@ -249,12 +251,19 @@ type OrderRow = {
   id: string;
   order_ref: string;
   email: string;
+  phone: string | null;
   locale: string;
   amount_cents: number;
   shipping_cents: number;
   discount_code: string | null;
   discount_cents: number;
   vat_rate: number | string;
+  ship_name: string;
+  ship_line1: string;
+  ship_line2: string | null;
+  ship_postcode: string;
+  ship_city: string;
+  ship_province: string;
   failure_notified_at: string | null;
 };
 
@@ -262,7 +271,8 @@ async function loadOrder(supabase: Elevated, orderId: string) {
   const { data } = await supabase
     .from("orders")
     .select(
-      "id, order_ref, email, locale, amount_cents, shipping_cents, discount_code, discount_cents, vat_rate, failure_notified_at",
+      "id, order_ref, email, phone, locale, amount_cents, shipping_cents, discount_code, discount_cents, vat_rate, " +
+        "ship_name, ship_line1, ship_line2, ship_postcode, ship_city, ship_province, failure_notified_at",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -272,7 +282,7 @@ async function loadOrder(supabase: Elevated, orderId: string) {
 
   const { data: itemRows } = await supabase
     .from("order_items")
-    .select("name, size, qty, unit_price_cents, artwork_title")
+    .select("name, size, qty, unit_price_cents, artwork_title, frame_finish")
     .eq("order_id", orderId);
 
   const locale: Locale = isLocale(order.locale) ? order.locale : "es";
@@ -292,6 +302,7 @@ async function loadOrder(supabase: Elevated, orderId: string) {
         qty: number;
         unit_price_cents: number;
         artwork_title: string | null;
+        frame_finish: FrameChoice | null;
       }[]
     ).map((item) => ({
       name: item.name,
@@ -299,6 +310,7 @@ async function loadOrder(supabase: Elevated, orderId: string) {
       qty: item.qty,
       unitPriceCents: item.unit_price_cents,
       artworkTitle: item.artwork_title,
+      frameFinish: item.frame_finish,
     })),
     // `?ver=1` shows the summary instead of bouncing straight back to the bank.
     url: `${SITE_URL}${href(locale, "order", order.order_ref)}?ver=1`,
@@ -316,6 +328,26 @@ async function notifyPaid(supabase: Elevated, orderId: string) {
   const t = await getDictionary(loaded.locale);
   const message = orderPaidEmail(loaded.summary, t);
   await sendMail({ to: loaded.order.email, ...message });
+
+  // …and the shop's own copy, which is the one that says which frames to fit.
+  // It went out once already when the order was placed; this is the half that
+  // says the money arrived and the piece can be made.
+  const { order } = loaded;
+  await sendShopNotice({
+    stage: "paid",
+    customer: {
+      name: order.ship_name,
+      email: order.email,
+      phone: order.phone,
+      address: [
+        order.ship_line1,
+        order.ship_line2 ?? "",
+        `${order.ship_postcode} ${order.ship_city}`,
+        order.ship_province,
+      ].filter(Boolean),
+    },
+    order: loaded.summary,
+  });
 }
 
 /**

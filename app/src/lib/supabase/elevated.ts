@@ -20,9 +20,13 @@ import { SUPABASE_URL } from "@/lib/supabase/env";
  *    into a Client Component, so the key cannot reach a browser bundle.
  *  - The variable is `SUPABASE_SERVICE_ROLE_KEY`, deliberately *without* the
  *    `NEXT_PUBLIC_` prefix, so Next.js will not inline it either.
- *  - Only the Redsys callback route imports this. The storefront, the account
- *    area and the admin panel all use the caller's own session, and everything
- *    they do is still enforced by RLS.
+ *  - Two callers import this. The Redsys callback route, for the reason above,
+ *    and `lib/db/notifications.ts`, which reads the one admin-only column holding
+ *    the address the shop is notified at — a read that has to work during a
+ *    shopper's checkout and during a bank's callback, where no administrator is
+ *    present to read it under their own session. The storefront, the account area
+ *    and the admin panel all use the caller's own session, and everything they do
+ *    is still enforced by RLS.
  *  - The callback verifies the signature *before* touching this client, and the
  *    status transition is idempotent.
  *
