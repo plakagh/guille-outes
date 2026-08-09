@@ -3,12 +3,22 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useWishlist } from "@/components/account/wishlist-provider";
-import { ProductArt } from "@/components/brand/product-art";
+import { ProductShot } from "@/components/product/product-shot";
 import { useI18n } from "@/components/i18n/provider";
 import { CameraIcon, HeartIcon } from "@/components/icons";
+import { FramedArt } from "@/components/product/framed-art";
 import { useCameraProbe, WallView } from "@/components/product/wall-view";
 import { Badge, Price, Stars, Swatch } from "@/components/ui/bits";
-import { frameOrientation, inStock, isNew, onSale, type Product } from "@/lib/catalog";
+import {
+  frameAspect,
+  frameOrientation,
+  frameSizeOptions,
+  inStock,
+  isNew,
+  onSale,
+  priceRange,
+  type Product,
+} from "@/lib/catalog";
 import { cn, discountPercent } from "@/lib/utils";
 
 export function ProductCard({
@@ -34,6 +44,10 @@ export function ProductCard({
   // Cuadros only: everything else has nothing to hang. Whether a camera exists
   // is settled by CSS rather than here — see `useCameraProbe`.
   const frame = product.framePreview;
+  // Nothing is selected on a card, so the smallest format is what the tile draws
+  // and what the camera opens on — the same piece either way, and the shopper
+  // switches format inside the camera.
+  const printSize = frame ? frameSizeOptions(product, frame)[0] : null;
   useCameraProbe();
 
   return (
@@ -42,12 +56,37 @@ export function ProductCard({
       <div className="relative aspect-[5/6] overflow-hidden bg-shell">
         <Link href={productHref} className="block h-full w-full" tabIndex={-1}>
           <div className="h-full w-full transition-transform duration-500 ease-[var(--ease-out-quint)] group-hover:scale-[1.04]">
-            <ProductArt
-              shape={product.shape}
-              colorway={colorway}
-              print={product.print}
-              orientation={frame ? frameOrientation(frame) : "portrait"}
-            />
+            {/*
+              A cuadro is shown framed here, not as a bare sheet of paper: it is
+              what is being sold and how the shopper will judge it, and a grid of
+              loose scans reads as a folder of images rather than as art you could
+              hang. Same frame, mount and proportions as the product page — the
+              first format's, since nothing has been chosen on a card yet.
+            */}
+            {frame && printSize ? (
+              <FramedArt
+                finish={frame.finishes[0]}
+                mount={frame.mount}
+                className="h-full w-full"
+              >
+                <div style={{ aspectRatio: frameAspect(printSize) }}>
+                  <ProductShot
+                    product={product}
+                    colorway={colorway}
+                    print={product.print}
+                    bare
+                    orientation={frameOrientation(printSize)}
+                  />
+                </div>
+              </FramedArt>
+            ) : (
+              <ProductShot
+                product={product}
+                colorway={colorway}
+                print={product.print}
+                orientation="portrait"
+              />
+            )}
           </div>
         </Link>
 
@@ -141,7 +180,12 @@ export function ProductCard({
           <Stars rating={product.rating} reviews={product.reviews} label={t.pdp.outOf5} />
         )}
 
-        <Price price={product.price} compareAt={product.compareAt} className="mt-auto pt-1" />
+        <Price
+          price={product.price}
+          compareAt={product.compareAt}
+          className="mt-auto pt-1"
+          fromLabel={priceRange(product).to > product.price ? t.common.from : undefined}
+        />
 
         <p className="text-[0.75rem] text-mute">
           {product.colorways.length === 1
@@ -162,6 +206,7 @@ export function ProductCard({
           frame={frame}
           initialFinish={frame.finishes[0]}
           initialColorway={colorway}
+          initialSize={printSize?.size ?? null}
           onClose={() => setWallOpen(false)}
         />
       )}

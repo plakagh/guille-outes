@@ -10,13 +10,14 @@ import type { FrameFinish } from "@/lib/catalog";
  * {@link FRAME_PAINT}, the same table the CSS paints from, so the two cannot
  * drift apart into a preview that does not match its own photograph.
  *
- * The artwork itself is not redrawn: it is the live SVG, serialised and
- * rasterised, so whatever the shopper is looking at is what lands in the file.
+ * The artwork itself is not redrawn: it is the live node — a photograph, or the
+ * drawing serialised and rasterised — so whatever the shopper is looking at is
+ * what lands in the file.
  */
 export async function drawFramedArt(
   ctx: CanvasRenderingContext2D,
   {
-    svg,
+    art: artNode,
     finish,
     mount,
     mouldingPct,
@@ -26,8 +27,11 @@ export async function drawFramedArt(
     height,
     unit = 1,
   }: {
-    /** The live artwork, cloned and rasterised rather than re-drawn. */
-    svg: SVGSVGElement;
+    /**
+     * The live artwork, taken off the page rather than re-drawn: a photograph is
+     * already a bitmap and is drawn straight in, a drawing is serialised first.
+     */
+    art: SVGSVGElement | HTMLImageElement;
     finish: FrameFinish;
     /** Mount width, as a percentage of what the moulding leaves. */
     mount: number;
@@ -124,9 +128,20 @@ export async function drawFramedArt(
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(art.x, art.y, art.width, art.height);
 
-  const raster = await rasterize(svg, art.width, art.height);
+  const raster = await rasterize(artNode, art.width, art.height);
   if (raster) {
-    ctx.drawImage(raster.image, art.x, art.y, art.width, art.height);
+    // `cover` and clipped, matching the CSS on the page: the aperture is a cut
+    // in a board, so the artwork fills it and the overhang is trimmed at the
+    // bevel. A drawing is serialised at the aperture's exact size and neither
+    // scales nor spills; a photograph has its own proportions, and leaving the
+    // difference as a white band would read as a printing fault.
+    const box = coverBox(art, raster.image);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(art.x, art.y, art.width, art.height);
+    ctx.clip();
+    ctx.drawImage(raster.image, box.x, box.y, box.width, box.height);
+    ctx.restore();
     raster.release();
   }
 
@@ -140,6 +155,23 @@ export async function drawFramedArt(
 }
 
 type Box = { x: number; y: number; width: number; height: number };
+
+/** The smallest centred box covering `outer` with the image's own aspect ratio. */
+function coverBox(outer: Box, image: HTMLImageElement): Box {
+  const w = image.naturalWidth;
+  const h = image.naturalHeight;
+  if (!w || !h) return outer;
+
+  const scale = Math.max(outer.width / w, outer.height / h);
+  const width = w * scale;
+  const height = h * scale;
+  return {
+    x: outer.x + (outer.width - width) / 2,
+    y: outer.y + (outer.height - height) / 2,
+    width,
+    height,
+  };
+}
 
 /** A solid band of `spread` around a box — a box-shadow spread, filled. */
 function ring(ctx: CanvasRenderingContext2D, box: Box, spread: number, color: string) {
@@ -155,17 +187,31 @@ function ring(ctx: CanvasRenderingContext2D, box: Box, spread: number, color: st
 /**
  * The live artwork as a bitmap.
  *
- * Serialising the node on the page rather than re-rendering it means the print,
- * the colourway and any future change to the drawing come along for free. The
- * clone is given explicit dimensions because an SVG with only a viewBox has no
- * intrinsic size, and an image with no intrinsic size draws as nothing.
+ * Taking the node off the page rather than re-rendering it means the print, the
+ * colourway and any future change come along for free.
+ *
+ * A photograph needs none of this — it is already a bitmap, so it is handed back
+ * as-is. It does have to be CORS-clean: the bucket is a different origin from
+ * the site, and drawing a tainted image would make `toBlob` throw and lose the
+ * whole photograph rather than just the artwork.
  */
 async function rasterize(
-  svg: SVGSVGElement,
+  node: SVGSVGElement | HTMLImageElement,
   width: number,
   height: number,
 ): Promise<{ image: HTMLImageElement; release: () => void } | null> {
-  const clone = svg.cloneNode(true) as SVGSVGElement;
+  if (node instanceof HTMLImageElement) {
+    if (!node.complete) {
+      try {
+        await node.decode();
+      } catch {
+        return null;
+      }
+    }
+    return { image: node, release: () => {} };
+  }
+
+  const clone = node.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   clone.setAttribute("width", String(Math.max(1, Math.round(width))));
   clone.setAttribute("height", String(Math.max(1, Math.round(height))));

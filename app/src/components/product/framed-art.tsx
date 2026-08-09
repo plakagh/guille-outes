@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { FrameFinish } from "@/lib/catalog";
+import type { FrameFinish, FrameSize } from "@/lib/catalog";
 
 /**
  * A picture frame, drawn in CSS.
@@ -59,6 +59,32 @@ export const WALL_PCT = 7;
  */
 export function framedWidthRatio(mount: number): number {
   return 1 / ((1 - (2 * MOULDING_PCT) / 100) * (1 - (2 * mount) / 100));
+}
+
+/**
+ * The proportions of the finished frame — moulding and mount included — around a
+ * print of the given format, as width ÷ height.
+ *
+ * Wanted wherever the frame has to fit a box that is not its own shape. A basket
+ * thumbnail is a square, and a 50 × 70 hung at the square's full width stands a
+ * third of itself outside it; knowing the finished shape is what lets the caller
+ * size by height instead.
+ *
+ * Both paddings are percentages, and CSS resolves percentage padding against the
+ * containing block's *width* — the top and bottom ones included. So the whole
+ * frame can be worked out from the printed proportions alone, in the same units
+ * `framedWidthRatio` uses: the artwork one unit wide.
+ */
+export function framedAspect(print: FrameSize, mount: number): number {
+  const width = framedWidthRatio(mount);
+  const art = print.height / print.width;
+  // The mount's own padding is a share of the moulding's content box, which is
+  // the artwork plus that same padding — hence the division rather than a share
+  // of the whole frame.
+  const mountPad = mount / 100 / (1 - (2 * mount) / 100);
+  const mouldingPad = (MOULDING_PCT / 100) * width;
+
+  return width / (art + 2 * mountPad + 2 * mouldingPad);
 }
 
 export const FRAME_PAINT: Record<FrameFinish, FinishStyle> = {
@@ -179,6 +205,11 @@ export function FramedArt({
           <div
             style={{
               position: "relative",
+              // The aperture is a cut in a board: whatever the artwork does not
+              // share proportions with is trimmed at the bevel, never spilled
+              // over the mount. An outer box-shadow is not a child, so the bevel
+              // rings below survive the clip.
+              overflow: "hidden",
               // The bevel — a thin light edge around the aperture.
               boxShadow: [
                 "0 0 0 1px rgba(0,0,0,0.18)",

@@ -25,6 +25,7 @@ export const COLORWAYS = {
   verde: { id: "verde", name: "Verde pino", base: "#0f7a4f", trim: "#f6e7a6" },
   arena: { id: "arena", name: "Arena", base: "#c9b791", trim: "#20211f" },
   naranja: { id: "naranja", name: "Naranja", base: "#e2620f", trim: "#1b1b1b" },
+  marron: { id: "marron", name: "Marrón", base: "#a8571f", trim: "#f4ece1" },
   morado: { id: "morado", name: "Morado", base: "#52247f", trim: "#f2c94c" },
 } satisfies Record<string, Colorway>;
 
@@ -44,6 +45,7 @@ const COLOR_NAMES: Record<Locale, Record<ColorwayId, string>> = {
     verde: "Verde pino",
     arena: "Arena",
     naranja: "Naranja",
+    marron: "Marrón",
     morado: "Morado",
   },
   gl: {
@@ -58,6 +60,7 @@ const COLOR_NAMES: Record<Locale, Record<ColorwayId, string>> = {
     verde: "Verde piñeiro",
     arena: "Area",
     naranja: "Laranxa",
+    marron: "Marrón",
     morado: "Morado",
   },
   en: {
@@ -72,6 +75,7 @@ const COLOR_NAMES: Record<Locale, Record<ColorwayId, string>> = {
     verde: "Pine green",
     arena: "Sand",
     naranja: "Orange",
+    marron: "Brown",
     morado: "Purple",
   },
 };
@@ -94,11 +98,16 @@ export function palette(locale: Locale): Colorway[] {
 
 export const APPAREL_SIZES = ["XS", "S", "M", "L", "XL", "2XL"];
 export const KIDS_SIZES = ["4", "6", "8", "10", "12", "14"];
+/**
+ * Framed prints are sold in two formats rather than garment sizes, and the two
+ * are priced differently — see `price_delta_cents` on the variant.
+ */
+export const PRINT_SIZES = ["Pequeño", "Grande"];
 export const ONE_SIZE = "Única";
 
 /** Every size that can appear in the catalogue, in display order. */
 export function allSizes(): string[] {
-  return [...APPAREL_SIZES, ...KIDS_SIZES, ONE_SIZE];
+  return [...APPAREL_SIZES, ...KIDS_SIZES, ...PRINT_SIZES, ONE_SIZE];
 }
 
 const SIZE_ORDER = new Map(allSizes().map((size, index) => [size, index]));
@@ -294,17 +303,57 @@ export function isFrameFinish(value: string): value is FrameFinish {
   return (FRAME_FINISHES as readonly string[]).includes(value);
 }
 
+/**
+ * What the shopper decided about the frame.
+ *
+ * A finish, or `"none"` for the print on its own. Not a nullable finish: null is
+ * "this product has no frame to speak of" — a t-shirt — and `"none"` is a cuadro
+ * somebody chose to buy unframed. The packer needs to tell those apart, and so
+ * does the price.
+ */
+export type FrameChoice = FrameFinish | "none";
+
+export function isFrameChoice(value: string): value is FrameChoice {
+  return value === "none" || isFrameFinish(value);
+}
+
+/**
+ * A printed size in centimetres: the paper itself, mount and moulding excluded.
+ *
+ * Its own type because it travels on its own — the wall view scales by it, the
+ * CSS preview takes its proportions from it, and both need the measurements of
+ * *one* format rather than of the product.
+ */
+export type FrameSize = { width: number; height: number };
+
 export type FramePreview = {
   /** Ordered; the first is what the preview opens with. */
   finishes: FrameFinish[];
   /** Mount width as a percentage of the artwork's shorter side. */
   mount: number;
   /**
-   * Printed size of the artwork in centimetres, mount and moulding excluded.
+   * What the frame adds to the price of the print, in cents.
    *
-   * Only the wall view needs this, and it needs it badly: an overlay at the wrong
-   * scale is worse than no overlay. Everything else about the frame is relative,
-   * so these two numbers are the only physical fact the preview stores.
+   * The catalogue price is the paper: "el precio indicado es solo de la lámina"
+   * is what the product page has always said, and this is the number that makes
+   * it true when somebody wants it framed. One amount for the three finishes,
+   * because that is what framing costs the shop; zero is a frame given away.
+   */
+  surcharge: number;
+  /**
+   * What each format is printed at, keyed by the product's own size names — the
+   * same names the size buttons and the stock rows use ("Pequeño", "Grande").
+   *
+   * Per size and not per product because a cuadro is sold in more than one
+   * format, at more than one price: hanging the shopper's chosen 30 × 40 as a
+   * 50 × 70 answers the wrong question, and it is the only question the camera
+   * view exists to answer.
+   */
+  sizes: Record<string, FrameSize>;
+  /**
+   * The measurements to use for a format nobody has measured, and before a size
+   * is chosen at all. Kept alongside `sizes` rather than derived from it because
+   * a product can be framed before its formats are filled in.
    */
   width: number;
   height: number;
@@ -314,15 +363,35 @@ export type FramePreview = {
 export const DEFAULT_FRAME_PREVIEW: FramePreview = {
   finishes: [...FRAME_FINISHES],
   mount: 10,
-  // 50 × 70 is the standard European poster size, and what both pieces in the
-  // catalogue are printed at.
+  // Nothing, until the shop says what a frame costs. A surcharge invented here
+  // would be money charged to a customer that nobody decided to charge.
+  surcharge: 0,
+  sizes: {},
+  // 50 × 70 is the standard European poster size.
   width: 50,
   height: 70,
+};
+
+/**
+ * The standard paper size for each format a print is sold in — see
+ * {@link PRINT_SIZES}, which is where these names come from.
+ *
+ * A fallback, not a rule: what a piece actually measures is per product and is
+ * filled in from the admin panel. But a shop that has not got round to it yet is
+ * better served by the two sizes those words mean everywhere than by one number
+ * standing in for both.
+ */
+const PRINT_SIZE_CM: Record<string, FrameSize> = {
+  Pequeño: { width: 30, height: 40 },
+  Grande: { width: 50, height: 70 },
 };
 
 /** Below a postcard or above a doorway, it is a typo rather than a measurement. */
 export const FRAME_MIN_CM = 5;
 export const FRAME_MAX_CM = 300;
+
+/** A thousand euros for a frame is a slipped decimal point, not a price. */
+export const FRAME_MAX_SURCHARGE = 100_000;
 
 /**
  * Reads a stored `frame_preview`, returning null when the product is not sold
@@ -335,6 +404,8 @@ export function parseFramePreview(value: unknown): FramePreview | null {
     enabled?: unknown;
     finishes?: unknown;
     mount?: unknown;
+    surcharge?: unknown;
+    sizes?: unknown;
     width?: unknown;
     height?: unknown;
   };
@@ -349,16 +420,89 @@ export function parseFramePreview(value: unknown): FramePreview | null {
   if (finishes.length === 0) return null;
 
   const mount = typeof raw.mount === "number" ? raw.mount : Number(raw.mount);
+  const surcharge = typeof raw.surcharge === "number" ? raw.surcharge : Number(raw.surcharge);
 
   return {
     finishes,
     mount: Number.isFinite(mount) && mount >= 0 && mount <= 30 ? mount : DEFAULT_FRAME_PREVIEW.mount,
+    // Unreadable falls back to free rather than to a guess: the server prices
+    // every order from this number, and inventing one charges somebody for it.
+    surcharge:
+      Number.isFinite(surcharge) && surcharge >= 0 && surcharge <= FRAME_MAX_SURCHARGE
+        ? Math.round(surcharge)
+        : 0,
+    sizes: parseFrameSizes(raw.sizes),
     // Rows written before the wall view existed have no measurements. Falling
     // back to the standard size keeps the feature available on them rather than
     // hiding it until someone edits the product.
     width: frameCm(raw.width, DEFAULT_FRAME_PREVIEW.width),
     height: frameCm(raw.height, DEFAULT_FRAME_PREVIEW.height),
   };
+}
+
+/** The `sizes` map, keeping only entries with two usable measurements. */
+function parseFrameSizes(value: unknown): Record<string, FrameSize> {
+  if (typeof value !== "object" || value === null) return {};
+
+  const sizes: Record<string, FrameSize> = {};
+  for (const [size, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const raw = entry as { width?: unknown; height?: unknown };
+    // 0 as the fallback so an unusable measurement drops the whole format rather
+    // than pairing a real number with an invented one.
+    const width = frameCm(raw.width, 0);
+    const height = frameCm(raw.height, 0);
+    if (width > 0 && height > 0) sizes[size] = { width, height };
+  }
+  return sizes;
+}
+
+/**
+ * What one format measures.
+ *
+ * In order: what the shop typed for that size, the standard size those words
+ * mean, and — for a format with a name we know nothing about — the product's own
+ * default. Never an average of the two formats, which is a size no cuadro is.
+ */
+export function frameSizeFor(frame: FramePreview, size?: string | null): FrameSize {
+  if (size) {
+    const measured = frame.sizes[size];
+    if (measured) return measured;
+    const standard = PRINT_SIZE_CM[size];
+    if (standard) return standard;
+  }
+  return { width: frame.width, height: frame.height };
+}
+
+/** One format the piece can be hung as. `size` is null only if it has no sizes. */
+export type FrameSizeOption = FrameSize & { size: string | null };
+
+/**
+ * A frame, away from the catalogue: how wide its mount is and what format is
+ * behind the glass.
+ *
+ * Carried by a basket line and by a cross-sell tile, both of which are drawn in
+ * the browser with no catalogue to consult. The finish travels separately —
+ * a line records it as a choice the shopper made, and `"none"` is a choice.
+ */
+export type FrameShot = { mount: number; print: FrameSize };
+
+/**
+ * The formats the wall view may hang, in the order the size buttons show them.
+ *
+ * Taken from the sizes the product is actually sold in, so the camera can only
+ * ever be showing something buyable: a slider from 20 to 200 cm would answer
+ * "would *a* picture fit" rather than "would *this* one".
+ */
+export function frameSizeOptions(
+  product: { sizes: string[] },
+  frame: FramePreview,
+): FrameSizeOption[] {
+  const named = [...product.sizes]
+    .sort(compareSizes)
+    .map((size) => ({ size, ...frameSizeFor(frame, size) }));
+
+  return named.length > 0 ? named : [{ size: null, ...frameSizeFor(frame, null) }];
 }
 
 /**
@@ -368,13 +512,19 @@ export function parseFramePreview(value: unknown): FramePreview | null {
  * landscape, and a separate flag could only ever contradict the numbers it sits
  * next to. Square counts as portrait, which is what the drawing does with it.
  */
-export function frameOrientation(frame: FramePreview): ArtOrientation {
+export function frameOrientation(frame: FrameSize): ArtOrientation {
   return frame.width > frame.height ? "landscape" : "portrait";
 }
 
 /** The printed proportions, for the CSS box that holds the artwork. */
-export function frameAspect(frame: FramePreview): string {
+export function frameAspect(frame: FrameSize): string {
   return `${frame.width} / ${frame.height}`;
+}
+
+/** The measurements as the shopper reads them, e.g. `50 × 70 cm`. */
+export function formatFrameSize(frame: FrameSize): string {
+  const trim = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1));
+  return `${trim(frame.width)} × ${trim(frame.height)} cm`;
 }
 
 /** A stored measurement in centimetres, or the fallback when it is unusable. */
@@ -546,6 +696,8 @@ export type Variant = {
   colorwayId: string;
   sku: string | null;
   stock: number;
+  /** Added to the product price for this variant; 0 for most of the catalogue. */
+  priceDeltaCents: number;
 };
 
 export type ProductImage = {
@@ -641,6 +793,82 @@ export function stockFor(product: Product, size: string, colorwayId: string): nu
   return (
     product.variants.find((v) => v.size === size && v.colorwayId === colorwayId)?.stock ?? 0
   );
+}
+
+/* ================================================================= pricing */
+
+/**
+ * What one size actually costs.
+ *
+ * Most of the catalogue prices per product, and every variant of it carries a
+ * delta of zero. Framed prints do not: the large is twice the small, and the
+ * product price is the "from" figure.
+ *
+ * A size with no variant falls back to the product price rather than throwing —
+ * an unknown size means the shopper cannot buy anything anyway, and the checkout
+ * re-prices from the catalogue before it charges.
+ */
+export function priceFor(product: Product, size?: string | null): number {
+  if (!size) return product.price;
+  const variant = product.variants.find((v) => v.size === size);
+  return product.price + (variant?.priceDeltaCents ?? 0);
+}
+
+/**
+ * What the frame adds to one unit.
+ *
+ * Zero for a print bought on its own, for a product that is not sold framed, and
+ * for a finish this piece does not offer — the last one being a defensive zero
+ * for display only. An order asking for a finish that is not on sale is refused
+ * outright by `placeOrder` rather than quietly given a free frame.
+ */
+export function frameSurcharge(frame: FramePreview | null, choice?: FrameChoice | null): number {
+  if (!frame || !choice || choice === "none") return 0;
+  return frame.finishes.includes(choice) ? frame.surcharge : 0;
+}
+
+/**
+ * How a chosen frame reads in a list of things somebody bought.
+ *
+ * Takes the strings rather than the whole dictionary so the cart, the order page
+ * and the emails all say it the same way without this module knowing what a
+ * Dictionary is.
+ */
+export function frameLabel(
+  choice: FrameChoice,
+  t: { frameFinish: string; frameNone: string; frameFinishes: Record<FrameFinish, string> },
+): string {
+  return choice === "none" ? t.frameNone : `${t.frameFinish}: ${t.frameFinishes[choice]}`;
+}
+
+/**
+ * The price of one unit as it is charged: the chosen format, plus its frame.
+ *
+ * `priceFor` remains the price of the piece itself, which is what a listing card
+ * and a "from" figure want. This is what goes in the basket.
+ */
+export function unitPriceFor(
+  product: Product,
+  size?: string | null,
+  choice?: FrameChoice | null,
+): number {
+  return priceFor(product, size) + frameSurcharge(product.framePreview, choice);
+}
+
+/**
+ * The cheapest and dearest a product gets, for listings.
+ *
+ * The frame counts towards the top of the range: the cheapest way to own a cuadro
+ * is the paper on its own, and a card that says "40 €" flat for a piece that is
+ * 55 € framed — which is how the product page opens — has told a half-truth. It
+ * says "desde 40 €" instead.
+ */
+export function priceRange(product: Product): { from: number; to: number } {
+  const deltas = product.variants.map((v) => v.priceDeltaCents);
+  return {
+    from: product.price + Math.min(0, ...deltas),
+    to: product.price + Math.max(0, ...deltas) + (product.framePreview?.surcharge ?? 0),
+  };
 }
 
 /* ================================================================ queries */
@@ -791,4 +1019,95 @@ export function relatedProducts(
     .sort((a, b) => b.score - a.score || b.p.reviews - a.p.reviews)
     .slice(0, limit)
     .map((hit) => hit.p);
+}
+
+/* ============================================================= cross-sell */
+
+/**
+ * "También te puede interesar", for a basket rather than for a product.
+ *
+ * The product page already has {@link relatedProducts}, and it wants the
+ * opposite of this: someone looking at a cuadro is shown *more cuadros*, because
+ * they are still choosing. Someone who has already put one in the basket has
+ * chosen, and another twelve of the same thing is the least useful shelf we
+ * could draw them. What they have not seen is the rest of the shop — so a basket
+ * with a cuadro in it is shown camisetas, and a basket with a camiseta is shown
+ * cuadros.
+ *
+ * That is a rule about sections and not about those two, which is what keeps it
+ * working as the shop grows: candidates from a section nobody has bought from
+ * come first, and only when there are none left does it fall back to more of
+ * what is already in the basket. Within each group the picks are spread across
+ * the sections they come from, so four slots are never four of one thing.
+ *
+ * Ranking is deterministic — no shuffling — so the shelf does not rearrange
+ * itself under the shopper's cursor every time a quantity changes.
+ */
+export function crossSell(products: Product[], basket: Product[], limit = 3): Product[] {
+  if (basket.length === 0 || limit <= 0) return [];
+
+  const bought = new Set(basket.map((p) => p.id));
+  const boughtCategories = new Set(basket.map((p) => p.categoryId));
+  const boughtCollections = new Set(
+    basket.map((p) => p.collectionId).filter((id): id is string => id !== null),
+  );
+  const boughtAuthors = new Set(basket.flatMap((p) => p.credits.map((c) => c.authorId)));
+  /** The dearest thing in the basket, as the ceiling for an easy add-on. */
+  const dearest = Math.max(...basket.map((p) => p.price));
+
+  const ranked = products
+    .filter((p) => !bought.has(p.id) && inStock(p))
+    .map((p) => ({
+      p,
+      score:
+        // Same collection is the strongest signal there is that two pieces
+        // belong together: it is the shop saying so.
+        (p.collectionId !== null && boughtCollections.has(p.collectionId) ? 3 : 0) +
+        (p.credits.some((c) => boughtAuthors.has(c.authorId)) ? 2 : 0) +
+        // A basket suggestion is an impulse, not a second decision: something
+        // dearer than what is already in there rarely is one.
+        (p.price <= dearest ? 1 : 0) +
+        (p.bestseller ? 1 : 0),
+    }))
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.p.reviews - a.p.reviews ||
+        b.p.arrived - a.p.arrived ||
+        // A total order, so the shelf is the same on the server and the client
+        // and does not depend on how the engine sorts equal elements.
+        a.p.id.localeCompare(b.p.id),
+    )
+    .map((hit) => hit.p);
+
+  const elsewhere = spreadBySection(ranked.filter((p) => !boughtCategories.has(p.categoryId)));
+  const more = spreadBySection(ranked.filter((p) => boughtCategories.has(p.categoryId)));
+
+  return [...elsewhere, ...more].slice(0, limit);
+}
+
+/**
+ * The same list, taking one from each section in turn.
+ *
+ * Order within a section is preserved and the best-ranked section goes first, so
+ * this only ever moves a pick forward past worse-ranked ones from a section that
+ * is already represented.
+ */
+function spreadBySection(products: Product[]): Product[] {
+  const sections = new Map<CategoryId, Product[]>();
+  for (const product of products) {
+    const section = sections.get(product.categoryId);
+    if (section) section.push(product);
+    else sections.set(product.categoryId, [product]);
+  }
+
+  const depth = Math.max(0, ...[...sections.values()].map((section) => section.length));
+  const spread: Product[] = [];
+  for (let index = 0; index < depth; index++) {
+    for (const section of sections.values()) {
+      const product = section[index];
+      if (product) spread.push(product);
+    }
+  }
+  return spread;
 }

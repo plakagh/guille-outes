@@ -65,6 +65,7 @@ type VariantRow = {
   colorway_id: string;
   sku: string | null;
   stock: number;
+  price_delta_cents: number;
   position: number;
 };
 
@@ -213,6 +214,7 @@ function mapProduct(row: ProductRow, locale: Locale): Product {
       colorwayId: v.colorway_id,
       sku: v.sku,
       stock: v.stock,
+      priceDeltaCents: v.price_delta_cents ?? 0,
     }));
 
   // Display order comes from the product's own colourway list; stock comes from
@@ -297,7 +299,7 @@ const PRODUCT_SELECT = `
   price_cents, compare_at_cents, colorways, size_guide, frame_preview,
   video_url, video_caption, artwork_printable,
   rating, reviews, bestseller, exclusive, published, arrived,
-  product_variants ( id, size, colorway_id, sku, stock, position ),
+  product_variants ( id, size, colorway_id, sku, stock, price_delta_cents, position ),
   product_images ( id, storage_path, alt, colorway_id, position ),
   product_authors ( author_id, role, position, authors ( id, name, slug ) )
 `;

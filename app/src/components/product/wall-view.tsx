@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ProductArt } from "@/components/brand/product-art";
+import { ProductShot } from "@/components/product/product-shot";
 import { useI18n } from "@/components/i18n/provider";
 import {
   CameraIcon,
@@ -19,8 +19,13 @@ import {
 import { Swatch } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
 import type { Colorway } from "@/components/brand/product-art";
-import { frameAspect, frameOrientation } from "@/lib/catalog";
-import type { FrameFinish, FramePreview, Product } from "@/lib/catalog";
+import {
+  formatFrameSize,
+  frameAspect,
+  frameOrientation,
+  frameSizeOptions,
+} from "@/lib/catalog";
+import type { FrameFinish, FramePreview, FrameSize, Product } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 import { drawFramedArt } from "@/lib/wall-photo";
 
@@ -41,11 +46,13 @@ import { drawFramedArt } from "@/lib/wall-photo";
  *
  * ## Why the size is honest and the distance is a guess
  *
- * The centimetres come from the product. What no browser will tell us is the
- * camera's field of view, so the scale rests on one assumption — {@link ASSUMED_FOV}
- * — and on how far the shopper says they are standing. That is why the distance
- * is a control rather than a reading: the shopper corrects it by pinching until
- * the room looks right, and the piece keeps its true proportions throughout.
+ * The centimetres come from the format the shopper is buying — the same two
+ * numbers the size button stands for — and switching format here switches what is
+ * hanging on the wall. What no browser will tell us is the camera's field of view,
+ * so the scale rests on one assumption — {@link ASSUMED_FOV} — and on how far the
+ * shopper says they are standing. That is why the distance is a control rather
+ * than a reading: the shopper corrects it by pinching until the room looks right,
+ * and the piece keeps its true proportions throughout.
  *
  * Nothing is uploaded. The video never leaves the element it is painted in, and
  * the photograph is composed locally in a canvas.
@@ -136,15 +143,37 @@ export function WallView({
   frame,
   initialFinish,
   initialColorway,
+  initialSize,
+  onFinish,
   onClose,
 }: {
   product: Product;
   frame: FramePreview;
   initialFinish: FrameFinish;
   initialColorway: Colorway;
+  /**
+   * Told when the shopper tries a different finish here, so the product page can
+   * follow. The camera is where the choice is actually made — you hold the piece
+   * against your own wall and pick the moulding that suits it — and it would be
+   * a poor trick to have that choice not be the one that goes in the basket.
+   */
+  onFinish?: (finish: FrameFinish) => void;
+  /**
+   * The format to open on — the one the shopper has selected on the product
+   * page. Null from a listing card, where nothing has been chosen yet.
+   */
+  initialSize?: string | null;
   onClose: () => void;
 }) {
   const { t, locale } = useI18n();
+
+  /*
+    The formats this piece is sold in, with their real measurements. Computed
+    once per render off the product rather than held in state: the sizes cannot
+    change while a modal is open, and the selected *name* is the only thing that
+    can.
+  */
+  const options = frameSizeOptions(product, frame);
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -160,8 +189,20 @@ export function WallView({
   const [position, setPosition] = useState(INITIAL_POSITION);
   const [finish, setFinish] = useState<FrameFinish>(initialFinish);
   const [colorway, setColorway] = useState<Colorway>(initialColorway);
+  // Held by name, so it survives a re-render that rebuilds the options array.
+  const [sizeName, setSizeName] = useState<string | null>(
+    // A size that is not one of this product's own formats — impossible today,
+    // but the caller is free to pass one — is ignored rather than hung at some
+    // measurement nobody sells.
+    initialSize && options.some((option) => option.size === initialSize)
+      ? initialSize
+      : options[0].size,
+  );
   const [shot, setShot] = useState<Shot | null>(null);
   const [busy, setBusy] = useState(false);
+
+  /** The format on the wall: its size is what everything below is scaled by. */
+  const printSize = options.find((option) => option.size === sizeName) ?? options[0];
 
   /* ------------------------------------------------------------ lifecycle */
 
@@ -272,7 +313,7 @@ export function WallView({
 
   /* ------------------------------------------------------------- geometry */
 
-  const geometry = frameGeometry({ viewport, source, distance, frame });
+  const geometry = frameGeometry({ viewport, source, distance, printSize, mount: frame.mount });
 
   /* ------------------------------------------------------------- gestures */
 
@@ -357,19 +398,21 @@ export function WallView({
 
   const capture = async () => {
     const video = videoRef.current;
-    const svg = artRef.current?.querySelector("svg");
-    if (!video || !svg || viewport.width === 0) return;
+    // Either kind of artwork: a photographed product hangs as an <img>, one that
+    // has never been photographed as the drawn <svg>.
+    const art = artRef.current?.querySelector<SVGSVGElement | HTMLImageElement>("svg, img");
+    if (!video || !art || viewport.width === 0) return;
 
     setBusy(true);
     try {
       const blob = await composePhoto({
         video,
-        svg,
+        art,
         viewport,
         source,
         finish,
         mount: frame.mount,
-        caption: `${t.meta.siteName} · ${product.name} · ${formatSize(frame)}`,
+        caption: `${t.meta.siteName} · ${product.name} · ${formatFrameSize(printSize)}`,
       });
       if (blob) setShot({ url: URL.createObjectURL(blob), blob });
     } finally {
@@ -451,13 +494,16 @@ export function WallView({
                   }}
                 >
                   <FramedArt finish={finish} mount={frame.mount} onWall={false}>
-                    <div style={{ aspectRatio: frameAspect(frame) }}>
-                      <ProductArt
-                        shape={product.shape}
+                    <div style={{ aspectRatio: frameAspect(printSize) }}>
+                      <ProductShot
+                        product={product}
                         colorway={colorway}
                         print={product.print}
                         bare
-                        orientation={frameOrientation(frame)}
+                        orientation={frameOrientation(printSize)}
+                        // This exact node is drawn into the capture canvas, and
+                        // the bucket is a different origin from the site.
+                        crossOrigin="anonymous"
                       />
                     </div>
                   </FramedArt>
@@ -474,7 +520,8 @@ export function WallView({
               {t.wall.title}
             </h2>
             <p className="truncate text-[0.8125rem] text-white/70">
-              {product.name} · {formatSize(frame)}
+              {product.name} · {printSize.size ? `${printSize.size} · ` : ""}
+              {formatFrameSize(printSize)}
             </p>
           </div>
           <button
@@ -497,6 +544,40 @@ export function WallView({
               <span className="block text-white/45">{t.wall.disclaimer}</span>
             </p>
 
+            {/*
+              The formats, above the frame and colour controls and wider than
+              them: this is the one choice here that changes the answer rather
+              than the look, so a shopper comparing a 30 × 40 with a 50 × 70 on
+              the same wall does not have to close the camera between the two.
+            */}
+            {options.length > 1 && (
+              <fieldset className="flex flex-wrap items-center justify-center gap-2">
+                <legend className="sr-only">{t.plp.size}</legend>
+                {options.map((option) => {
+                  const active = option === printSize;
+                  return (
+                    <button
+                      key={option.size ?? "default"}
+                      type="button"
+                      onClick={() => setSizeName(option.size)}
+                      aria-pressed={active}
+                      className={cn(
+                        "flex h-9 items-center gap-2 border px-3 text-[0.75rem] transition",
+                        active
+                          ? "border-white bg-white/15 text-white"
+                          : "border-white/40 text-white/75 hover:border-white/80",
+                      )}
+                    >
+                      {option.size && <span className="font-semibold">{option.size}</span>}
+                      <span className="tabular-nums text-white/70">
+                        {formatFrameSize(option)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </fieldset>
+            )}
+
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
               {frame.finishes.length > 1 && (
                 <fieldset className="flex items-center gap-2">
@@ -505,7 +586,10 @@ export function WallView({
                     <button
                       key={option}
                       type="button"
-                      onClick={() => setFinish(option)}
+                      onClick={() => {
+                        setFinish(option);
+                        onFinish?.(option);
+                      }}
                       aria-pressed={option === finish}
                       aria-label={t.pdp.frameFinishes[option]}
                       title={t.pdp.frameFinishes[option]}
@@ -698,12 +782,16 @@ function frameGeometry({
   viewport,
   source,
   distance,
-  frame,
+  printSize,
+  mount,
 }: {
   viewport: { width: number; height: number };
   source: { width: number; height: number };
   distance: number;
-  frame: FramePreview;
+  /** The chosen format's printed size, in centimetres. */
+  printSize: FrameSize;
+  /** Mount width, as a percentage — it is part of how wide the frame ends up. */
+  mount: number;
 }): Geometry {
   const cover =
     source.width > 0 && source.height > 0
@@ -714,7 +802,7 @@ function frameGeometry({
   const visibleCm = 2 * distance * Math.tan((ASSUMED_FOV * Math.PI) / 360);
   const perCm = visibleCm > 0 ? cover / visibleCm : 0;
 
-  return { perCm, width: perCm * frame.width * framedWidthRatio(frame.mount) };
+  return { perCm, width: perCm * printSize.width * framedWidthRatio(mount) };
 }
 
 /** The factor `object-fit: cover` scales the video by to fill the stage. */
@@ -745,7 +833,7 @@ function clampDistance(value: number) {
  */
 async function composePhoto({
   video,
-  svg,
+  art,
   viewport,
   source,
   finish,
@@ -753,7 +841,7 @@ async function composePhoto({
   caption,
 }: {
   video: HTMLVideoElement;
-  svg: SVGSVGElement;
+  art: SVGSVGElement | HTMLImageElement;
   viewport: { width: number; height: number };
   source: { width: number; height: number };
   finish: FrameFinish;
@@ -778,11 +866,11 @@ async function composePhoto({
 
   // The piece, measured off the DOM rather than recomputed: whatever the shopper
   // has dragged it to is, by definition, where it belongs in the photograph.
-  const rect = svg.closest("[data-frame='moulding']")?.getBoundingClientRect();
+  const rect = art.closest("[data-frame='moulding']")?.getBoundingClientRect();
   const stage = video.getBoundingClientRect();
   if (rect) {
     await drawFramedArt(ctx, {
-      svg,
+      art,
       finish,
       mount,
       mouldingPct: MOULDING_PCT,
@@ -826,14 +914,6 @@ function download(url: string, filename: string) {
 
 /* ============================================================== formatting */
 
-function formatSize(frame: FramePreview): string {
-  return `${trim(frame.width)} × ${trim(frame.height)} cm`;
-}
-
 function formatDistance(cm: number, locale: string): string {
   return `${new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(cm / 100)} m`;
-}
-
-function trim(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }

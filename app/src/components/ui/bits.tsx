@@ -37,11 +37,19 @@ export function Price({
   compareAt,
   size = "md",
   className,
+  fromLabel,
 }: {
   price: number;
   compareAt?: number;
   size?: "sm" | "md" | "lg";
   className?: string;
+  /**
+   * Rendered before the figure when the product costs more in a larger size, so
+   * a listing showing 40 € for a print whose large is 80 € says "desde". The
+   * label is passed in rather than looked up, because this component is shared
+   * by server-rendered listings that have no i18n hook.
+   */
+  fromLabel?: string;
 }) {
   const reduced = compareAt !== undefined && compareAt > price;
   const scale = {
@@ -52,6 +60,7 @@ export function Price({
 
   return (
     <p className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-1 font-semibold", scale, className)}>
+      {fromLabel && <span className="font-normal text-mute">{fromLabel}</span>}
       <span className={reduced ? "text-flame" : "text-ink"}>{formatPrice(price)}</span>
       {reduced && (
         <>

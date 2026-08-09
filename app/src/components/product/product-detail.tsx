@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useWishlist } from "@/components/account/wishlist-provider";
-import { ProductArt } from "@/components/brand/product-art";
+import { ProductShot, photosFor } from "@/components/product/product-shot";
 import { useCart } from "@/components/cart/cart-context";
 import { useI18n } from "@/components/i18n/provider";
 import {
@@ -26,15 +26,21 @@ import { ProductVideo } from "@/components/product/product-video";
 import { SizeGuideDialog } from "@/components/product/size-guide";
 import { useCameraProbe, WallView } from "@/components/product/wall-view";
 import {
+  formatFrameSize,
   frameAspect,
   frameOrientation,
+  frameSizeFor,
+  frameSurcharge,
   isNew,
   onSale,
   resolveSizeGuide,
   stockFor,
+  unitPriceFor,
+  type FrameChoice,
   type FrameFinish,
   type Product,
 } from "@/lib/catalog";
+import { mediaUrl } from "@/lib/supabase/env";
 import { cn, discountPercent, formatPrice } from "@/lib/utils";
 
 /** Below this many units we nudge the shopper. */
@@ -60,7 +66,13 @@ export function ProductDetail({
   // how the shopper will judge it, so it should not take a click to get there.
   // Picking a thumbnail drops back out of it — see the gallery below.
   const [framed, setFramed] = useState(true);
-  const [finish, setFinish] = useState<FrameFinish | null>(null);
+  /*
+    What the shopper is buying, which is no longer the same question as what they
+    are looking at. A cuadro is sold as paper and the frame is an extra, so "sin
+    marco" is a real choice with a real price — and `framed` above only decides
+    whether the gallery draws the moulding.
+  */
+  const [frameChoice, setFrameChoice] = useState<FrameChoice | null>(null);
   // The camera view is mounted only once asked for: it holds a MediaStream, and
   // unmounting is what guarantees the camera is released.
   const [wallOpen, setWallOpen] = useState(false);
@@ -70,29 +82,68 @@ export function ProductDetail({
   // The camera call to action is in the markup either way; CSS decides whether a
   // device that has no camera ever sees it.
   useCameraProbe();
-  const activeFinish = finish ?? frame?.finishes[0] ?? "black";
-  // Which way up the piece hangs, read off its measurements. Nothing else has an
-  // orientation, so anything that is not a cuadro stays portrait.
-  const orientation = frame ? frameOrientation(frame) : "portrait";
+  /*
+    The frame as chosen, defaulting to the first finish the piece offers: a cuadro
+    opens framed, so the price and the picture must agree with that from the first
+    render. Null for anything not sold framed, which is how the line reaches the
+    basket without a frame field at all.
+  */
+  const choice: FrameChoice | null = frame ? (frameChoice ?? frame.finishes[0]) : null;
+  // What the preview paints. "Sin marco" still has a colour to fall back on,
+  // because the framed *view* stays available as a preview after choosing it.
+  const activeFinish: FrameFinish =
+    choice && choice !== "none" ? choice : (frame?.finishes[0] ?? "black");
+  const surcharge = frameSurcharge(frame, choice);
   const [size, setSize] = useState<string | null>(
     product.sizes.length === 1 ? product.sizes[0] : null,
   );
   const [qty, setQty] = useState(1);
+  /*
+    What the chosen format is printed at. A cuadro is sold in more than one, and
+    they are not the same shape — so the framed view and the camera both follow
+    the size button rather than one measurement standing in for the listing.
+    Before a size is picked it is the product's default.
+  */
+  const printSize = frame ? frameSizeFor(frame, size) : null;
+  // Which way up the piece hangs, read off its measurements. Nothing else has an
+  // orientation, so anything that is not a cuadro stays portrait.
+  const orientation = printSize ? frameOrientation(printSize) : "portrait";
   const [error, setError] = useState(false);
 
   const wished = wishlist.has(product.id);
 
-  /** Four gallery views synthesised from one flat garment drawing. */
-  const views = [
-    { id: "front", label: t.pdp.viewFront, print: null, zoom: 1 },
-    { id: "detail", label: t.pdp.viewDetail, print: null, zoom: 2.1 },
-    { id: "monogram", label: t.pdp.viewMonogram, print: "monogram" as const, zoom: 1 },
-    { id: "plain", label: t.pdp.viewPlain, print: "none" as const, zoom: 1 },
-  ];
-
   const colorway = product.colorways[colorIndex] ?? product.colorways[0];
+
+  /*
+    The gallery is the photographs when there are any, and four views synthesised
+    from the flat garment drawing when there are not.
+
+    The synthesised views — a zoomed detail, the print swapped out — only make
+    sense for a drawing, which can be re-rendered any way we like. A photograph
+    is a photograph: there is no "monogram" version of it, so each one is simply
+    its own view.
+  */
+  const photos = photosFor(product, colorway?.id);
+
+  const views = photos.length
+    ? photos.map((photo, i) => ({
+        id: photo.id,
+        label: `${product.name} — ${i + 1}`,
+        print: null,
+        zoom: 1,
+        photo,
+      }))
+    : [
+        { id: "front", label: t.pdp.viewFront, print: null, zoom: 1, photo: null },
+        { id: "detail", label: t.pdp.viewDetail, print: null, zoom: 2.1, photo: null },
+        { id: "monogram", label: t.pdp.viewMonogram, print: "monogram" as const, zoom: 1, photo: null },
+        { id: "plain", label: t.pdp.viewPlain, print: "none" as const, zoom: 1, photo: null },
+      ];
+
   const reduced = onSale(product);
-  const activeView = views[view];
+  // Switching colour can change how many photographs there are, so an index left
+  // over from the previous colour must not fall off the end.
+  const activeView = views[view] ?? views[0];
 
   // Availability is per size × colour, so switching colour can change what is
   // buyable — exactly how the stock table is keyed.
@@ -113,7 +164,17 @@ export function ProductDetail({
       name: product.name,
       size,
       qty,
-      price: product.price,
+      // The size decides the price once a variant can carry a surcharge, and the
+      // frame adds to it. The server re-prices from the catalogue anyway; this is
+      // what the cart shows.
+      price: unitPriceFor(product, size, choice),
+      // Undefined rather than "none" for a product that is not sold framed: the
+      // line has no frame to speak of, which is not the same as an unframed one.
+      frameFinish: choice ?? undefined,
+      // The measurements travel with the choice so the basket can hang the piece
+      // exactly as this page does — the chosen format, not the default one.
+      frame: frame && printSize ? { mount: frame.mount, print: printSize } : undefined,
+      imageUrl: activeView.photo ? mediaUrl(activeView.photo.path) : undefined,
       shape: product.shape,
       print: product.print,
       colorway,
@@ -125,7 +186,11 @@ export function ProductDetail({
       {/* ------------------------------------------------------- gallery */}
       <div className="flex flex-col gap-4">
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:gap-4">
-        <ul className="flex gap-3 sm:flex-col" aria-label={t.pdp.views}>
+        {/* One photograph is not a gallery — the strip would just repeat it. */}
+        <ul
+          className={cn("flex gap-3 sm:flex-col", views.length < 2 && "hidden")}
+          aria-label={t.pdp.views}
+        >
           {views.map((item, i) => (
             <li key={item.id}>
               <button
@@ -145,11 +210,12 @@ export function ProductDetail({
                 )}
               >
                 <span className="block h-full w-full" style={{ transform: `scale(${item.zoom})` }}>
-                  <ProductArt
-                    shape={product.shape}
+                  <ProductShot
+                    product={product}
                     colorway={colorway}
                     print={item.print ?? product.print}
                     orientation={orientation}
+                    photo={item.photo}
                   />
                 </span>
               </button>
@@ -166,17 +232,18 @@ export function ProductDetail({
             {product.exclusive && <Badge tone="limited">{t.card.limited}</Badge>}
           </div>
 
-          {frame && framed ? (
+          {frame && printSize && framed ? (
             <FramedArt finish={activeFinish} mount={frame.mount} className="aspect-[5/6]">
               {/* The art alone, at its own proportions: the mount supplies the
                   white and the bevel supplies the edge. */}
-              <div style={{ aspectRatio: frameAspect(frame) }}>
-                <ProductArt
-                  shape={product.shape}
+              <div style={{ aspectRatio: frameAspect(printSize) }}>
+                <ProductShot
+                  product={product}
                   colorway={colorway}
                   print={activeView.print ?? product.print}
                   bare
                   orientation={orientation}
+                  photo={activeView.photo}
                 />
               </div>
             </FramedArt>
@@ -185,11 +252,12 @@ export function ProductDetail({
               className="aspect-[5/6] transition-transform duration-500 ease-[var(--ease-out-quint)]"
               style={{ transform: `scale(${activeView.zoom})` }}
             >
-              <ProductArt
-                shape={product.shape}
+              <ProductShot
+                product={product}
                 colorway={colorway}
                 print={activeView.print ?? product.print}
                 orientation={orientation}
+                photo={activeView.photo}
               />
             </div>
           )}
@@ -198,54 +266,87 @@ export function ProductDetail({
       </div>
 
         {/*
-          Framing controls sit under the image rather than in the buybox: they
-          change what you are looking at, not what you are buying. Nothing about
-          the frame is added to the cart.
+          Framing sits under the image rather than in the buybox, where the piece
+          it applies to is. It is a buying decision now, not a way of looking:
+          picking an acabado orders the frame and adds what it costs, and "sin
+          marco" orders the paper on its own.
+
+          The eye button beside it is the leftover *view* toggle, for coming back
+          to the framed picture after a thumbnail dropped out of it.
         */}
-        {frame && (
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border border-line p-3">
-            <button
-              type="button"
-              onClick={() => setFramed((current) => !current)}
-              aria-pressed={framed}
-              className={cn(
-                "inline-flex h-10 items-center gap-2 border px-4 font-display text-[0.8125rem] font-bold uppercase tracking-wide transition",
-                framed ? "border-ink bg-ink text-white" : "border-line hover:border-ink",
+        {frame && choice && (
+          <div className="space-y-3 border border-line p-3">
+            <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <legend className="sr-only">{t.pdp.frameFinish}</legend>
+              <span className="eyebrow text-mute">{t.pdp.frameChoice}</span>
+
+              <ul className="flex flex-wrap items-center gap-2">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFrameChoice("none");
+                      // Buying the paper: show the paper.
+                      setFramed(false);
+                    }}
+                    aria-pressed={choice === "none"}
+                    className={cn(
+                      "inline-flex h-10 items-center border px-3 text-[0.8125rem] font-semibold transition",
+                      choice === "none" ? "border-ink bg-ink text-white" : "border-line hover:border-ink",
+                    )}
+                  >
+                    {t.pdp.frameNone}
+                  </button>
+                </li>
+                {frame.finishes.map((option) => (
+                  <li key={option}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFrameChoice(option);
+                        setFramed(true);
+                      }}
+                      aria-pressed={option === choice}
+                      aria-label={t.pdp.frameFinishes[option]}
+                      title={t.pdp.frameFinishes[option]}
+                      className={cn(
+                        "grid size-10 place-items-center border-2 transition",
+                        option === choice ? "border-ink" : "border-transparent hover:border-line",
+                      )}
+                    >
+                      <FrameSwatch finish={option} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+
+              {/* What the frame adds, said where it is chosen rather than only in
+                  the total: the price above already includes it. */}
+              {frame.surcharge > 0 && (
+                <span className="text-[0.8125rem] font-semibold">
+                  {choice === "none"
+                    ? t.pdp.framePlus.replace("{{amount}}", formatPrice(frame.surcharge))
+                    : t.pdp.frameIncluded.replace("{{amount}}", formatPrice(frame.surcharge))}
+                </span>
               )}
-            >
-              <FrameIcon className="size-4" />
-              {framed ? t.pdp.frameHide : t.pdp.frameShow}
-            </button>
 
-            {framed && frame.finishes.length > 1 && (
-              <fieldset className="flex items-center gap-3">
-                <legend className="sr-only">{t.pdp.frameFinish}</legend>
-                <span className="eyebrow text-mute">{t.pdp.frameFinish}</span>
-                <ul className="flex gap-2">
-                  {frame.finishes.map((option) => (
-                    <li key={option}>
-                      <button
-                        type="button"
-                        onClick={() => setFinish(option)}
-                        aria-pressed={option === activeFinish}
-                        aria-label={t.pdp.frameFinishes[option]}
-                        title={t.pdp.frameFinishes[option]}
-                        className={cn(
-                          "grid size-10 place-items-center border-2 transition",
-                          option === activeFinish
-                            ? "border-ink"
-                            : "border-transparent hover:border-line",
-                        )}
-                      >
-                        <FrameSwatch finish={option} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </fieldset>
-            )}
+              <button
+                type="button"
+                onClick={() => setFramed((current) => !current)}
+                aria-pressed={framed}
+                className={cn(
+                  "ms-auto inline-flex h-10 items-center gap-2 border px-3 text-[0.8125rem] font-semibold transition",
+                  framed ? "border-ink" : "border-line hover:border-ink",
+                )}
+              >
+                <FrameIcon className="size-4" />
+                {framed ? t.pdp.frameHide : t.pdp.frameShow}
+              </button>
+            </fieldset>
 
-            <p className="text-[0.75rem] text-mute">{t.pdp.frameNote}</p>
+            <p className="text-[0.75rem] text-mute">
+              {choice === "none" ? t.pdp.frameNoteUnframed : t.pdp.frameNote}
+            </p>
           </div>
         )}
 
@@ -301,7 +402,14 @@ export function ProductDetail({
         </div>
 
         <div className="mt-4">
-          <Price price={product.price} compareAt={product.compareAt} size="lg" />
+          {/* The frame is inside the figure, and so is the old price it is
+              compared against — otherwise choosing an acabado would look like a
+              deeper discount than it is. */}
+          <Price
+            price={unitPriceFor(product, size, choice)}
+            compareAt={product.compareAt === undefined ? undefined : product.compareAt + surcharge}
+            size="lg"
+          />
           <p className="mt-1 text-[0.75rem] text-mute">{t.pdp.shippingAtCheckout}</p>
         </div>
 
@@ -395,6 +503,14 @@ export function ProductDetail({
                     )}
                   >
                     {option}
+                    {/* For a cuadro the format name means nothing on its own:
+                        "Grande" is not a size, 50 × 70 cm is. The button says
+                        both, and it is the same number the camera hangs. */}
+                    {frame && (
+                      <span className="text-[0.625rem] font-normal tabular-nums opacity-70">
+                        {formatFrameSize(frameSizeFor(frame, option))}
+                      </span>
+                    )}
                     {unavailable && (
                       <span
                         aria-hidden="true"
@@ -550,6 +666,14 @@ export function ProductDetail({
           // The camera opens on whatever the shopper is already looking at.
           initialFinish={activeFinish}
           initialColorway={colorway}
+          // …and at the format they have chosen, if they have chosen one.
+          initialSize={size}
+          // A finish tried against a real wall is a finish chosen: it comes back
+          // here so the basket gets the one they settled on.
+          onFinish={(picked) => {
+            setFrameChoice(picked);
+            setFramed(true);
+          }}
           onClose={() => setWallOpen(false)}
         />
       )}

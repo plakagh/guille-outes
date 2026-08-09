@@ -108,6 +108,10 @@ export function ProductArt({
   return (
     <svg
       viewBox={cropped ? bareViewBox(orientation) : VIEWBOX}
+      // Cropped means "behind a mount", and the mount is cut to a printed format
+      // the sheet does not share proportions with. `slice` fills the aperture and
+      // loses the overhang, rather than leaving a white band at the bevel.
+      preserveAspectRatio={cropped ? "xMidYMid slice" : undefined}
       className={cn("h-full w-full", className)}
       aria-hidden="true"
       shapeRendering="geometricPrecision"
