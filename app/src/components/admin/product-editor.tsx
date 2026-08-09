@@ -26,6 +26,7 @@ import {
   DEFAULT_FRAME_PREVIEW,
   frameAspect,
   frameOrientation,
+  frameSizeFor,
   FRAME_FINISHES,
   FRAME_MAX_CM,
   FRAME_MIN_CM,
@@ -467,20 +468,60 @@ function FrameEditor({
   const [finishes, setFinishes] = useState<FrameFinish[]>(
     stored?.finishes ?? [...FRAME_FINISHES],
   );
-  // Held as typed, not as numbers: a half-deleted field is a valid thing to be
-  // looking at, and `Number("")` is 0, which would flip the preview on its side
-  // mid-keystroke.
-  const [size, setSize] = useState({
-    width: String(stored?.width ?? DEFAULT_FRAME_PREVIEW.width),
-    height: String(stored?.height ?? DEFAULT_FRAME_PREVIEW.height),
-  });
 
-  /** What the preview draws: the typed size, falling back while it is unusable. */
+  /*
+    One row per format the piece is sold in, in the order the shop shows them.
+
+    A cuadro is two products in one listing — a 30 × 40 and a 50 × 70 at two
+    prices — and the camera view hangs whichever one the shopper picked. So the
+    measurements are per size here, not per product. A product with no sizes at
+    all still gets a row, keyed by `""`: it is what the frame falls back to.
+
+    Held as typed rather than as numbers: a half-deleted field is a valid thing to
+    be looking at, and `Number("")` is 0, which would flip the preview on its side
+    mid-keystroke.
+  */
+  const formats = [...product.sizes].sort(compareSizes);
+  const rows = formats.length > 0 ? formats : [""];
+
+  /*
+    Only what has been typed is held, not a row per format: adding a size in the
+    stock table below re-renders this form with one more format, and a state
+    object built once at mount would leave that row blank — a blank measurement
+    saved as the storefront default is a wrong size nobody was shown.
+  */
+  const [typed, setTyped] = useState<Record<string, { width: string; height: string }>>({});
+
+  /** A row as it appears in the fields: what was typed, or what is stored. */
+  const shown = (format: string) => {
+    const edited = typed[format];
+    if (edited) return edited;
+    const measured = frameSizeFor(stored ?? DEFAULT_FRAME_PREVIEW, format || null);
+    return { width: String(measured.width), height: String(measured.height) };
+  };
+
+  const set = (format: string, key: "width" | "height", value: string) =>
+    setTyped((current) => ({ ...current, [format]: { ...shown(format), [key]: value } }));
+
+  /** A row as numbers, falling back while what is typed is unusable. */
+  const measurements = (format: string) => {
+    const row = shown(format);
+    return {
+      width: cmOr(row.width, DEFAULT_FRAME_PREVIEW.width),
+      height: cmOr(row.height, DEFAULT_FRAME_PREVIEW.height),
+    };
+  };
+
+  /**
+   * What the preview draws: the first format, which is the one a listing card and
+   * an unchosen product page show.
+   */
   const preview: FramePreview = {
     finishes,
     mount: stored?.mount ?? DEFAULT_FRAME_PREVIEW.mount,
-    width: cmOr(size.width, DEFAULT_FRAME_PREVIEW.width),
-    height: cmOr(size.height, DEFAULT_FRAME_PREVIEW.height),
+    surcharge: stored?.surcharge ?? DEFAULT_FRAME_PREVIEW.surcharge,
+    sizes: {},
+    ...measurements(rows[0]),
   };
 
   const toggle = (finish: FrameFinish) =>
@@ -568,47 +609,83 @@ function FrameEditor({
             </label>
 
             {/*
-              The printed size. Everything else on this form is presentation;
-              these two numbers are a fact about the object, and the camera view
-              scales the piece on someone's wall by them.
+              What the frame costs. Not decoration: this is the difference the
+              shopper pays for choosing an acabado over "sin marco", and the
+              server adds it to every line that asks for one.
             */}
-            <fieldset className="max-w-md">
-              <legend className="eyebrow mb-1.5 text-mute">{t.admin.frame.size}</legend>
-              <div className="flex items-center gap-3">
-                {(
-                  [
-                    ["frame_width", "width", t.pdp.sizeDimensions.width],
-                    ["frame_height", "height", t.admin.frame.height],
-                  ] as const
-                ).map(([name, key, label]) => (
-                  <label key={name} className="flex-1">
-                    <span className="sr-only">{label}</span>
-                    <span className="flex h-11 items-center border border-line focus-within:border-ink">
-                      {/* Controlled, so the preview below turns as it is typed:
-                          checking the orientation is most of why it is there. */}
-                      <input
-                        name={name}
-                        type="number"
-                        min={FRAME_MIN_CM}
-                        max={FRAME_MAX_CM}
-                        step={0.5}
-                        value={size[key]}
-                        onChange={(event) =>
-                          setSize((current) => ({ ...current, [key]: event.target.value }))
-                        }
-                        aria-label={label}
-                        className="h-full min-w-0 flex-1 px-3 text-right text-[0.9375rem] outline-none"
-                      />
-                      <span className="px-3 text-[0.875rem] text-mute">cm</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
+            <label className="block max-w-xs">
+              <span className="eyebrow mb-1.5 block text-mute">{t.admin.frame.surcharge}</span>
+              <span className="flex h-11 items-center border border-line focus-within:border-ink">
+                <input
+                  name="frame_surcharge"
+                  type="text"
+                  inputMode="decimal"
+                  defaultValue={((stored?.surcharge ?? 0) / 100).toFixed(2)}
+                  className="h-full min-w-0 flex-1 px-3 text-right text-[0.9375rem] outline-none"
+                />
+                <span className="px-3 text-[0.875rem] text-mute">€</span>
+              </span>
               <span className="mt-1 block text-[0.75rem] text-mute">
-                {t.admin.frame.sizeHint}{" "}
-                <strong className="font-semibold text-ink">
-                  {t.admin.frame[preview.width > preview.height ? "landscape" : "portrait"]}
-                </strong>
+                {t.admin.frame.surchargeHint}
+              </span>
+            </label>
+
+            {/*
+              The printed size, per format. Everything else on this form is
+              presentation; these numbers are a fact about the object, and the
+              camera view scales the piece on someone's wall by them.
+            */}
+            <fieldset className="max-w-lg">
+              <legend className="eyebrow mb-1.5 text-mute">{t.admin.frame.size}</legend>
+              <ul className="space-y-2">
+                {rows.map((format) => {
+                  const row = measurements(format);
+                  return (
+                    <li key={format} className="flex flex-wrap items-center gap-3">
+                      {/* The size the row belongs to travels with the values, so
+                          the action never has to guess which is which. */}
+                      {format && <input type="hidden" name="frame_format" value={format} />}
+                      <span className="w-24 shrink-0 text-[0.875rem] font-semibold">
+                        {format || t.admin.frame.defaultSize}
+                      </span>
+                      {(
+                        [
+                          ["width", t.pdp.sizeDimensions.width],
+                          ["height", t.admin.frame.height],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <label key={key} className="min-w-28 flex-1">
+                          <span className="sr-only">
+                            {format ? `${format} · ${label}` : label}
+                          </span>
+                          <span className="flex h-11 items-center border border-line focus-within:border-ink">
+                            {/* Controlled, so the preview below turns as it is
+                                typed: checking the orientation is most of why it
+                                is there. */}
+                            <input
+                              name={format ? `frame_${key}_${format}` : `frame_${key}`}
+                              type="number"
+                              min={FRAME_MIN_CM}
+                              max={FRAME_MAX_CM}
+                              step={0.5}
+                              value={shown(format)[key]}
+                              onChange={(event) => set(format, key, event.target.value)}
+                              aria-label={format ? `${format} · ${label}` : label}
+                              className="h-full min-w-0 flex-1 px-3 text-right text-[0.9375rem] outline-none"
+                            />
+                            <span className="px-3 text-[0.875rem] text-mute">cm</span>
+                          </span>
+                        </label>
+                      ))}
+                      <span className="w-28 shrink-0 text-[0.75rem] text-mute">
+                        {t.admin.frame[row.width > row.height ? "landscape" : "portrait"]}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <span className="mt-1.5 block text-[0.75rem] text-mute">
+                {t.admin.frame.sizeHint}
               </span>
             </fieldset>
 

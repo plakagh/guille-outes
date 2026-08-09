@@ -5,6 +5,7 @@ import { LOCALES, type Locale } from "@/lib/i18n/config";
 import {
   DEFAULT_FRAME_PREVIEW,
   FRAME_MAX_CM,
+  FRAME_MAX_SURCHARGE,
   FRAME_MIN_CM,
   isColorwayId,
   isFrameFinish,
@@ -267,18 +268,47 @@ export async function saveFramePreview(form: FormData): Promise<ActionResult> {
   const mount = Number(rawMount);
   const safeMount = Number.isFinite(mount) && mount >= 0 && mount <= 30 ? mount : 10;
 
-  // The printed size. This one is not cosmetic: it is the scale the camera view
-  // hangs the piece at, so a wrong number here is a wrong answer to the only
-  // question that view exists to answer.
-  const width = cm(form, "frame_width", DEFAULT_FRAME_PREVIEW.width);
-  const height = cm(form, "frame_height", DEFAULT_FRAME_PREVIEW.height);
+  /*
+    What a frame costs on top of the print. The shopper picks a finish or "sin
+    marco" on the product page, and this is the difference between the two — so
+    a blank box means the frame is thrown in, not that framing is unavailable.
+  */
+  const surcharge = Math.min(cents(form, "frame_surcharge") ?? 0, FRAME_MAX_SURCHARGE);
+
+  /*
+    The printed size of each format the piece is sold in. This one is not
+    cosmetic: it is the scale the camera view hangs the piece at, so a wrong
+    number here is a wrong answer to the only question that view exists to
+    answer — and one number for a listing sold as a 30 × 40 *and* a 50 × 70 is
+    wrong for at least one of them.
+
+    The form sends the size names it drew rows for, so a format that has since
+    been deleted from the product drops out on the next save instead of lingering
+    in the JSON for ever.
+  */
+  const formats = form.getAll("frame_format").map(String).filter(Boolean);
+
+  const sizes: Record<string, { width: number; height: number }> = {};
+  for (const format of formats) {
+    sizes[format] = {
+      width: cm(form, `frame_width_${format}`, DEFAULT_FRAME_PREVIEW.width),
+      height: cm(form, `frame_height_${format}`, DEFAULT_FRAME_PREVIEW.height),
+    };
+  }
+
+  // The fallback pair, for a product with no sizes and for anything reading the
+  // row without knowing about formats. The first format, so a listing card and
+  // an unchosen product page draw what the shopper will be offered first.
+  const fallback = formats.length > 0 ? sizes[formats[0]] : null;
+  const width = fallback?.width ?? cm(form, "frame_width", DEFAULT_FRAME_PREVIEW.width);
+  const height = fallback?.height ?? cm(form, "frame_height", DEFAULT_FRAME_PREVIEW.height);
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("products")
     .update({
       frame_preview: enabled
-        ? { enabled: true, finishes, mount: safeMount, width, height }
+        ? { enabled: true, finishes, mount: safeMount, surcharge, sizes, width, height }
         : {},
     })
     .eq("id", id);

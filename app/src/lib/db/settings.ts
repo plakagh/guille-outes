@@ -34,6 +34,27 @@ export const getShippingSettings = cache(async (): Promise<ShippingSettings> => 
   return parseShippingSettings(data);
 });
 
+/**
+ * Where the shop is told about an order.
+ *
+ * Read here under the administrator's own session, which is all the settings page
+ * needs. The two places that *send* the notice have no administrator present, so
+ * they read it through `lib/db/notifications.ts` instead — see the note there
+ * about why that one is elevated.
+ */
+export async function getNotificationSettings(): Promise<{ orderEmail: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("notification_settings")
+    .select("order_email")
+    .maybeSingle();
+
+  if (error) console.error("[settings] notification read failed", error);
+
+  // Empty rather than null, because this is going straight into a text input.
+  return { orderEmail: (data as { order_email: string | null } | null)?.order_email ?? "" };
+}
+
 export type PromoMessage = {
   id: string;
   text: string;

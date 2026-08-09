@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { ActionResult } from "@/lib/admin/actions";
 import {
   deletePromoMessage,
+  saveNotificationSettings,
   savePromoMessage,
   saveShippingSettings,
 } from "@/lib/admin/settings-actions";
@@ -21,10 +22,12 @@ const euros = (value: number) => (value / 100).toFixed(2);
 export function SettingsEditor({
   shipping,
   promos,
+  notifications,
   t,
 }: {
   shipping: ShippingSettings;
   promos: PromoMessageDraft[];
+  notifications: { orderEmail: string };
   t: Dictionary;
 }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -55,6 +58,37 @@ export function SettingsEditor({
       )}
 
       <ShippingForm shipping={shipping} t={t} run={run} />
+
+      {/*
+        Where the shop hears about an order. First, because it is the one setting
+        on this page that somebody notices is missing only by not hearing about a
+        sale — and the notice is what says which frame a cuadro was bought with.
+      */}
+      <section className="border border-line bg-white p-6">
+        <h2 className="mb-1 text-2xl">{label.noticeTitle}</h2>
+        <p className="mb-5 max-w-2xl text-[0.875rem] text-mute">{label.noticeBlurb}</p>
+
+        <form
+          action={(form) => run(saveNotificationSettings, form)}
+          className="flex flex-wrap items-end gap-4"
+        >
+          <label className="block min-w-64 flex-1">
+            <span className="eyebrow mb-1.5 block text-mute">{label.noticeEmail}</span>
+            <input
+              name="order_email"
+              type="email"
+              defaultValue={notifications.orderEmail}
+              placeholder="pedidos@guilleoutes.com"
+              className="h-11 w-full border border-line px-3 text-[0.9375rem] outline-none focus:border-ink"
+            />
+            <span className="mt-1 block text-[0.75rem] text-mute">{label.noticeEmailHint}</span>
+          </label>
+
+          <Button type="submit" className="h-11">
+            {t.admin.save}
+          </Button>
+        </form>
+      </section>
 
       <section className="border border-line bg-white p-6">
         <h2 className="mb-1 text-2xl">{label.promoTitle}</h2>

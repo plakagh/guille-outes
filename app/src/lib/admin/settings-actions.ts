@@ -81,6 +81,36 @@ export async function saveShippingSettings(form: FormData): Promise<ActionResult
   return { ok: true };
 }
 
+/* ------------------------------------------------------- notifications */
+
+/**
+ * The address the shop is told about orders at.
+ *
+ * Blank switches the notices off, which is a real choice and not an error — so
+ * the field is emptied to null rather than refused. Anything else has to look
+ * like an address: the same shape the column's own CHECK enforces, tested here so
+ * a typo comes back as a message on the form instead of a database error.
+ */
+export async function saveNotificationSettings(form: FormData): Promise<ActionResult> {
+  if (!(await requireAdmin())) return { ok: false, error: FORBIDDEN };
+
+  const email = str(form, "order_email").toLowerCase();
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { ok: false, error: "bad_email" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("notification_settings")
+    .update({ order_email: email || null })
+    .eq("singleton", true);
+
+  if (error) return { ok: false, error: error.message };
+
+  // Nothing on the storefront reads this, so there is nothing to revalidate.
+  return { ok: true };
+}
+
 /* ---------------------------------------------------------- promo bar */
 
 /**
