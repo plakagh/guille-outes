@@ -42,6 +42,8 @@ function rules(overrides: Partial<DiscountRules> = {}): DiscountRules {
     usedTotal: 0,
     usedByCaller: 0,
     callerHasPaid: false,
+    personal: false,
+    callerIsRecipient: false,
     ...overrides,
   };
 }
@@ -206,7 +208,11 @@ test("the global limit and the per-customer limit are separate refusals", () => 
 });
 
 test("a personal code asks a signed-out visitor to sign in rather than failing later", () => {
-  for (const personal of [{ maxPerCustomer: 1 }, { firstOrderOnly: true }]) {
+  for (const personal of [
+    { maxPerCustomer: 1 },
+    { firstOrderOnly: true },
+    { personal: true, callerIsRecipient: true },
+  ]) {
     const result = evaluate(personal, [line()], 495, false);
     assert.equal(result.ok === false && result.reason, "sign_in");
   }
@@ -221,6 +227,33 @@ test("a welcome code counts paid orders, not abandoned baskets", () => {
 
   const first = evaluate({ firstOrderOnly: true, callerHasPaid: false }, [line()]);
   assert.equal(first.ok, true);
+});
+
+/* ------------------------------------------------ codes issued to one person */
+
+test("a code issued to somebody else is refused, however well it is typed", () => {
+  // The welcome code from the newsletter, forwarded or screenshotted. Whose it is
+  // was decided against the confirmed address on the account, so holding the
+  // string is worth nothing.
+  const stranger = evaluate({ personal: true, callerIsRecipient: false, maxRedemptions: 1 }, [line()]);
+  assert.equal(stranger.ok === false && stranger.reason, "not_yours");
+
+  const owner = evaluate({ personal: true, callerIsRecipient: true, maxRedemptions: 1 }, [line()]);
+  assert.equal(owner.ok, true);
+});
+
+test("a spent personal code says 'you have used this', not 'the campaign is over'", () => {
+  // Single use is `maxRedemptions: 1`, and on a code with one owner the only
+  // person who could have spent it is that owner.
+  const result = evaluate(
+    { personal: true, callerIsRecipient: true, maxRedemptions: 1, usedTotal: 1 },
+    [line()],
+  );
+  assert.equal(result.ok === false && result.reason, "already_used");
+
+  // A shared campaign at its ceiling still reads as exhausted.
+  const shared = evaluate({ maxRedemptions: 1, usedTotal: 1 }, [line()]);
+  assert.equal(shared.ok === false && shared.reason, "exhausted");
 });
 
 test("the code itself is checked before the basket is", () => {

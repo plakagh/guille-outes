@@ -121,6 +121,8 @@ export function refusalMessage(
       return refusal.alreadyUsed;
     case "sign_in":
       return refusal.signIn;
+    case "not_yours":
+      return refusal.notYours;
     case "not_first_order":
       return refusal.notFirstOrder;
     case "min_subtotal":

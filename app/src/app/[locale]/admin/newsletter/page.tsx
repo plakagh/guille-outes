@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/bits";
+import { listIssuedCodes, type IssuedCode } from "@/lib/db/discounts";
 import { isLocale } from "@/lib/i18n/config";
-import { getDictionary } from "@/lib/i18n/dictionary";
+import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
+import { WELCOME_CAMPAIGN } from "@/lib/newsletter/welcome-code";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -14,6 +16,10 @@ import { createClient } from "@/lib/supabase/server";
  * Deliberately read-only: adding someone by hand would be a consent record we
  * cannot back up, and removing them from here would lose the withdrawal trail. A
  * subscriber leaves through their own unsubscribe link.
+ *
+ * The welcome code is reported here rather than in the discounts panel: there is
+ * one per confirmed address, the shop wrote none of them, and what it wants to
+ * know about them is per-person — was it used — not per-campaign.
  */
 export const dynamic = "force-dynamic";
 
@@ -35,6 +41,36 @@ const TONE = {
   unsubscribed: "soldout",
 } as const;
 
+/**
+ * The welcome code cell.
+ *
+ * Three states worth telling apart: taken up, still waiting, and lapsed. A
+ * pending subscriber has no code at all — it is minted by the confirmation click
+ * — and that shows as a dash rather than as something missing.
+ */
+function welcomeCode(
+  code: IssuedCode | undefined,
+  label: Dictionary["admin"]["newsletter"],
+) {
+  if (!code) return <span className="text-mute">{label.welcomeCodeNone}</span>;
+
+  const expired = !code.enabled || (code.endsAt !== null && Date.parse(code.endsAt) <= Date.now());
+
+  const [tone, text] =
+    code.usedTotal > 0
+      ? (["new", label.welcomeCodeUsed] as const)
+      : expired
+        ? (["soldout", label.welcomeCodeExpired] as const)
+        : (["limited", label.welcomeCodeLive] as const);
+
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <code className="font-mono text-[0.8125rem]">{code.code}</code>
+      <Badge tone={tone}>{text}</Badge>
+    </span>
+  );
+}
+
 export default async function AdminNewsletterPage(
   props: PageProps<"/[locale]/admin/newsletter">,
 ) {
@@ -44,13 +80,16 @@ export default async function AdminNewsletterPage(
   const t = await getDictionary(locale);
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("newsletter_subscribers")
-    .select(
-      "id, email, status, locale, source, consent_version, confirmed_at, unsubscribed_at, created_at",
-    )
-    .order("created_at", { ascending: false })
-    .limit(500);
+  const [{ data }, codes] = await Promise.all([
+    supabase
+      .from("newsletter_subscribers")
+      .select(
+        "id, email, status, locale, source, consent_version, confirmed_at, unsubscribed_at, created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(500),
+    listIssuedCodes(WELCOME_CAMPAIGN),
+  ]);
 
   const rows = (data ?? []) as Row[];
   const counts = {
@@ -92,6 +131,7 @@ export default async function AdminNewsletterPage(
                   <th className="p-2.5 text-left font-display uppercase">{t.common.language}</th>
                   <th className="p-2.5 text-left font-display uppercase">{label.source}</th>
                   <th className="p-2.5 text-left font-display uppercase">{label.since}</th>
+                  <th className="p-2.5 text-left font-display uppercase">{label.welcomeCode}</th>
                   <th className="p-2.5 text-left font-display uppercase">{label.consent}</th>
                 </tr>
               </thead>
@@ -111,6 +151,7 @@ export default async function AdminNewsletterPage(
                           : (row.confirmed_at ?? row.created_at),
                       ).toLocaleDateString(locale)}
                     </td>
+                    <td className="p-2.5">{welcomeCode(codes.get(row.email.toLowerCase()), label)}</td>
                     <td className="p-2.5 tabular-nums text-mute">{row.consent_version}</td>
                   </tr>
                 ))}

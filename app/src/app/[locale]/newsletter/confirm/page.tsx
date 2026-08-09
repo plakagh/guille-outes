@@ -8,6 +8,7 @@ import { isLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { href } from "@/lib/i18n/routes";
 import { confirmSubscription } from "@/lib/newsletter/store";
+import { issueWelcomeCode } from "@/lib/newsletter/welcome-code";
 import { SITE_URL } from "@/lib/supabase/env";
 
 /**
@@ -38,8 +39,17 @@ export default async function NewsletterConfirmPage(
   );
 
   // The welcome email goes out only on the transition, so a second visit (or a
-  // mail client prefetching the link) cannot trigger a duplicate.
+  // mail client prefetching the link) cannot trigger a duplicate — and neither
+  // can it mint a second discount code.
+  //
+  // The code is issued here, at the click, rather than when the form was
+  // submitted: this is the first moment the offer has an owner, because it is the
+  // first moment we know the address belongs to whoever asked. Issuing at
+  // submission would hand 10 % to anyone who typed a stranger's address into the
+  // footer, which is the whole thing double opt-in is for.
   if (outcome.status === "confirmed" && canSendMail()) {
+    const offer = await issueWelcomeCode(outcome.email);
+
     const message = newsletterWelcomeEmail(
       {
         email: outcome.email,
@@ -48,6 +58,17 @@ export default async function NewsletterConfirmPage(
           locale,
           "newsletterUnsubscribe",
         )}?token=${encodeURIComponent(outcome.unsubscribeToken)}`,
+        // Null when this address has already spent a welcome code, which is what
+        // someone who unsubscribed and came back gets. The email still goes.
+        discount: offer && {
+          code: offer.code,
+          percent: offer.percent,
+          expires: new Date(offer.expiresAt).toLocaleDateString(locale, {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }),
+        },
       },
       t,
     );

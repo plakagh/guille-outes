@@ -48,6 +48,13 @@ export type DiscountRules = {
   usedByCaller: number;
   /** Whether the caller has ever paid for an order. */
   callerHasPaid: boolean;
+  /**
+   * The code was issued to one person — the newsletter welcome code is the first
+   * of these. Holding the string is not enough to spend it.
+   */
+  personal: boolean;
+  /** On a personal code, whether the caller is the person it was issued to. */
+  callerIsRecipient: boolean;
 };
 
 /** One basket line, reduced to what a code needs to know about it. */
@@ -72,6 +79,7 @@ export type DiscountRefusal =
   | "exhausted"
   | "already_used"
   | "sign_in"
+  | "not_yours"
   | "not_first_order"
   | "min_subtotal"
   | "no_eligible_items"
@@ -160,14 +168,21 @@ export function evaluateDiscount({
     return { ok: false, reason: "expired" };
   }
   if (rules.maxRedemptions !== null && rules.usedTotal >= rules.maxRedemptions) {
-    return { ok: false, reason: "exhausted" };
+    // A code with one owner can only have been exhausted by that owner, so they
+    // are told the truth about themselves rather than "this campaign is over".
+    return { ok: false, reason: rules.personal ? "already_used" : "exhausted" };
   }
 
-  // A per-customer limit and a first-order offer are both promises about a
-  // person, and a signed-out visitor is not yet one. Saying so is better than
-  // accepting the code in the cart and refusing it at checkout.
-  const personal = rules.maxPerCustomer !== null || rules.firstOrderOnly;
+  // A per-customer limit, a first-order offer and a code issued to one person are
+  // all promises about a person, and a signed-out visitor is not yet one. Saying
+  // so is better than accepting the code in the cart and refusing it at checkout.
+  const personal = rules.personal || rules.maxPerCustomer !== null || rules.firstOrderOnly;
   if (personal && !signedIn) return { ok: false, reason: "sign_in" };
+
+  // Whose code it is was decided by `discount_lookup` against the confirmed
+  // address on the account, not by anything the browser sent. A forwarded welcome
+  // email is therefore worth nothing to the person who receives it.
+  if (rules.personal && !rules.callerIsRecipient) return { ok: false, reason: "not_yours" };
 
   if (rules.maxPerCustomer !== null && rules.usedByCaller >= rules.maxPerCustomer) {
     return { ok: false, reason: "already_used" };

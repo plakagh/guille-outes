@@ -38,6 +38,8 @@ type LookupRow = {
   used_total: number;
   used_by_caller: number;
   caller_has_paid: boolean;
+  personal: boolean;
+  caller_is_recipient: boolean;
 };
 
 /**
@@ -84,6 +86,8 @@ export async function lookupDiscount(raw: string): Promise<DiscountRules | null>
     usedTotal: row.used_total,
     usedByCaller: row.used_by_caller,
     callerHasPaid: row.caller_has_paid,
+    personal: row.personal,
+    callerIsRecipient: row.caller_is_recipient,
   };
 }
 
@@ -149,7 +153,13 @@ type StatRow = {
 };
 
 /**
- * Every code, with its totals.
+ * Every code the shop wrote by hand, with its totals.
+ *
+ * Codes issued to one person are left out. There is one per confirmed newsletter
+ * subscriber and the shop did not write any of them, so listing them here would
+ * bury the four campaigns that are actually being run under a thousand rows
+ * nobody edits. They are reported where they came from, next to the subscriber
+ * they belong to — see `listIssuedCodes`.
  *
  * Two queries rather than an embedded join: `discount_code_stats` is a view, and
  * PostgREST will not walk a relationship into one. At this shop's scale that is
@@ -160,7 +170,11 @@ export async function listDiscountCodes(): Promise<DiscountDraft[]> {
   const supabase = await createClient();
 
   const [{ data: codes, error }, { data: stats }] = await Promise.all([
-    supabase.from("discount_codes").select("*").order("created_at", { ascending: false }),
+    supabase
+      .from("discount_codes")
+      .select("*")
+      .is("issued_to_email", null)
+      .order("created_at", { ascending: false }),
     supabase.from("discount_code_stats").select("*"),
   ]);
 
@@ -199,4 +213,70 @@ export async function listDiscountCodes(): Promise<DiscountDraft[]> {
       lastUsedAt: stat?.last_used_at ?? null,
     };
   });
+}
+
+/** A code minted for one person, as the admin panel reports it. */
+export type IssuedCode = {
+  code: string;
+  /** Lower-cased, and the key the caller joins on. */
+  email: string;
+  endsAt: string | null;
+  enabled: boolean;
+  /** Redemptions, so the panel can say whether the offer was taken up. */
+  usedTotal: number;
+};
+
+/**
+ * The personal codes of one campaign, keyed by the address they were issued to.
+ *
+ * Read under the administrator's own session, so the admin-only policy on
+ * `discount_codes` is what grants it — this function is not the gate. Bounded by
+ * the caller because the newsletter page it feeds is itself paged.
+ */
+export async function listIssuedCodes(
+  campaign: string,
+  limit = 500,
+): Promise<Map<string, IssuedCode>> {
+  const supabase = await createClient();
+
+  const [{ data: codes, error }, { data: stats }] = await Promise.all([
+    supabase
+      .from("discount_codes")
+      .select("id, code, issued_to_email, ends_at, enabled")
+      .eq("campaign", campaign)
+      .not("issued_to_email", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    supabase.from("discount_code_stats").select("id, used_total"),
+  ]);
+
+  if (error) {
+    console.error("[discounts] issued list failed", error);
+    return new Map();
+  }
+
+  const used = new Map(
+    ((stats ?? []) as { id: string; used_total: number }[]).map((row) => [row.id, row.used_total]),
+  );
+
+  const rows = (codes ?? []) as {
+    id: string;
+    code: string;
+    issued_to_email: string;
+    ends_at: string | null;
+    enabled: boolean;
+  }[];
+
+  return new Map(
+    rows.map((row) => [
+      row.issued_to_email,
+      {
+        code: row.code,
+        email: row.issued_to_email,
+        endsAt: row.ends_at,
+        enabled: row.enabled,
+        usedTotal: used.get(row.id) ?? 0,
+      },
+    ]),
+  );
 }
