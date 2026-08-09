@@ -213,7 +213,7 @@ click is what ties the consent to the mailbox.
 | Stage | What is stored | What is sent |
 |---|---|---|
 | Form submitted | `pending`, hashed token, consent record | the confirmation request, nothing else |
-| Link clicked | `confirmed`, timestamp | the welcome email, once |
+| Link clicked | `confirmed`, timestamp, **a discount code for that address** | the welcome email with the code, once |
 | Unsubscribe clicked | `unsubscribed`, timestamp | nothing |
 
 Details that matter:
@@ -243,6 +243,52 @@ The list is not readable with the public anon key **at all**, and only an
 administrator can read it as a logged-in user. `/{locale}/admin/newsletter` is
 read-only on purpose: adding someone by hand would be a consent record we could
 not back up, and deleting them would lose the withdrawal trail.
+
+### The welcome discount
+
+The footer has promised *un 10 % en tu primer pedido* since the first build. It is
+now true: confirming a subscription mints a discount code for that address alone
+and the welcome email carries it.
+
+**It is issued by the click, not by the form.** Minting on submission would hand
+10 % to whoever typed an address into the footer — which is exactly what the double
+opt-in exists to prevent, and it would turn the newsletter box into a way to farm
+discounts. The click on the link in the inbox is the first moment the offer has an
+owner, so that is when it is created ([welcome-code.ts](src/lib/newsletter/welcome-code.ts)).
+
+**One use, and one owner.** The code is an ordinary row in `discount_codes` with
+`max_redemptions = 1` and `issued_to_email` set. Neither limit is enforced in the
+application: the redemption is counted from `discount_redemptions`, which only the
+payment callback writes, and ownership is decided by `discount_lookup` against
+`auth.users.email` — and only when `email_confirmed_at` is set, so an account that
+has not proved it owns an address cannot claim a code issued to it. A forwarded
+welcome email is therefore worth nothing to whoever receives it, and a refusal says
+so in its own sentence rather than as *invalid*.
+
+**Confirming twice does not mint twice.** A partial unique index on
+`(campaign, issued_to_email)` is what guarantees it — one welcome code per address,
+ever. Someone who unsubscribed and came back finds the code they already have, with
+its window pushed out if it had lapsed in the meantime; someone who has already
+*spent* it gets the welcome email without an offer in it, because they have had
+their welcome discount.
+
+**`CLUB10-XXXXXXXX`**, eight characters from an alphabet with no `I`, `L`, `O`, `U`,
+`0` or `1` in it — about 40 bits, and nothing in it that gets misread off a phone
+screen. The prefix is built from the percentage rather than typed, so changing the
+offer cannot leave `CLUB10` codes worth 15 %. It lapses after 90 days: an unclaimed
+code should not sit there for years, and a discount with a date on it is a discount
+somebody uses.
+
+**Not `first_order_only`, deliberately.** That limit counts paid orders on the
+*account*, and most people subscribe from the footer long before they have one — so
+it would refuse existing customers the very code we had just emailed them. Personal
+and single-use is what stops the offer being farmed; who has bought before is not
+what it turns on.
+
+These codes are reported in `/{locale}/admin/newsletter`, next to the subscriber
+they belong to and with whether the offer was taken up, and are **left out of**
+`/{locale}/admin/discounts`: there is one per confirmed address, the shop wrote none
+of them, and listing them would bury the campaigns it actually runs.
 
 ---
 
@@ -318,6 +364,15 @@ on top of the outlet. Every limit is optional, and blank means unlimited: a perm
 "students get 10 %" is expressed by leaving the boxes empty rather than by typing a
 big number. **One code per order** — the `UNIQUE` on `discount_redemptions.order_id`
 is what enforces it.
+
+**A code can also belong to one person.** `issued_to_email` makes it personal, and
+then holding the string is not enough to spend it: `discount_lookup` claims it only
+for a signed-in caller whose *confirmed* account address matches, so a forwarded code
+is worth nothing. The newsletter welcome discount is the first of these — see
+[The welcome discount](#the-welcome-discount) — and the shop does not write them by
+hand, which is why they are reported next to the subscriber rather than in the
+discounts panel. An unlimited personal code is refused by a `CHECK`: the point of
+issuing one per person is that it runs out.
 
 **Nobody may read the codes.** `discount_codes` has no select policy for the
 storefront at all — not for `anon`, not for a signed-in customer. A shop's live
@@ -456,15 +511,41 @@ padding with a hairline inner shadow, the bevel is a three-layer `box-shadow`, a
 the glass is one faint diagonal highlight.
 
 `products.frame_preview` decides per product whether the preview appears, which
-finishes are offered, how wide the mount is, and how big the print actually is:
+finishes are offered, how wide the mount is, and how big each format actually is:
 
 ```json
-{ "enabled": true, "finishes": ["black", "white", "wood"], "mount": 10, "width": 50, "height": 70 }
+{
+  "enabled": true,
+  "finishes": ["black", "white", "wood"],
+  "mount": 10,
+  "sizes": {
+    "Pequeño": { "width": 30, "height": 40 },
+    "Grande": { "width": 50, "height": 70 }
+  },
+  "width": 30,
+  "height": 40
+}
 ```
 
 The centimetres are the **printed artwork**, mount and moulding excluded — the shop
 types what is on the label and the storefront derives the outside dimensions from
 the percentages it draws with.
+
+**The measurements are per format, not per product.** A cuadro is sold as a
+`Pequeño` and a `Grande` at two prices, and those are two different objects: the
+framed view takes its proportions from whichever size button is pressed, and the
+camera view hangs that one at that scale. `sizes` is keyed by the product's own
+size names — the same strings `product_variants.size` uses, which is what lets the
+size button, the price and the wall view agree without a second list to keep in
+step. The loose `width` / `height` are the fallback: what a format nobody has
+measured uses, and what a listing card shows before anything is chosen (the first
+format, so the card and the camera open on the same thing).
+
+`frameSizeFor(frame, size)` resolves one format — what the shop typed, then the
+standard size that name means (`Pequeño` 30 × 40, `Grande` 50 × 70), then the
+product's fallback pair. Never an average of the two, which is a size no cuadro is.
+The size buttons on a cuadro's page print the centimetres under the format name for
+the same reason: "Grande" is not a size, 50 × 70 cm is.
 
 Per product, not per shop, because framing is a property of the piece: a numbered
 serigraph may only be sold in black. Enabled with every finish removed is stored
@@ -497,8 +578,8 @@ included.
 Every cuadro carries a second call to action: on the product page under the framing
 controls, and on the tile of every cuadro card in the home rails and the listings.
 It opens the camera full screen and hangs the piece on the shopper's own wall —
-drag to move it, pinch to walk towards the wall, shutter to photograph it. Finish
-and colourway can be changed without leaving the camera.
+drag to move it, pinch to walk towards the wall, shutter to photograph it. Format,
+finish and colourway can be changed without leaving the camera.
 [wall-view.tsx](src/components/product/wall-view.tsx).
 
 **The button is not offered where it cannot work.** `useWallViewSupport` checks the
@@ -522,8 +603,15 @@ the shop's visitors would get a button that apologises. An overlay placed by han
 works wherever there is a camera, and answers the question actually being asked:
 *is a 50 × 70 too big for that space?*
 
-**Scale is honest; distance is a guess.** The centimetres come from the product.
-No browser reports the camera's field of view, so the scale rests on one assumption
+**Only sizes that exist are on offer.** The formats in the camera are the ones the
+product is sold in, opened on the one the shopper selected on the product page (the
+first, from a listing card) and switchable there — so comparing a 30 × 40 with a
+50 × 70 on the same wall does not mean closing the camera in between. There is no
+free size control: a slider from 20 to 200 cm would answer *would a picture fit*
+rather than *would this one*.
+
+**Scale is honest; distance is a guess.** The centimetres come from the format being
+bought. No browser reports the camera's field of view, so the scale rests on one assumption
 (65° horizontal) and on the distance the shopper states — which is why distance is a
 control and not a readout, corrected by pinching until the room looks right. The
 conversion works from the *scaled* video width rather than the viewport, because
@@ -832,8 +920,9 @@ anybody may order a shirt with any published drawing.
 - **Images** — upload to Supabase Storage, delete; products fall back to the generated
   vector artwork when no photo exists
 - **Framed view** — for cuadros: whether the piece is shown framed, in which
-  finishes, how wide the mount is and how large the print is in centimetres (the
-  scale the camera wall view hangs it at), with a live preview
+  finishes, how wide the mount is, and the centimetres of **each size the product is
+  sold in** (the scale the camera wall view hangs that format at) — one row per size,
+  pre-filled with the standard paper size for its name, with a live preview
 - **Video** — an optional address (YouTube, Vimeo or a hosted file) and an optional
   trilingual caption, saved with the rest of the product so a brand-new one can
   arrive with its video already on it. An address that cannot be played is refused
@@ -845,10 +934,13 @@ anybody may order a shirt with any published drawing.
   scoped to everything, a collection or a category; with a minimum order, a window,
   a total and a per-customer ceiling, first-order-only, and a switch against stacking
   on the outlet. Each row shows what it has done — uses, customers, euros given away,
-  last used — and can be paused in one click without losing that history
+  last used — and can be paused in one click without losing that history. The codes
+  issued to one person (the newsletter welcome discount) are left out: the shop wrote
+  none of them, and they are reported next to the subscriber they belong to
 - **Shop settings** — shipping rates, the free-delivery threshold, which services are
   offered, and the promo-bar messages
-- **Newsletter** — subscriber counts and state, read-only
+- **Newsletter** — subscriber counts and state, read-only, each row with the welcome
+  code that address was issued and whether it has been used
 
 Every mutation is a Server Action in [src/lib/admin/actions.ts](src/lib/admin/actions.ts),
 with the shop-wide ones in [settings-actions.ts](src/lib/admin/settings-actions.ts),
@@ -1028,20 +1120,28 @@ Server Actions, which Next.js also protects against CSRF by checking `Origin` ag
 through `getViewer()`, which calls `getUser()` and then reads `is_admin` **from the
 database** — never from a cookie or a JWT claim the browser could set.
 
-**4. Exactly one privileged code path, and it is fenced in.**
+**4. Two privileged code paths, and both are fenced in.**
 The storefront, the account area and the admin panel all act as the visitor, and
-everything they do is enforced by RLS. The one exception is the Redsys callback:
+everything they do is enforced by RLS. The first exception is the Redsys callback:
 the caller is a bank, there is no user session to authorise against, and no policy
 can express "trust this because the HMAC checked out" — verifying the HMAC needs a
 secret Postgres cannot decrypt.
+
+The second is `src/lib/db/notifications.ts`, which reads one admin-only column:
+the address the shop is notified at when an order arrives. Both places that send
+that notice — a shopper's checkout and the bank's callback — have no administrator
+present, and the alternative would be a policy letting every signed-in customer
+read the shop's internal mailbox. So it is a single-column, read-only query that
+depends on nothing the caller sent.
 
 So `src/lib/supabase/elevated.ts` holds a service-role client, fenced by:
 
 - `import "server-only"`, so the build fails if it is ever pulled into a client
   bundle;
 - a variable **without** the `NEXT_PUBLIC_` prefix, so Next never inlines it;
-- one importer only — the callback route, which verifies the signature *before*
-  touching it, and whose status transition is idempotent.
+- two importers only — the callback route, which verifies the signature *before*
+  touching it and whose status transition is idempotent, and the notice-address
+  read above.
 
 An earlier version of this document claimed there was no service-role key at all.
 That was true until payments existed; this is the honest statement. If you want it
@@ -1108,7 +1208,11 @@ with real user tokens:
 | Anonymous inserts a `confirmed` subscriber | rejected; nothing written |
 | Newsletter signup with the consent box defeated in the DOM | refused; nothing stored, no email |
 | A customer opens `/admin/newsletter` | refused; no addresses in the HTML |
-| Confirmation link clicked twice | confirmed once, one welcome email |
+| Confirmation link clicked twice | confirmed once, one welcome email, one code |
+| Unsubscribing and confirming again | same welcome code, never a second 10 % |
+| Confirming again after the code was spent | welcome email with no offer in it |
+| A welcome code typed by anyone but its owner | refused: `not_yours` |
+| A welcome code used a second time by its owner | refused: `already_used` |
 | Unsubscribe link reused after unsubscribing | reports it, does not error |
 | Bogus confirm/unsubscribe token | rejected in all three locales |
 | Base + IVA against the total | adds up to the cent, in shop and email |
