@@ -79,3 +79,9 @@ vector_port = 54529
 [db.pooler]
 enabled = false
 port = 54529
+
+[db.seed]
+# The catalogue is a migration, not a seed: `db push` is what reaches production,
+# and a seed file would only ever load locally. Disabled so `db reset` stops
+# looking for the sample data that used to live in supabase/seed.sql.
+enabled = false

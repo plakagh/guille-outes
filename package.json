@@ -13,8 +13,9 @@
     "db:status": "supabase --workdir infra status",
     "db:migrate": "supabase --workdir infra migration up --local",
     "db:reset": "supabase --workdir infra db reset",
-    "db:seed": "pnpm --dir infra seed",
-    "db:seed:generate": "pnpm --dir infra seed:generate",
+    "catalog:generate": "pnpm --dir infra catalog:generate",
+    "media:prepare": "pnpm --dir infra media:prepare",
+    "media:import": "pnpm --dir infra media:import",
     "db:urls": "supabase --workdir infra status",
 
     "stop:all": "supabase --workdir infra stop",

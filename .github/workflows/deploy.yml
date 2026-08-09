@@ -37,6 +37,28 @@ jobs:
             PGSSLMODE=disable supabase db push \
               --db-url "postgresql://postgres:${{ secrets.PROD_DB_PASSWORD }}@127.0.0.1:5433/postgres"
 
+            # The migrations carry the catalogue rows, but not the photographs:
+            # SQL moves text. The image files arrived with the `git pull` above,
+            # because `infra/media/` is committed, so all that is left is to move
+            # them into the storage bucket and record the rows.
+            #
+            # Run inside a throwaway container because the VPS has no Node, and
+            # the importer needs none of npm — only built-ins and `fetch`. It
+            # talks to Kong over the loopback address rather than the public URL,
+            # so the upload never leaves the machine.
+            #
+            # Idempotent: object paths are hashes of the file contents, so a
+            # deploy that changes no image uploads nothing new.
+            echo "→ Importing product images..."
+            set -a
+            . /opt/your-project/docker/.env
+            set +a
+            docker run --rm --network host \
+              -v /opt/your-project:/infra -w /infra \
+              -e SUPABASE_URL="http://127.0.0.1:${KONG_HTTP_PORT}" \
+              -e SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY}" \
+              node:22-alpine node scripts/import-media.mjs
+
             echo "→ Pruning old images..."
             docker image prune -f
 

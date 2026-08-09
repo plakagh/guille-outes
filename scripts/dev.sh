@@ -3,7 +3,7 @@
 # Bring the whole development environment up with one command.
 #
 #   pnpm dev:all                 start Supabase (if needed), sync env, run the app
-#   pnpm dev:all -- --fresh      also wipe and re-seed the database first
+#   pnpm dev:all -- --fresh      also wipe and rebuild the database first
 #   pnpm dev:all -- -p 3001      any extra flags are forwarded to `next dev`
 #
 # Supabase is deliberately left running when the app exits: starting the stack
@@ -67,7 +67,7 @@ ok "supabase $(supabase --version 2>/dev/null | head -1)"
 ok "docker running"
 
 HAVE_PSQL=true
-command -v psql >/dev/null 2>&1 || { HAVE_PSQL=false; warn "psql not found — skipping the seed check"; }
+command -v psql >/dev/null 2>&1 || { HAVE_PSQL=false; warn "psql not found — skipping the catalogue check"; }
 
 # --------------------------------------------------------------- supabase ---
 
@@ -124,7 +124,7 @@ if [ "$FRESH" = true ]; then
   step "Resetting the database"
   warn "this drops everything, including any accounts you created"
   (cd "$INFRA" && supabase db reset) || die "supabase db reset failed"
-  ok "migrations re-applied and seed loaded"
+  ok "migrations re-applied — the catalogue comes with them"
 else
   step "Applying pending migrations"
   # `db push` targets the linked remote project; `migration up --local` is the
@@ -142,16 +142,10 @@ else
     warn "run \`pnpm db:reset\` if the schema has drifted"
   fi
 
-  # A fresh volume gets the seed from `supabase start`; an empty catalogue after
-  # that means someone truncated it, so put it back.
   if [ "$HAVE_PSQL" = true ] && [ -n "$DB_URL" ]; then
     COUNT="$(psql "$DB_URL" -Atc "select count(*) from public.products;" 2>/dev/null || echo "")"
     if [ -z "$COUNT" ]; then
       warn "could not read the catalogue — is the schema applied?"
-    elif [ "$COUNT" = "0" ]; then
-      step "Seeding the catalogue"
-      psql "$DB_URL" -q -f "$INFRA/supabase/seed.sql" || die "seeding failed"
-      ok "catalogue seeded"
     else
       ok "$COUNT products in the catalogue"
     fi
@@ -219,6 +213,21 @@ grep -qE '^\s*SUPABASE_SERVICE_ROLE_KEY=.' "$ENV_FILE" 2>/dev/null ||
   warn "SUPABASE_SERVICE_ROLE_KEY is unset — the Redsys callback cannot record payments"
 grep -qE '^\s*PAYMENTS_ENCRYPTION_KEY=.' "$ENV_FILE" 2>/dev/null ||
   warn "PAYMENTS_ENCRYPTION_KEY is unset — the gateway secret cannot be stored (openssl rand -base64 32)"
+
+# ----------------------------------------------------------------- media ----
+
+# The catalogue rows arrive with the migrations, but the photographs cannot: SQL
+# moves text. They are uploaded from `infra/media/`, which is committed, and the
+# import is idempotent, so this is a no-op once everything is in the bucket.
+if [ -d "$INFRA/media/products" ]; then
+  step "Importing product images"
+  if (cd "$INFRA" && node scripts/import-media.mjs >/tmp/go-media.log 2>&1); then
+    tail -2 /tmp/go-media.log | sed 's/^/  /'
+  else
+    warn "image import failed — the shop will render without photographs:"
+    sed 's/^/    /' /tmp/go-media.log >&2
+  fi
+fi
 
 # ------------------------------------------------------------------ deps ----
 
