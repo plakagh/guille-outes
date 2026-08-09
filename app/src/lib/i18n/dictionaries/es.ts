@@ -118,11 +118,6 @@ const es = {
     kidsArtBlurb:
       "Píntalo aquí mismo con el dedo o sube la foto de uno hecho en papel. Lo publicamos firmado con su nombre, y si os gusta cómo queda, se lo estampamos en una camiseta.",
     kidsArtSecondary: "Ver la galería",
-    personaliseEyebrow: "Personalización",
-    personaliseTitle: "Tu nombre. Tu número.",
-    personaliseBlurb:
-      "Añade nombre y número a cualquier camiseta de tirantes. Vinilo termosellado, listo en 48 h.",
-    personaliseCta: "Personalizar ahora",
     giftEyebrow: "No sabes qué regalar",
     giftTitle: "Tarjeta regalo",
     giftBlurb: "De 20 € a 200 €, sin fecha de caducidad. Llega al instante por correo.",
@@ -243,9 +238,15 @@ const es = {
     frameShow: "Ver como cuadro",
     frameHide: "Ver la lámina",
     frameFinish: "Marco",
+    frameChoice: "Elige marco",
+    frameNone: "Sin marco",
     frameFinishes: { black: "Negro", white: "Blanco", wood: "Madera" },
+    framePlus: "Con marco: +{{amount}}",
+    frameIncluded: "Marco incluido (+{{amount}})",
     frameNote:
-      "Simulación del marco y el paspartú, a título orientativo. El precio indicado es solo de la lámina: el marco no está incluido.",
+      "Simulación del marco y el paspartú, a título orientativo. El precio ya incluye el marco elegido.",
+    frameNoteUnframed:
+      "Te enviamos la lámina impresa, sin marco. Puedes añadirle uno eligiendo un acabado aquí arriba.",
     sizeGuideIntro:
       "Medidas de esta prenda, tomada en plano. Compara con una que ya tengas y te quede bien.",
     sizeGuideTolerance:
@@ -342,6 +343,18 @@ const es = {
     emptyBlurbNoOutlet: "Todavía no has añadido nada. Empieza por lo más vendido.",
     startShopping: "Empezar a comprar",
     keepShopping: "Seguir comprando",
+    /**
+     * El estante de la cesta. Quien ya tiene un cuadro dentro ve camisetas, y al
+     * revés: la regla está en `crossSell`.
+     *
+     * Va justo debajo de las líneas del pedido y se leía como una más: el título
+     * dice que no lo es, la frase lo confirma y el botón es lo único que mete
+     * algo en la cesta.
+     */
+    completeOrder: "Completa tu pedido",
+    completeOrderHint: "Esto todavía no está en tu pedido. Añádelo si te interesa.",
+    addSuggestion: "Añadir",
+    chooseSize: "Elige talla:",
     bestSellers: "Lo más vendido",
     viewOutlet: "Ver el outlet",
     freeShippingReached: "¡Tienes el envío gratis!",
@@ -376,6 +389,8 @@ const es = {
         exhausted: "Ese código ha llegado al máximo de usos.",
         alreadyUsed: "Ya has usado ese código.",
         signIn: "Inicia sesión para usar ese código.",
+        notYours:
+          "Ese código se envió a otro correo. Inicia sesión con la cuenta del correo al que lo enviamos.",
         notFirstOrder: "Ese código es solo para el primer pedido.",
         minSubtotal: "Ese código pide un pedido mínimo de {{amount}}.",
         noEligibleItems: "Ese código no se aplica a nada de tu cesta.",
@@ -488,6 +503,7 @@ const es = {
       cookies: "Cookies",
       terms: "Condiciones de venta",
       rights: "Todos los derechos reservados.",
+      credit: "Diseño y desarrollo por",
     },
     newsletter: {
       eyebrow: "Club Guille Outes",
@@ -516,7 +532,7 @@ const es = {
       },
       confirmedTitle: "Suscripción confirmada",
       confirmedBody:
-        "Ya estás en la lista. Te escribiremos cuando haya algo que merezca la pena, y puedes darte de baja con un clic en cualquier envío.",
+        "Ya estás en la lista, y te hemos enviado tu código de descuento del 10 % por correo. Te escribiremos cuando haya algo que merezca la pena, y puedes darte de baja con un clic en cualquier envío.",
       alreadyTitle: "Ya estabas suscrito",
       alreadyBody: "Este correo ya estaba confirmado. No hace falta hacer nada más.",
       expiredTitle: "El enlace ha caducado",
@@ -676,12 +692,16 @@ const es = {
       noFinishes: "Sin ningún acabado marcado la vista no se mostrará.",
       mount: "Ancho del paspartú",
       mountHint: "Porcentaje del ancho del marco. Entre 8 y 14 % es lo habitual.",
-      size: "Medidas de la lámina",
+      surcharge: "Precio del marco",
+      surchargeHint:
+        "Lo que se suma al precio de la lámina cuando el cliente elige un acabado. En blanco o a 0 € el marco va incluido, y en la ficha se podrá comprar la obra con marco o sin él.",
+      size: "Medidas de cada tamaño",
+      defaultSize: "Por defecto",
       height: "Alto",
       sizeHint:
-        "Ancho y alto del papel impreso, sin marco ni paspartú. Es la escala a la que se coloca la obra sobre la pared en la vista con cámara.",
-      landscape: "Se dibujará en horizontal.",
-      portrait: "Se dibujará en vertical.",
+        "Ancho y alto del papel impreso de cada tamaño, sin marco ni paspartú. Es la escala a la que se cuelga la obra en la vista con cámara: si el pequeño y el grande no llevan aquí sus medidas reales, la cámara enseñará un cuadro que no es el que se compra.",
+      landscape: "Horizontal",
+      portrait: "Vertical",
       preview: "Así se verá",
     },
     shop: {
@@ -698,6 +718,11 @@ const es = {
       freeAlways: "Con 0 € el envío estándar será gratis en todos los pedidos.",
       methodsOffered: "Modalidades que se ofrecen",
       standardAlways: "El envío estándar siempre está disponible: sin él no habría forma de comprar.",
+      noticeTitle: "Avisos de pedido",
+      noticeBlurb:
+        "A esta dirección llegan dos correos por pedido: uno en cuanto se hace y otro cuando el banco confirma el cobro. Ahí se indica, entre otras cosas, con qué marco se ha comprado cada cuadro.",
+      noticeEmail: "Correo para los avisos",
+      noticeEmailHint: "Déjalo en blanco para no recibir ninguno.",
       promoTitle: "Barra de avisos",
       promoBlurb:
         "Los mensajes rotan cada 5 segundos en la franja negra superior. Puedes desactivar uno sin borrarlo, y dejar el enlace vacío si es solo un aviso.",
@@ -777,7 +802,7 @@ const es = {
       tab: "Newsletter",
       title: "Suscriptores del boletín",
       blurb:
-        "Solo lectura, a propósito: añadir a alguien a mano sería un consentimiento que no podríamos demostrar, y borrarlo desde aquí perdería el rastro de la baja. Cada persona se da de baja desde su propio enlace.",
+        "Solo lectura, a propósito: añadir a alguien a mano sería un consentimiento que no podríamos demostrar, y borrarlo desde aquí perdería el rastro de la baja. Cada persona se da de baja desde su propio enlace. El código de bienvenida se emite al confirmar, es de un único uso y solo funciona desde la cuenta de ese correo.",
       list: "Lista",
       empty: "Todavía no hay suscriptores.",
       email: "Correo",
@@ -785,6 +810,11 @@ const es = {
       source: "Origen",
       since: "Fecha",
       consent: "Versión legal",
+      welcomeCode: "Código de bienvenida",
+      welcomeCodeNone: "—",
+      welcomeCodeUsed: "Usado",
+      welcomeCodeLive: "Sin usar",
+      welcomeCodeExpired: "Caducado",
       status: {
         confirmed: "Confirmados",
         pending: "Sin confirmar",
@@ -973,6 +1003,20 @@ const es = {
   },
   mail: {
     viewOrder: "Ver mi pedido",
+    // El aviso interno: lo lee la tienda, no quien compra.
+    shop: {
+      placedSubject: "Pedido nuevo",
+      placedHeading: "Pedido nuevo",
+      placedBody:
+        "Se acaba de hacer este pedido en la tienda. Todavía no está cobrado: cuando el banco lo confirme llegará un segundo aviso.",
+      paidSubject: "Pedido pagado",
+      paidHeading: "Pedido pagado",
+      paidBody: "El banco ha confirmado el cobro de este pedido. Ya se puede preparar.",
+      frames: "Marcos de este pedido",
+      noFrames: "Este pedido no lleva ningún cuadro.",
+      customer: "Cliente",
+      shipTo: "Dirección de envío",
+    },
     newsletter: {
       confirmSubject: "Confirma tu suscripción",
       confirmHeading: "Un clic y listo",
@@ -986,6 +1030,14 @@ const es = {
       welcomeBody:
         "Suscripción confirmada. Te avisaremos de los lanzamientos y de las series numeradas antes de que salgan, y no te escribiremos por escribir.",
       welcomeCta: "Ver la tienda",
+      welcomeCodeSubject: "Tu {{percent}} % de bienvenida",
+      welcomeCodeBody:
+        "Suscripción confirmada, y aquí tienes lo prometido: un {{percent}} % en tu pedido. Te avisaremos de los lanzamientos y de las series numeradas antes de que salgan, y no te escribiremos por escribir.",
+      welcomeCodeCta: "Usar el código",
+      codeEyebrow: "Tu código de {{percent}} %",
+      codeExpires: "Válido hasta el {{date}}.",
+      codeSingleUse:
+        "Un solo uso, y solo desde la cuenta de este correo. No se acumula con los productos ya rebajados.",
       unsubscribeLink: "Darse de baja",
     },
     paidSubject: "Pedido confirmado",

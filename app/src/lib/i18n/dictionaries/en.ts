@@ -116,11 +116,6 @@ const en: Dictionary = {
     kidsArtBlurb:
       "Paint it right here with a finger, or upload a photo of one made on paper. We publish it signed with their name — and if you like how it looks, we will print it on a t-shirt.",
     kidsArtSecondary: "See the gallery",
-    personaliseEyebrow: "Personalisation",
-    personaliseTitle: "Your name. Your number.",
-    personaliseBlurb:
-      "Add a name and number to any tank. Heat-sealed vinyl, ready in 48 hours.",
-    personaliseCta: "Personalise now",
     giftEyebrow: "Not sure what to give",
     giftTitle: "Gift card",
     giftBlurb: "From €20 to €200, no expiry date. Delivered instantly by email.",
@@ -240,9 +235,15 @@ const en: Dictionary = {
     frameShow: "See it framed",
     frameHide: "See the print",
     frameFinish: "Frame",
+    frameChoice: "Choose a frame",
+    frameNone: "Unframed",
     frameFinishes: { black: "Black", white: "White", wood: "Wood" },
+    framePlus: "Framed: +{{amount}}",
+    frameIncluded: "Frame included (+{{amount}})",
     frameNote:
-      "A simulation of the frame and mount, for guidance. The price is for the print alone: the frame is not included.",
+      "A simulation of the frame and mount, for guidance. The price shown includes the frame you have chosen.",
+    frameNoteUnframed:
+      "You will receive the print on its own, unframed. Add a frame by choosing a finish above.",
     sizeGuideIntro:
       "Measurements for this garment, taken flat. Compare against one you already own and like.",
     sizeGuideTolerance:
@@ -337,6 +338,10 @@ const en: Dictionary = {
     emptyBlurbNoOutlet: "Nothing in here yet. Start with the best sellers.",
     startShopping: "Start shopping",
     keepShopping: "Keep shopping",
+    completeOrder: "Complete your order",
+    completeOrderHint: "None of this is in your order yet. Add it if you fancy it.",
+    addSuggestion: "Add",
+    chooseSize: "Pick a size:",
     bestSellers: "Best sellers",
     viewOutlet: "Shop the outlet",
     freeShippingReached: "You have free shipping!",
@@ -363,6 +368,8 @@ const en: Dictionary = {
         exhausted: "That code has reached its limit.",
         alreadyUsed: "You have already used that code.",
         signIn: "Sign in to use that code.",
+        notYours:
+          "That code was sent to a different address. Sign in with the account for the address we sent it to.",
         notFirstOrder: "That code is for first orders only.",
         minSubtotal: "That code needs a minimum order of {{amount}}.",
         noEligibleItems: "That code does not apply to anything in your basket.",
@@ -474,6 +481,7 @@ const en: Dictionary = {
       cookies: "Cookies",
       terms: "Terms of sale",
       rights: "All rights reserved.",
+      credit: "Designed & built by",
     },
     newsletter: {
       eyebrow: "Guille Outes Club",
@@ -501,7 +509,7 @@ const en: Dictionary = {
       },
       confirmedTitle: "Subscription confirmed",
       confirmedBody:
-        "You are on the list. We will write when there is something worth reading, and you can unsubscribe with one click from any email.",
+        "You are on the list, and we have emailed you your 10 % discount code. We will write when there is something worth reading, and you can unsubscribe with one click from any email.",
       alreadyTitle: "You were already subscribed",
       alreadyBody: "This address was already confirmed. There is nothing else to do.",
       expiredTitle: "That link has expired",
@@ -659,12 +667,16 @@ const en: Dictionary = {
       noFinishes: "With no finish ticked the view will not be shown.",
       mount: "Mount width",
       mountHint: "Percentage of the frame width. Between 8 and 14 % is usual.",
-      size: "Print measurements",
+      surcharge: "Price of the frame",
+      surchargeHint:
+        "What a chosen finish adds to the price of the print. Blank or 0 € throws the frame in, and either way the piece can be bought framed or unframed.",
+      size: "Measurements of each size",
+      defaultSize: "Default",
       height: "Height",
       sizeHint:
-        "Width and height of the printed paper, frame and mount excluded. This is the scale the camera view hangs the piece at.",
-      landscape: "Will be drawn landscape.",
-      portrait: "Will be drawn portrait.",
+        "Width and height of the printed paper for each size, frame and mount excluded. This is the scale the camera view hangs the piece at: if the small and the large do not carry their real measurements here, the camera shows a picture that is not the one being bought.",
+      landscape: "Landscape",
+      portrait: "Portrait",
       preview: "How it will look",
     },
     shop: {
@@ -681,6 +693,11 @@ const en: Dictionary = {
       freeAlways: "At 0 €, standard delivery will be free on every order.",
       methodsOffered: "Services offered",
       standardAlways: "Standard delivery is always available: without it there would be no way to buy.",
+      noticeTitle: "Order notices",
+      noticeBlurb:
+        "Two emails per order arrive at this address: one as soon as it is placed, and one when the bank confirms the payment. They say, among other things, which frame each piece was bought with.",
+      noticeEmail: "Address for notices",
+      noticeEmailHint: "Leave it blank to receive none.",
       promoTitle: "Announcement bar",
       promoBlurb:
         "Messages rotate every 5 seconds in the black strip at the top. You can switch one off without deleting it, and leave the link empty if it is just an announcement.",
@@ -760,7 +777,7 @@ const en: Dictionary = {
       tab: "Newsletter",
       title: "Newsletter subscribers",
       blurb:
-        "Read-only on purpose: adding someone by hand would be a consent record we could not back up, and deleting them from here would lose the withdrawal trail. People leave through their own unsubscribe link.",
+        "Read-only on purpose: adding someone by hand would be a consent record we could not back up, and deleting them from here would lose the withdrawal trail. People leave through their own unsubscribe link. The welcome code is issued on confirmation, is good for one order, and only works from the account for that address.",
       list: "List",
       empty: "No subscribers yet.",
       email: "Email",
@@ -768,6 +785,11 @@ const en: Dictionary = {
       source: "Source",
       since: "Date",
       consent: "Legal version",
+      welcomeCode: "Welcome code",
+      welcomeCodeNone: "—",
+      welcomeCodeUsed: "Used",
+      welcomeCodeLive: "Unused",
+      welcomeCodeExpired: "Expired",
       status: {
         confirmed: "Confirmed",
         pending: "Unconfirmed",
@@ -955,6 +977,20 @@ const en: Dictionary = {
   },
   mail: {
     viewOrder: "View my order",
+    // The internal notice: read by the shop, not by the buyer.
+    shop: {
+      placedSubject: "New order",
+      placedHeading: "New order",
+      placedBody:
+        "This order has just been placed. It has not been paid for yet: a second notice follows when the bank confirms it.",
+      paidSubject: "Order paid",
+      paidHeading: "Order paid",
+      paidBody: "The bank has confirmed payment for this order. It can be made up.",
+      frames: "Frames in this order",
+      noFrames: "There is no framed piece in this order.",
+      customer: "Customer",
+      shipTo: "Shipping address",
+    },
     newsletter: {
       confirmSubject: "Confirm your subscription",
       confirmHeading: "One click and you're in",
@@ -968,6 +1004,14 @@ const en: Dictionary = {
       welcomeBody:
         "Subscription confirmed. We will tell you about drops and numbered series before they go on sale, and we will not write just to write.",
       welcomeCta: "See the shop",
+      welcomeCodeSubject: "Your {{percent}} % welcome discount",
+      welcomeCodeBody:
+        "Subscription confirmed — and here is what we promised: {{percent}} % off your order. We will tell you about drops and numbered series before they go on sale, and we will not write just to write.",
+      welcomeCodeCta: "Use the code",
+      codeEyebrow: "Your {{percent}} % code",
+      codeExpires: "Valid until {{date}}.",
+      codeSingleUse:
+        "One use only, and only from the account for this address. It does not stack with items already reduced.",
       unsubscribeLink: "Unsubscribe",
     },
     paidSubject: "Order confirmed",

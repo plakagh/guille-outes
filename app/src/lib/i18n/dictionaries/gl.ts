@@ -116,11 +116,6 @@ const gl: Dictionary = {
     kidsArtBlurb:
       "Píntao aquí mesmo co dedo ou sube a foto dun feito en papel. Publicámolo asinado co seu nome e, se vos gusta como queda, estampámosllo nunha camiseta.",
     kidsArtSecondary: "Ver a galería",
-    personaliseEyebrow: "Personalización",
-    personaliseTitle: "O teu nome. O teu número.",
-    personaliseBlurb:
-      "Engade nome e número a calquera camiseta de tirantes. Vinilo termosellado, listo en 48 h.",
-    personaliseCta: "Personalizar agora",
     giftEyebrow: "Non sabes que agasallar",
     giftTitle: "Tarxeta agasallo",
     giftBlurb: "De 20 € a 200 €, sen data de caducidade. Chega ao instante por correo.",
@@ -241,9 +236,15 @@ const gl: Dictionary = {
     frameShow: "Ver como cadro",
     frameHide: "Ver a lámina",
     frameFinish: "Marco",
+    frameChoice: "Elixe marco",
+    frameNone: "Sen marco",
     frameFinishes: { black: "Negro", white: "Branco", wood: "Madeira" },
+    framePlus: "Con marco: +{{amount}}",
+    frameIncluded: "Marco incluído (+{{amount}})",
     frameNote:
-      "Simulación do marco e do paspartú, a título orientativo. O prezo indicado é só da lámina: o marco non está incluído.",
+      "Simulación do marco e do paspartú, a título orientativo. O prezo xa inclúe o marco elixido.",
+    frameNoteUnframed:
+      "Enviámosche a lámina impresa, sen marco. Podes engadirlle un elixindo un acabado aquí arriba.",
     sizeGuideIntro:
       "Medidas desta peza, tomada en plano. Compara cunha que xa teñas e che quede ben.",
     sizeGuideTolerance:
@@ -338,6 +339,10 @@ const gl: Dictionary = {
     emptyBlurbNoOutlet: "Aínda non engadiches nada. Empeza polo máis vendido.",
     startShopping: "Empezar a comprar",
     keepShopping: "Seguir comprando",
+    completeOrder: "Completa o teu pedido",
+    completeOrderHint: "Isto aínda non está no teu pedido. Engádeo se che interesa.",
+    addSuggestion: "Engadir",
+    chooseSize: "Escolle talla:",
     bestSellers: "O máis vendido",
     viewOutlet: "Ver o outlet",
     freeShippingReached: "¡Xa tes o envío gratis!",
@@ -364,6 +369,8 @@ const gl: Dictionary = {
         exhausted: "Ese código chegou ao máximo de usos.",
         alreadyUsed: "Xa usaches ese código.",
         signIn: "Inicia sesión para usar ese código.",
+        notYours:
+          "Ese código enviouse a outro correo. Inicia sesión coa conta do correo ao que o enviamos.",
         notFirstOrder: "Ese código é só para o primeiro pedido.",
         minSubtotal: "Ese código pide un pedido mínimo de {{amount}}.",
         noEligibleItems: "Ese código non se aplica a nada do teu carro.",
@@ -479,6 +486,7 @@ const gl: Dictionary = {
       cookies: "Cookies",
       terms: "Condicións de venda",
       rights: "Todos os dereitos reservados.",
+      credit: "Deseño e desenvolvemento por",
     },
     newsletter: {
       eyebrow: "Club Guille Outes",
@@ -507,7 +515,7 @@ const gl: Dictionary = {
       },
       confirmedTitle: "Subscrición confirmada",
       confirmedBody:
-        "Xa estás na lista. Escribirémosche cando haxa algo que mereza a pena, e podes darte de baixa cun clic en calquera envío.",
+        "Xa estás na lista, e enviámosche o teu código de desconto do 10 % por correo. Escribirémosche cando haxa algo que mereza a pena, e podes darte de baixa cun clic en calquera envío.",
       alreadyTitle: "Xa estabas subscrito",
       alreadyBody: "Este correo xa estaba confirmado. Non fai falta facer nada máis.",
       expiredTitle: "A ligazón caducou",
@@ -666,12 +674,16 @@ const gl: Dictionary = {
       noFinishes: "Sen ningún acabado marcado a vista non se mostrará.",
       mount: "Ancho do paspartú",
       mountHint: "Porcentaxe do ancho do marco. Entre 8 e 14 % é o habitual.",
-      size: "Medidas da lámina",
+      surcharge: "Prezo do marco",
+      surchargeHint:
+        "O que se suma ao prezo da lámina cando a clientela elixe un acabado. En branco ou a 0 € o marco vai incluído, e na ficha poderase mercar a obra con marco ou sen el.",
+      size: "Medidas de cada tamaño",
+      defaultSize: "Por defecto",
       height: "Alto",
       sizeHint:
-        "Ancho e alto do papel impreso, sen marco nin paspartú. É a escala á que se coloca a obra sobre a parede na vista con cámara.",
-      landscape: "Debuxarase en horizontal.",
-      portrait: "Debuxarase en vertical.",
+        "Ancho e alto do papel impreso de cada tamaño, sen marco nin paspartú. É a escala á que se colga a obra na vista con cámara: se o pequeno e o grande non levan aquí as súas medidas reais, a cámara amosará un cadro que non é o que se compra.",
+      landscape: "Horizontal",
+      portrait: "Vertical",
       preview: "Así se verá",
     },
     shop: {
@@ -688,6 +700,11 @@ const gl: Dictionary = {
       freeAlways: "Con 0 € o envío estándar será gratis en todos os pedidos.",
       methodsOffered: "Modalidades que se ofrecen",
       standardAlways: "O envío estándar sempre está dispoñible: sen el non habería forma de comprar.",
+      noticeTitle: "Avisos de pedido",
+      noticeBlurb:
+        "A esta dirección chegan dous correos por pedido: un en canto se fai e outro cando o banco confirma o cobro. Alí indícase, entre outras cousas, con que marco se mercou cada cadro.",
+      noticeEmail: "Correo para os avisos",
+      noticeEmailHint: "Déixao en branco para non recibir ningún.",
       promoTitle: "Barra de avisos",
       promoBlurb:
         "As mensaxes rotan cada 5 segundos na franxa negra superior. Podes desactivar unha sen borrala, e deixar a ligazón baleira se é só un aviso.",
@@ -767,7 +784,7 @@ const gl: Dictionary = {
       tab: "Newsletter",
       title: "Subscritores do boletín",
       blurb:
-        "Só lectura, a propósito: engadir a alguén a man sería un consentimento que non poderiamos demostrar, e borralo desde aquí perdería o rastro da baixa. Cada persoa dáse de baixa desde a súa propia ligazón.",
+        "Só lectura, a propósito: engadir a alguén a man sería un consentimento que non poderiamos demostrar, e borralo desde aquí perdería o rastro da baixa. Cada persoa dáse de baixa desde a súa propia ligazón. O código de benvida emítese ao confirmar, é dun único uso e só funciona desde a conta dese correo.",
       list: "Lista",
       empty: "Aínda non hai subscritores.",
       email: "Correo",
@@ -775,6 +792,11 @@ const gl: Dictionary = {
       source: "Orixe",
       since: "Data",
       consent: "Versión legal",
+      welcomeCode: "Código de benvida",
+      welcomeCodeNone: "—",
+      welcomeCodeUsed: "Usado",
+      welcomeCodeLive: "Sen usar",
+      welcomeCodeExpired: "Caducado",
       status: {
         confirmed: "Confirmados",
         pending: "Sen confirmar",
@@ -962,6 +984,20 @@ const gl: Dictionary = {
   },
   mail: {
     viewOrder: "Ver o meu pedido",
+    // O aviso interno: leo a tenda, non quen merca.
+    shop: {
+      placedSubject: "Pedido novo",
+      placedHeading: "Pedido novo",
+      placedBody:
+        "Acábase de facer este pedido na tenda. Aínda non está cobrado: cando o banco o confirme chegará un segundo aviso.",
+      paidSubject: "Pedido pagado",
+      paidHeading: "Pedido pagado",
+      paidBody: "O banco confirmou o cobro deste pedido. Xa se pode preparar.",
+      frames: "Marcos deste pedido",
+      noFrames: "Este pedido non leva ningún cadro.",
+      customer: "Clientela",
+      shipTo: "Enderezo de envío",
+    },
     newsletter: {
       confirmSubject: "Confirma a túa subscrición",
       confirmHeading: "Un clic e listo",
@@ -975,6 +1011,14 @@ const gl: Dictionary = {
       welcomeBody:
         "Subscrición confirmada. Avisarémoste dos lanzamentos e das series numeradas antes de que saian, e non te escribiremos por escribir.",
       welcomeCta: "Ver a tenda",
+      welcomeCodeSubject: "O teu {{percent}} % de benvida",
+      welcomeCodeBody:
+        "Subscrición confirmada, e aquí tes o prometido: un {{percent}} % no teu pedido. Avisarémoste dos lanzamentos e das series numeradas antes de que saian, e non te escribiremos por escribir.",
+      welcomeCodeCta: "Usar o código",
+      codeEyebrow: "O teu código do {{percent}} %",
+      codeExpires: "Válido ata o {{date}}.",
+      codeSingleUse:
+        "Dun só uso, e só desde a conta deste correo. Non se acumula cos produtos xa rebaixados.",
       unsubscribeLink: "Darse de baixa",
     },
     paidSubject: "Pedido confirmado",
