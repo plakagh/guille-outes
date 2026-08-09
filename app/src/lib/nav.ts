@@ -1,4 +1,4 @@
-import { hasOutlet, type Audience, type Catalog } from "@/lib/catalog";
+import { hasOutlet, type Catalog } from "@/lib/catalog";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { href, withQuery } from "@/lib/i18n/routes";
@@ -37,12 +37,8 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
   const { categories, collections } = catalog;
 
   // With nothing discounted there is no outlet: every entry that promises one is
-  // dropped rather than pointing at an empty listing. The men's / women's / kids'
-  // entries are checked against their own products, since each of them lands on a
-  // listing already filtered by audience.
+  // dropped rather than pointing at an empty listing.
   const outlet = hasOutlet(catalog.products);
-  const outletFor = (audience: Audience) =>
-    hasOutlet(catalog.products.filter((product) => product.audience === audience));
 
   const shop = (...rest: string[]) => href(locale, "shop", ...rest);
   const query = (path: string, params: Record<string, string>) =>
@@ -88,8 +84,18 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
     };
   };
 
-  /** A category by id, so a renamed slug never breaks a menu entry. */
-  const bySlug = (id: string) => categories.find((c) => c.id === id)?.slug ?? id;
+  /*
+    Columns and entries that only make sense when the catalogue has that axis.
+
+    The shop launched with two categories, no collections and nothing but unisex
+    products, and a menu column headed "by collection" with nothing under it is
+    worse than no column. Each of these comes back on its own the day someone
+    adds a collection or a women's fit in the admin panel — which is the same
+    promise the comment at the top of this file makes about categories.
+  */
+  const collectionColumns = collections.length > 0 ? [collectionColumn] : [];
+  const audiences = new Set(catalog.products.map((product) => product.audience));
+  const audienceColumns = audiences.size > 1 ? [audienceColumn] : [];
 
   return [
     {
@@ -106,12 +112,14 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
             })),
           ],
         },
-        collectionColumn,
+        ...collectionColumns,
         {
           heading: t.nav.highlighted,
           links: [
             { label: t.nav.bestSellers, href: shop(curatedSlug("mas-vendido", locale)) },
-            { label: t.nav.authors, href: href(locale, "authors") },
+            ...(catalog.authors.length > 0
+              ? [{ label: t.nav.authors, href: href(locale, "authors") }]
+              : []),
             ...(outlet
               ? [
                   {
@@ -126,97 +134,21 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
       ],
       feature: featureFor("origen", t.home.viewCollection),
     },
-    {
-      label: t.nav.men,
-      href: shop(audienceSlug("hombre", locale)),
-      columns: [
-        productColumn("hombre"),
-        collectionColumn,
-        {
-          heading: t.nav.highlighted,
-          links: [
-            {
-              label: t.nav.new,
-              href: query(shop(audienceSlug("hombre", locale)), { [QK.sort]: "novedades" }),
-              flag: "nuevo",
-            },
-            { label: t.nav.bestSellers, href: shop(curatedSlug("mas-vendido", locale)) },
-            ...(outletFor("hombre")
-              ? [
-                  {
-                    label: t.nav.outlet,
-                    href: query(shop(audienceSlug("hombre", locale)), { [QK.onSale]: "1" }),
-                    flag: "oferta" as const,
-                  },
-                ]
-              : []),
-          ],
-        },
-      ],
-      feature: featureFor("court-series", t.home.viewCollection),
-    },
-    {
-      label: t.nav.women,
-      href: shop(audienceSlug("mujer", locale)),
-      columns: [
-        productColumn("mujer"),
-        collectionColumn,
-        {
-          heading: t.nav.highlighted,
-          links: [
-            {
-              label: t.nav.new,
-              href: query(shop(audienceSlug("mujer", locale)), { [QK.sort]: "novedades" }),
-              flag: "nuevo",
-            },
-            { label: t.nav.bestSellers, href: shop(curatedSlug("mas-vendido", locale)) },
-            ...(outletFor("mujer")
-              ? [
-                  {
-                    label: t.nav.outlet,
-                    href: query(shop(audienceSlug("mujer", locale)), { [QK.onSale]: "1" }),
-                    flag: "oferta" as const,
-                  },
-                ]
-              : []),
-          ],
-        },
-      ],
-      feature: featureFor("away-days", t.home.viewCollection),
-    },
-    {
-      label: t.nav.kids,
-      href: shop(audienceSlug("ninos", locale)),
-      columns: [
-        productColumn("ninos"),
-        {
-          heading: t.plp.size,
-          links: ["4", "8", "12"].map((size) => ({
-            label: size,
-            href: query(shop(audienceSlug("ninos", locale)), { [QK.size]: size }),
-          })),
-        },
-        {
-          heading: t.nav.highlighted,
-          links: [
-            { label: t.nav.everyone, href: shop(audienceSlug("ninos", locale)) },
-            ...(outletFor("ninos")
-              ? [
-                  {
-                    label: t.nav.outlet,
-                    href: query(shop(audienceSlug("ninos", locale)), { [QK.onSale]: "1" }),
-                    flag: "oferta" as const,
-                  },
-                ]
-              : []),
-          ],
-        },
-      ],
-    },
+    /*
+      One top-level entry per category, in the order the admin panel gives them.
+
+      These used to be written out by hand — camisetas, sudaderas, gorras — which
+      meant the menu promised sections the shop had stopped selling. Deriving them
+      keeps the two in step.
+    */
+    ...categories.map((category) => ({
+      label: category.name,
+      href: shop(category.slug),
+      columns: [productColumn(), ...collectionColumns, ...audienceColumns],
+    })),
     /*
       The gallery is not a shop section, so it has no facets and no product
       columns — it is one destination with two doors: the wall, and the studio.
-      It sits next to "niños" because that is where a parent looks for it.
     */
     {
       label: t.gallery.navLabel,
@@ -226,51 +158,34 @@ export function buildNav(locale: Locale, t: Dictionary, catalog: Catalog): NavIt
           heading: t.gallery.title,
           links: [
             { label: t.gallery.wall, href: href(locale, "gallery") },
-            { label: t.gallery.paintCta, href: href(locale, "studio"), flag: "nuevo" },
+            { label: t.gallery.paintCta, href: href(locale, "studio"), flag: "nuevo" as const },
           ],
         },
       ],
     },
-    {
-      label: t.nav.tees,
-      href: shop(bySlug("camisetas")),
-      columns: [collectionColumn, audienceColumn],
-    },
-    {
-      label: t.nav.sweats,
-      href: shop(bySlug("sudaderas")),
-      columns: [collectionColumn, audienceColumn],
-    },
-    {
-      label: t.nav.headwear,
-      href: shop(bySlug("gorras")),
-      columns: [productColumn(), collectionColumn],
-    },
-    {
-      label: t.nav.collections,
-      href: href(locale, "shop"),
-      columns: [collectionColumn, productColumn()],
-      feature: featureFor("hardwood-94", t.home.viewCollection),
-    },
-    {
-      label: t.nav.authors,
-      href: href(locale, "authors"),
-      columns: [
-        {
-          heading: t.authors.title,
-          links: catalog.authors.map((author) => ({
-            label: author.name,
-            href: href(locale, "authors", author.slug),
-          })),
-        },
-        {
-          heading: t.authors.bibliographyTitle,
-          links: [
-            { label: t.authors.bibliographyTitle, href: href(locale, "bibliography") },
-          ],
-        },
-      ],
-    },
+    ...(catalog.authors.length > 0
+      ? [
+          {
+            label: t.nav.authors,
+            href: href(locale, "authors"),
+            columns: [
+              {
+                heading: t.authors.title,
+                links: catalog.authors.map((author) => ({
+                  label: author.name,
+                  href: href(locale, "authors", author.slug),
+                })),
+              },
+              {
+                heading: t.authors.bibliographyTitle,
+                links: [
+                  { label: t.authors.bibliographyTitle, href: href(locale, "bibliography") },
+                ],
+              },
+            ],
+          },
+        ]
+      : []),
     ...(outlet
       ? [{ label: t.nav.outlet, href: shop(curatedSlug("outlet", locale)), accent: true }]
       : []),

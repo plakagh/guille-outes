@@ -3,7 +3,6 @@ import { Logo } from "@/components/brand/logo";
 import {
   FacebookIcon,
   InstagramIcon,
-  PaymentMark,
   ReturnIcon,
   ShieldIcon,
   StoreIcon,
@@ -28,8 +27,6 @@ const SOCIALS = [
   { label: "YouTube", url: "https://youtube.com", Icon: YoutubeIcon },
   { label: "Facebook", url: "https://facebook.com", Icon: FacebookIcon },
 ];
-
-const PAYMENTS = ["Visa", "Mastercard", "Amex", "PayPal", "Bizum", "Apple Pay", "Klarna"];
 
 export async function SiteFooter({ locale }: { locale: Locale }) {
   // The catalogue is only read to know whether there is an outlet to link to.
@@ -114,17 +111,9 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
           ))}
         </div>
 
-        {/* Payments + legal */}
+        {/* Legal */}
         <div className="border-t border-white/10">
           <div className="shell flex flex-col gap-5 py-6 lg:flex-row lg:items-center lg:justify-between">
-            <ul className="flex flex-wrap items-center gap-2">
-              {PAYMENTS.map((label) => (
-                <li key={label}>
-                  <PaymentMark label={label} />
-                </li>
-              ))}
-            </ul>
-
             <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.75rem] text-white/60">
               {legal.map((link) => (
                 <li key={link.href}>
@@ -137,6 +126,35 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
                 © {new Date().getFullYear()} {t.meta.siteName}. {t.footer.legal.rights}
               </li>
             </ul>
+
+            {/* Studio credit */}
+            <a
+              href="https://www.plakastudio.com"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="group inline-flex shrink-0 items-center gap-2 self-start text-[0.75rem] text-white/35 transition-colors hover:text-white/60 lg:self-auto"
+            >
+              {t.footer.legal.credit}
+              <span className="relative font-display font-bold uppercase tracking-[0.14em] text-white/70 transition-colors group-hover:text-white">
+                Plaka Studio
+                <span
+                  aria-hidden
+                  className="absolute -bottom-1 left-0 h-px w-full origin-right scale-x-0 bg-current transition-transform duration-300 ease-out group-hover:origin-left group-hover:scale-x-100"
+                />
+              </span>
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3 transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+              >
+                <path d="M7 17 17 7M9 7h8v8" />
+              </svg>
+            </a>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ProductArt } from "@/components/brand/product-art";
+import { ProductShot } from "@/components/product/product-shot";
 import { ArrowRight } from "@/components/icons";
 import { ProductCard } from "@/components/product/product-card";
 import { SectionHead } from "@/components/ui/bits";
@@ -19,6 +19,8 @@ type Common = { locale: Locale; t: Dictionary; catalog: Catalog };
 /* ------------------------------------------------------- category tiles */
 
 export function CategoryTiles({ locale, t, catalog }: Common) {
+  if (catalog.categories.length === 0) return null;
+
   return (
     <section className="shell py-10 lg:py-14">
       <SectionHead
@@ -39,7 +41,7 @@ export function CategoryTiles({ locale, t, catalog }: Common) {
                 <div className="aspect-square overflow-hidden bg-shell">
                   {hero && (
                     <div className="h-full w-full transition-transform duration-500 ease-[var(--ease-out-quint)] group-hover:scale-110">
-                      <ProductArt shape={hero.shape} colorway={hero.colorways[0]} print="none" />
+                      <ProductShot product={hero} colorway={hero.colorways[0]} print="none" />
                     </div>
                   )}
                 </div>
@@ -58,6 +60,11 @@ export function CategoryTiles({ locale, t, catalog }: Common) {
 /* ---------------------------------------------------------- collections */
 
 export function CollectionCards({ locale, t, catalog }: Common) {
+  // Selling by category alone is a real shape for this shop, not a bug — and a
+  // heading with a "view all" link over an empty grid reads as breakage. The
+  // section comes back on its own with the first collection.
+  if (catalog.collections.length === 0) return null;
+
   return (
     <section className="shell py-10 lg:py-14">
       <SectionHead
@@ -100,7 +107,7 @@ export function CollectionCards({ locale, t, catalog }: Common) {
                       wide ? "w-40 sm:w-56" : "w-28 sm:w-36"
                     }`}
                   >
-                    <ProductArt shape={hero.shape} colorway={hero.colorways[0]} print={hero.print} />
+                    <ProductShot product={hero} colorway={hero.colorways[0]} print={hero.print} />
                   </div>
                 )}
               </Link>
@@ -177,58 +184,30 @@ export function AuthorsBand({ locale, t, catalog }: Common) {
 
 /* ------------------------------------------------------------ editorial */
 
+/*
+  The gallery used to share this row with a blue panel of its own. It already
+  gets its own band further up the page, so the second mention was doing little
+  more than taking half the width; the gift card now runs the full row.
+*/
 export function EditorialSplit({ locale, t }: Omit<Common, "catalog">) {
-  const panels = [
-    {
-      eyebrow: t.home.personaliseEyebrow,
-      title: t.home.personaliseTitle,
-      blurb: t.home.personaliseBlurb,
-      cta: t.home.personaliseCta,
-      href: href(locale, "help", helpSlug("personalizacion", locale)),
-      background: "#141414",
-      ink: "light" as const,
-    },
-    {
-      eyebrow: t.home.giftEyebrow,
-      title: t.home.giftTitle,
-      blurb: t.home.giftBlurb,
-      cta: t.home.giftCta,
-      href: href(locale, "help", helpSlug("tarjeta-regalo", locale)),
-      background: "#e5dfd2",
-      ink: "dark" as const,
-    },
-  ];
-
   return (
-    <section className="shell grid gap-4 py-10 md:grid-cols-2 lg:py-14">
-      {panels.map((panel) => (
-        <article
-          key={panel.title}
-          className="relative overflow-hidden p-8 lg:p-12"
-          style={{ backgroundColor: panel.background }}
+    <section className="shell py-10 lg:py-14">
+      <article className="relative overflow-hidden bg-[#e5dfd2] p-8 text-ink lg:p-12">
+        <p className="eyebrow mb-3 text-flame">{t.home.giftEyebrow}</p>
+        <h3 className="max-w-xs text-[clamp(1.75rem,4vw,2.75rem)] leading-none">
+          {t.home.giftTitle}
+        </h3>
+        <p className="mt-4 max-w-sm text-[0.9375rem] leading-relaxed text-ink/65">
+          {t.home.giftBlurb}
+        </p>
+        <ButtonLink
+          href={href(locale, "help", helpSlug("tarjeta-regalo", locale))}
+          variant="solid"
+          className="mt-6"
         >
-          <div className={panel.ink === "light" ? "text-white" : "text-ink"}>
-            <p className="eyebrow mb-3 text-flame">{panel.eyebrow}</p>
-            <h3 className="max-w-xs text-[clamp(1.75rem,4vw,2.75rem)] leading-none">
-              {panel.title}
-            </h3>
-            <p
-              className={`mt-4 max-w-sm text-[0.9375rem] leading-relaxed ${
-                panel.ink === "light" ? "text-white/70" : "text-ink/65"
-              }`}
-            >
-              {panel.blurb}
-            </p>
-            <ButtonLink
-              href={panel.href}
-              variant={panel.ink === "light" ? "inverse" : "solid"}
-              className="mt-6"
-            >
-              {panel.cta}
-            </ButtonLink>
-          </div>
-        </article>
-      ))}
+          {t.home.giftCta}
+        </ButtonLink>
+      </article>
     </section>
   );
 }
@@ -278,10 +257,20 @@ export function KidsGalleryBand({
           </div>
         </div>
 
+        {/*
+          The drawings that started the wall, oldest first — see
+          `listFirstArtworks`. Nothing at all when the gallery is empty: an
+          invented placeholder drawing on a band that says "publish yours" would
+          be the one thing here that is not a real child's work.
+
+          Laid out as a wrapping row rather than a five-column grid so that the
+          first family to publish gets a drawing at a size worth looking at,
+          instead of one small square in four empty columns.
+        */}
         {artworks.length > 0 && (
-          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+          <ul className="flex flex-wrap gap-3">
             {artworks.slice(0, 5).map((artwork) => (
-              <li key={artwork.id}>
+              <li key={artwork.id} className="min-w-24 max-w-44 flex-1 basis-[calc(20%-0.75rem)]">
                 <Link
                   href={href(locale, "gallery", artwork.slug)}
                   className="group block focus-visible:outline-offset-4"

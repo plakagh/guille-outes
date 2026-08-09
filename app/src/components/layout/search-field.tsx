@@ -21,6 +21,8 @@ export type SearchIndexEntry = {
   compareAt?: number;
   shape: ArtShape;
   colorway: Colorway;
+  /** The product's photograph, when it has one. Absent falls back to the drawing. */
+  imageUrl?: string;
 };
 
 export function SearchField({
@@ -177,7 +179,17 @@ export function SearchField({
                       className="flex items-center gap-3 p-2.5 transition hover:bg-shell"
                     >
                       <span className="size-14 shrink-0 bg-shell">
-                        <ProductArt shape={entry.shape} colorway={entry.colorway} print="none" />
+                        {entry.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={entry.imageUrl}
+                            alt=""
+                            loading="lazy"
+                            className="h-full w-full object-contain"
+                          />
+                        ) : (
+                          <ProductArt shape={entry.shape} colorway={entry.colorway} print="none" />
+                        )}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[0.875rem] font-semibold">

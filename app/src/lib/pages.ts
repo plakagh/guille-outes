@@ -414,48 +414,6 @@ const HELP: RawDoc[] = [
     ],
   },
   {
-    slug: "personalizacion",
-    slugs: { gl: "personalizacion", en: "personalisation" },
-    topic: "product",
-    title: { es: "Personalización", gl: "Personalización", en: "Personalisation" },
-    summary: {
-      es: "Añade nombre y número a tu camiseta.",
-      gl: "Engade nome e número á túa camiseta.",
-      en: "Add a name and number to your t-shirt.",
-    },
-    sections: [
-      {
-        blocks: [
-          p(
-            "Puedes personalizar cualquier camiseta de tirantes con nombre (hasta 12 caracteres) y número (del 0 al 99), en vinilo termosellado y en la tipografía de la colección.",
-            "Podes personalizar calquera camiseta de tirantes con nome (até 12 caracteres) e número (do 0 ao 99), en vinilo termosellado e na tipografía da colección.",
-            "Any tank can be personalised with a name (up to 12 characters) and a number (0–99), in heat-sealed vinyl and the collection's own typeface.",
-          ),
-          items(
-            [
-              "Coste: 12 € por prenda.",
-              "Plazo adicional: 48 h laborables.",
-              "No admite devolución, salvo defecto de fabricación.",
-              "No aceptamos nombres ofensivos ni marcas de terceros.",
-            ],
-            [
-              "Custo: 12 € por peza.",
-              "Prazo adicional: 48 h laborables.",
-              "Non admite devolución, salvo defecto de fabricación.",
-              "Non aceptamos nomes ofensivos nin marcas de terceiros.",
-            ],
-            [
-              "Cost: €12 per garment.",
-              "Adds 48 working hours to the lead time.",
-              "Not returnable unless faulty.",
-              "We do not print offensive names or third-party trademarks.",
-            ],
-          ),
-        ],
-      },
-    ],
-  },
-  {
     slug: "tarjeta-regalo",
     slugs: { gl: "tarxeta-agasallo", en: "gift-card" },
     topic: "product",

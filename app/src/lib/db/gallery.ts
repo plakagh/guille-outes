@@ -94,6 +94,30 @@ export const listArtworks = cache(async (limit = 120): Promise<Artwork[]> => {
   return (data as ArtworkRow[]).map((row) => toArtwork(row, user?.id ?? null));
 });
 
+/**
+ * The same wall, oldest first.
+ *
+ * The homepage band leads with the drawing that started the gallery rather than
+ * with the newest one: the first family to publish keeps its place there instead
+ * of being pushed off the front page by whoever painted something this morning.
+ *
+ * Same rules as {@link listArtworks} — RLS does the filtering and the caller
+ * filters `status` for display — so it can return the viewer's own hidden rows.
+ * Fetch a few more than you mean to show.
+ */
+export const listFirstArtworks = cache(async (limit = 12): Promise<Artwork[]> => {
+  const [supabase, user] = await Promise.all([createClient(), getUser()]);
+
+  const { data, error } = await supabase
+    .from("artworks")
+    .select(SELECT)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error || !data) return [];
+  return (data as ArtworkRow[]).map((row) => toArtwork(row, user?.id ?? null));
+});
+
 /** One drawing. Null when it does not exist, or is hidden and not yours. */
 export const getArtworkBySlug = cache(async (slug: string): Promise<Artwork | null> => {
   const [supabase, user] = await Promise.all([createClient(), getUser()]);

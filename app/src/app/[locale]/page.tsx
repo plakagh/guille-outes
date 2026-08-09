@@ -10,9 +10,20 @@ import {
   OutletBand,
 } from "@/components/home/sections";
 import { ProductRail } from "@/components/product/product-rail";
-import { colorway, hasOutlet, listProducts, type Catalog } from "@/lib/catalog";
+import { photosFor } from "@/components/product/product-shot";
+import {
+  colorway,
+  frameAspect,
+  frameOrientation,
+  frameSizeOptions,
+  hasOutlet,
+  isNew,
+  listProducts,
+  type Catalog,
+} from "@/lib/catalog";
+import { mediaUrl } from "@/lib/supabase/env";
 import { getCatalog } from "@/lib/db/catalog";
-import { listArtworks } from "@/lib/db/gallery";
+import { listFirstArtworks } from "@/lib/db/gallery";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
 import { href } from "@/lib/i18n/routes";
@@ -108,7 +119,80 @@ function buildSlides(locale: Locale, t: Dictionary, catalog: Catalog): HeroSlide
       : null,
   ];
 
-  return candidates.filter((slide): slide is HeroSlide => slide !== null);
+  const slides = candidates.filter((slide): slide is HeroSlide => slide !== null);
+  if (slides.length > 0) return slides;
+
+  /*
+    Every slide above is anchored to a collection, so a shop that sells by
+    category and nothing else would land on a headless homepage. Fall back to the
+    categories themselves.
+
+    The copy comes from the database rather than the dictionary: a category is
+    already written in all three languages by whoever created it, whereas a
+    dictionary entry here would name a collection that does not exist.
+  */
+  const palette = [
+    { background: "#132a5a", ink: "light" as const, colorway: "marino" },
+    { background: "#e5dfd2", ink: "dark" as const, colorway: "arena" },
+    { background: "#141414", ink: "light" as const, colorway: "negro" },
+  ];
+
+  /*
+    Each slide leads with a real piece rather than a drawing of one: whatever is
+    marked as new in that category and has actually been photographed.
+
+    Which piece varies per slide but is chosen deterministically, from the
+    catalogue's own "arrived" ordering rotated by the slide index. A `Math.random`
+    here would pick one product on the server and a different one when React
+    hydrates, which is a mismatch — and it would also reshuffle the homepage on
+    every reload, so a shopper could never go back to what they just saw.
+  */
+  const newest = listProducts(catalog.products, { sort: "novedades" }).filter(isNew);
+
+  return catalog.categories.slice(0, palette.length).map((category, i) => {
+    const inCategory = newest.filter((product) => product.categoryId === category.id);
+    const pool = inCategory.length > 0 ? inCategory : newest;
+    const pick = pool.length > 0 ? pool[i % pool.length] : undefined;
+    const photo = pick ? photosFor(pick, pick.colorways[0]?.id)[0] : undefined;
+
+    /*
+      A cuadro leads its slide framed, at the proportions of the format a listing
+      shows first — the same frame, mount and measurements the product page draws.
+      A garment has nothing to hang and gets no frame.
+    */
+    const frame = pick?.framePreview ?? null;
+    const printSize = frame && pick ? frameSizeOptions(pick, frame)[0] : null;
+
+    return {
+      eyebrow: t.header.categories,
+      headline: [category.name, ""] as [string, string],
+      blurb: category.blurb,
+      primary: { label: t.common.viewAll, href: href(locale, "shop", category.slug) },
+      secondary: {
+        label: t.home.slides.court.secondary,
+        href: href(locale, "shop", curatedSlug("novedades", locale)),
+      },
+      ghost: category.name.slice(0, 3).toUpperCase(),
+      background: palette[i].background,
+      ink: palette[i].ink,
+      imageUrl: photo ? mediaUrl(photo.path) : undefined,
+      imageAlt: pick?.name,
+      frame:
+        frame && printSize
+          ? {
+              finish: frame.finishes[0],
+              mount: frame.mount,
+              aspect: frameAspect(printSize),
+              orientation: frameOrientation(printSize),
+            }
+          : undefined,
+      art: {
+        shape: pick?.shape ?? (category.id === "camisetas" ? ("tee" as const) : ("poster" as const)),
+        colorway: pick?.colorways[0] ?? colorway(palette[i].colorway, locale),
+        print: "none" as const,
+      },
+    };
+  });
 }
 
 export default async function HomePage(props: PageProps<"/[locale]">) {
@@ -118,12 +202,12 @@ export default async function HomePage(props: PageProps<"/[locale]">) {
   const [t, catalog, artworks] = await Promise.all([
     getDictionary(locale),
     getCatalog(locale),
-    listArtworks(12),
+    listFirstArtworks(12),
   ]);
   const { products } = catalog;
 
   // The band shows the wall, so a drawing its family has hidden is not on it —
-  // `listArtworks` hands back the viewer's own hidden rows for the account tab.
+  // the query hands back the viewer's own hidden rows for the account tab.
   const drawings = artworks.filter((artwork) => artwork.status === "published");
 
   const bestsellers = listProducts(products, { sort: "destacados" }).slice(0, 10);

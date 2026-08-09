@@ -8,6 +8,8 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { PromoBar } from "@/components/layout/promo-bar";
 import { getPromoMessages } from "@/lib/db/settings";
 import { SearchField, type SearchIndexEntry } from "@/components/layout/search-field";
+import { photosFor } from "@/components/product/product-shot";
+import { mediaUrl } from "@/lib/supabase/env";
 import { hasOutlet } from "@/lib/catalog";
 import { getCatalog } from "@/lib/db/catalog";
 import type { Locale } from "@/lib/i18n/config";
@@ -62,6 +64,10 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
     compareAt: product.compareAt,
     shape: product.shape,
     colorway: product.colorways[0],
+    imageUrl: (() => {
+      const photo = photosFor(product, product.colorways[0]?.id)[0];
+      return photo ? mediaUrl(photo.path) : undefined;
+    })(),
   }));
 
   const categoryLinks = catalog.categories.map((category) => ({

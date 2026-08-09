@@ -46,13 +46,20 @@ export function DocArticle({
           </ul>
         </aside>
 
-        <article className="max-w-2xl">
+        <article>
           <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[0.9]">{doc.title}</h1>
-          <p className="mt-3 text-[1.0625rem] leading-relaxed text-mute">{doc.summary}</p>
+          <p className="mt-3 max-w-3xl text-[1.0625rem] leading-relaxed text-mute">{doc.summary}</p>
 
-          <div className="mt-8 space-y-8">
+          {/*
+            The sections flow into as many columns of ~28rem as the shell can
+            fit rather than sitting in a single 42rem strip: on a 1600px page
+            that was half the width left empty, and a single column that wide
+            would run to unreadable line lengths. Sections never split across a
+            column, so each one still reads top to bottom.
+          */}
+          <div className="mt-8 columns-[28rem] gap-16">
             {doc.sections.map((section, i) => (
-              <section key={section.heading ?? i}>
+              <section key={section.heading ?? i} className="mb-8 break-inside-avoid">
                 {section.heading && <h2 className="mb-3 text-xl">{section.heading}</h2>}
                 <div className="space-y-4">
                   {section.blocks.map((block, j) => (

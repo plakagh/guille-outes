@@ -2,9 +2,17 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ProductArt, type ArtPrint, type ArtShape, type Colorway } from "@/components/brand/product-art";
+import {
+  ProductArt,
+  type ArtOrientation,
+  type ArtPrint,
+  type ArtShape,
+  type Colorway,
+} from "@/components/brand/product-art";
 import { useI18n } from "@/components/i18n/provider";
 import { ArrowRight, ChevronLeft, ChevronRight } from "@/components/icons";
+import { FramedArt } from "@/components/product/framed-art";
+import type { FrameFinish } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 
 export type HeroSlide = {
@@ -18,6 +26,31 @@ export type HeroSlide = {
   background: string;
   ink: "light" | "dark";
   art: { shape: ArtShape; colorway: Colorway; print: ArtPrint };
+  /**
+   * A photograph of the piece the slide is about. The drawn `art` is the
+   * fallback for a slide whose product has never been photographed.
+   */
+  imageUrl?: string;
+  imageAlt?: string;
+  /**
+   * Framing, when the piece the slide leads with is a cuadro.
+   *
+   * A cuadro is bought framed and hung on a wall, so a bare scan of the paper
+   * undersells it — and on a slide the size of the fold it is the difference
+   * between a photograph of some art and something you can picture in a room. A
+   * garment has nothing to hang, so it has no frame here.
+   *
+   * The finish, the mount and the proportions come from the product itself, which
+   * is what keeps this frame the same object the product page shows.
+   */
+  frame?: {
+    finish: FrameFinish;
+    /** Mount width, as a percentage of the frame. */
+    mount: number;
+    /** The printed artwork's proportions, as a CSS `aspect-ratio`. */
+    aspect: string;
+    orientation: ArtOrientation;
+  };
 };
 
 const AUTOPLAY_MS = 6500;
@@ -38,7 +71,12 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
     return () => window.clearInterval(id);
   }, [paused, slides.length]);
 
-  const slide = slides[index];
+  // Every slide is built from something the shop actually has, so an empty list
+  // is a real state — a catalogue with no collections and nothing on sale — and
+  // not a bug. Render nothing rather than reading `ink` off undefined.
+  const slide = slides[index] ?? slides[0];
+  if (!slide) return null;
+
   const light = slide.ink === "light";
 
   return (
@@ -118,11 +156,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
             {slide.ghost}
           </span>
           <div key={`art-${index}`} className="relative w-[62%] max-w-sm animate-[fade-up_650ms_var(--ease-out-quint)]">
-            <ProductArt
-              shape={slide.art.shape}
-              colorway={slide.art.colorway}
-              print={slide.art.print}
-            />
+            <SlideArt slide={slide} />
           </div>
         </div>
       </div>
@@ -170,6 +204,47 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * The piece the slide leads with: a photograph if there is one, the drawn artwork
+ * otherwise — and inside a frame when it is a cuadro.
+ *
+ * `onWall` is off: the frame hangs over the slide's own colour and hatching, and
+ * the painted grey wall that component draws for a product tile would read as a
+ * grey box pasted onto the hero. The drop shadow is what makes it hang.
+ *
+ * The artwork fills the aperture (`object-cover`), exactly as on the product
+ * page: the mount is cut to a printed format, and a scan that misses it by a
+ * millimetre should lose that millimetre rather than show a white band.
+ */
+function SlideArt({ slide }: { slide: HeroSlide }) {
+  const art = slide.imageUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={slide.imageUrl}
+      alt={slide.imageAlt ?? ""}
+      className={cn("h-full w-full", slide.frame ? "object-cover" : "object-contain")}
+    />
+  ) : (
+    <ProductArt
+      shape={slide.art.shape}
+      colorway={slide.art.colorway}
+      print={slide.art.print}
+      // Behind glass the drawing is the print alone: no sheet of paper and no
+      // ground shadow, which inside a frame would read as a second mount.
+      bare={slide.frame !== undefined}
+      orientation={slide.frame?.orientation}
+    />
+  );
+
+  if (!slide.frame) return art;
+
+  return (
+    <FramedArt finish={slide.frame.finish} mount={slide.frame.mount} onWall={false}>
+      <div style={{ aspectRatio: slide.frame.aspect }}>{art}</div>
+    </FramedArt>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ProductArt } from "@/components/brand/product-art";
+import { ProductShot } from "@/components/product/product-shot";
 import { ArrowRight } from "@/components/icons";
 import type { Catalog } from "@/lib/catalog";
 import type { Dictionary } from "@/lib/i18n/dictionary";
@@ -181,7 +181,7 @@ function FeatureCard({
     >
       <span className="relative w-32 shrink-0">
         {hero && (
-          <ProductArt shape={hero.shape} colorway={hero.colorways[0]} print={hero.print} />
+          <ProductShot product={hero} colorway={hero.colorways[0]} print={hero.print} />
         )}
       </span>
       <span className="min-w-0">
