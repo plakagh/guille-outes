@@ -243,22 +243,16 @@ function plainItems(order: OrderSummary, t: Dictionary): string {
 
 /* ------------------------------------------------- the shop's own notice --
  *
- * Not a customer email: this one goes to the shop, once when an order is placed
- * and again when the bank confirms it. Two notices rather than one because they
- * answer different questions — "somebody is buying this" and "this is now paid
- * for and can be made" — and an order that never gets the second one is exactly
- * the thing worth noticing.
- *
- * Its reason for existing is the frame. A cuadro can be ordered in black, white,
- * wood or on its own, and nothing else in the shop's day tells them which, so the
- * finishes get their own block above the order rather than living as small print
- * on a line.
+ * Not a customer email: this one goes to the shop when the bank confirms the
+ * order. Its reason for existing is the frame. A cuadro can be ordered in black,
+ * white, wood or on its own, and nothing else in the shop's day tells them
+ * which, so the finishes get their own block above the order rather than living
+ * as small print on a line.
  */
 
 export type ShopNotice = {
   order: OrderSummary;
-  /** `placed` is the order being created; `paid` is the bank confirming it. */
-  stage: "placed" | "paid";
+  stage: "paid";
   customer: {
     name: string;
     email: string;
@@ -350,24 +344,23 @@ function customerBlock(notice: ShopNotice, t: Dictionary): string {
 
 export function shopOrderEmail(notice: ShopNotice, t: Dictionary) {
   const s = t.mail.shop;
-  const { order, stage } = notice;
-  const paid = stage === "paid";
+  const { order } = notice;
 
-  const subject = `${paid ? s.paidSubject : s.placedSubject} · ${order.orderRef}`;
+  const subject = `${s.paidSubject} · ${order.orderRef}`;
 
   return {
     subject,
     html: shell({
       title: subject,
-      heading: paid ? s.paidHeading : s.placedHeading,
-      intro: paid ? s.paidBody : s.placedBody,
+      heading: s.paidHeading,
+      intro: s.paidBody,
       body: frameBlock(order, t) + customerBlock(notice, t) + itemsTable(order, t),
       cta: { label: t.mail.viewOrder, href: order.url },
     }),
     text: [
-      paid ? s.paidHeading : s.placedHeading,
+      s.paidHeading,
       "",
-      paid ? s.paidBody : s.placedBody,
+      s.paidBody,
       "",
       s.frames,
       ...(framedLines(order, t).length > 0

@@ -954,6 +954,9 @@ const gl: Dictionary = {
     pendingTitle: "Estamos confirmando o pagamento",
     pendingBody:
       "O banco aínda non nos confirmou a operación. Se acabas de pagar, recarga nuns segundos.",
+    stockUnavailableTitle: "Ese artigo acaba de esgotarse",
+    stockUnavailableBody:
+      "Non te levamos ao banco nin se cobrou nada. Volve ao carriño para axustar o pedido ou escríbenos e resolvémolo contigo.",
     failedTitle: "O pagamento non se completou",
     failedBody:
       "O banco rexeitou a operación e non se che cobrou nada. Podes intentalo de novo con outra tarxeta.",
@@ -986,10 +989,6 @@ const gl: Dictionary = {
     viewOrder: "Ver o meu pedido",
     // O aviso interno: leo a tenda, non quen merca.
     shop: {
-      placedSubject: "Pedido novo",
-      placedHeading: "Pedido novo",
-      placedBody:
-        "Acábase de facer este pedido na tenda. Aínda non está cobrado: cando o banco o confirme chegará un segundo aviso.",
       paidSubject: "Pedido pagado",
       paidHeading: "Pedido pagado",
       paidBody: "O banco confirmou o cobro deste pedido. Xa se pode preparar.",

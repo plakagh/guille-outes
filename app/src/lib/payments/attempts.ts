@@ -86,7 +86,7 @@ export async function attemptState(orderId: string): Promise<AttemptState> {
 
 export type StartResult =
   | { ok: true; attempt: PaymentAttempt }
-  | { ok: false; reason: "exhausted" | "already_paid" | "forbidden" | "error" };
+  | { ok: false; reason: "exhausted" | "already_paid" | "forbidden" | "out_of_stock" | "error" };
 
 /**
  * Begins the next attempt, or hands back the one already in flight.
@@ -105,6 +105,7 @@ export async function startAttempt(orderId: string): Promise<StartResult> {
     const message = error.message.toLowerCase();
     if (message.includes("no attempts left")) return { ok: false, reason: "exhausted" };
     if (message.includes("already paid")) return { ok: false, reason: "already_paid" };
+    if (message.includes("out of stock")) return { ok: false, reason: "out_of_stock" };
     if (message.includes("not your order") || message.includes("order not found")) {
       return { ok: false, reason: "forbidden" };
     }

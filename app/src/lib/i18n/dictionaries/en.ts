@@ -947,6 +947,9 @@ const en: Dictionary = {
     pendingTitle: "We are confirming the payment",
     pendingBody:
       "The bank has not confirmed the transaction yet. If you have just paid, reload in a few seconds.",
+    stockUnavailableTitle: "That item has just sold out",
+    stockUnavailableBody:
+      "We have not sent you to the bank and nothing has been charged. Go back to the cart to adjust the order, or email us and we will help.",
     failedTitle: "The payment did not go through",
     failedBody:
       "The bank declined the transaction and you have not been charged. You can try again with another card.",
@@ -979,10 +982,6 @@ const en: Dictionary = {
     viewOrder: "View my order",
     // The internal notice: read by the shop, not by the buyer.
     shop: {
-      placedSubject: "New order",
-      placedHeading: "New order",
-      placedBody:
-        "This order has just been placed. It has not been paid for yet: a second notice follows when the bank confirms it.",
       paidSubject: "Order paid",
       paidHeading: "Order paid",
       paidBody: "The bank has confirmed payment for this order. It can be made up.",

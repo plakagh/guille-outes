@@ -13,6 +13,7 @@ import {
   artworkSlug,
   isArtworkOrigin,
   isArtworkType,
+  matchesArtworkBytes,
   parseAuthorAge,
   parseAuthorName,
   parseTitle,
@@ -104,6 +105,8 @@ export async function publishArtwork(
   // The uploaded filename never reaches it, so a crafted name cannot climb out
   // of the one folder the storage policy lets this account write to.
   const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!matchesArtworkBytes(file.type, bytes)) return { error: "unsupported_type" };
+
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const fingerprint = Array.from(new Uint8Array(digest).slice(0, 10))
     .map((byte) => byte.toString(16).padStart(2, "0"))

@@ -13,7 +13,7 @@ import { isLocale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
 import { href } from "@/lib/i18n/routes";
 import { helpSlug } from "@/lib/pages";
-import { attemptState, startAttempt } from "@/lib/payments/attempts";
+import { attemptState, startAttempt, type StartResult } from "@/lib/payments/attempts";
 import { buildRedsysForm } from "@/lib/payments/redsys";
 import { getRedsysCredentials } from "@/lib/payments/settings";
 import { SITE_URL } from "@/lib/supabase/env";
@@ -85,6 +85,8 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
   // the shopper explicitly came back (?fallo=1) or asked to see the summary.
   const returning = searchParams.fallo === "1" || searchParams.ver === "1";
 
+  let startFailure: Exclude<StartResult, { ok: true }>["reason"] | null = null;
+
   if (order.status !== "paid" && !returning) {
     const credentials = await getRedsysCredentials();
 
@@ -108,6 +110,7 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
 
         return <RedsysRedirect endpoint={form.endpoint} fields={form.fields} />;
       }
+      startFailure = started.reason;
       // Exhausted or already paid: fall through to the summary below.
     }
   }
@@ -121,6 +124,8 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
   const headline =
     order.status === "paid"
       ? { title: t.order.paidThanksTitle, body: t.order.paidThanksBody }
+      : startFailure === "out_of_stock"
+        ? { title: t.order.stockUnavailableTitle, body: t.order.stockUnavailableBody }
       : exhausted
         ? { title: t.order.noAttemptsLeft, body: t.order.noAttemptsLeftBody }
         : order.status === "failed"

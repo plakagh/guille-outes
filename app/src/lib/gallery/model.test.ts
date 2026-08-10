@@ -4,6 +4,7 @@ import {
   artworkSlug,
   creditLine,
   isArtworkType,
+  matchesArtworkBytes,
   parseAuthorAge,
   parseAuthorName,
   parseTitle,
@@ -107,4 +108,15 @@ test("SVG is not an accepted upload", () => {
   assert.equal(isArtworkType("image/jpeg"), true);
   assert.equal(isArtworkType("image/png"), true);
   assert.equal(isArtworkType("text/html"), false);
+});
+
+test("upload bytes must match the declared raster type", () => {
+  assert.equal(
+    matchesArtworkBytes("image/png", new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    true,
+  );
+  assert.equal(matchesArtworkBytes("image/jpeg", new Uint8Array([0xff, 0xd8, 0xff, 0xdb])), true);
+
+  const disguisedSvg = new TextEncoder().encode("<svg><script>alert(1)</script></svg>");
+  assert.equal(matchesArtworkBytes("image/png", disguisedSvg), false);
 });

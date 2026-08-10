@@ -973,6 +973,9 @@ const es = {
     pendingTitle: "Estamos confirmando el pago",
     pendingBody:
       "El banco todavía no nos ha confirmado la operación. Si acabas de pagar, recarga en unos segundos.",
+    stockUnavailableTitle: "Ese artículo se acaba de agotar",
+    stockUnavailableBody:
+      "No te hemos llevado al banco ni se te ha cobrado nada. Vuelve al carrito para ajustar el pedido o escríbenos y lo resolvemos contigo.",
     failedTitle: "El pago no se ha completado",
     failedBody:
       "El banco ha rechazado la operación y no se te ha cobrado nada. Puedes intentarlo de nuevo con otra tarjeta.",
@@ -1005,10 +1008,6 @@ const es = {
     viewOrder: "Ver mi pedido",
     // El aviso interno: lo lee la tienda, no quien compra.
     shop: {
-      placedSubject: "Pedido nuevo",
-      placedHeading: "Pedido nuevo",
-      placedBody:
-        "Se acaba de hacer este pedido en la tienda. Todavía no está cobrado: cuando el banco lo confirme llegará un segundo aviso.",
       paidSubject: "Pedido pagado",
       paidHeading: "Pedido pagado",
       paidBody: "El banco ha confirmado el cobro de este pedido. Ya se puede preparar.",

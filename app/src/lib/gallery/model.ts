@@ -164,3 +164,36 @@ export const ARTWORK_MAX_BYTES = 8 * 1024 * 1024;
 export function isArtworkType(type: string): boolean {
   return type in ARTWORK_TYPES;
 }
+
+export function matchesArtworkBytes(type: string, bytes: Uint8Array): boolean {
+  if (type === "image/jpeg") {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+
+  if (type === "image/png") {
+    return (
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
+    );
+  }
+
+  if (type === "image/webp") {
+    return (
+      String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+      String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+    );
+  }
+
+  if (type === "image/avif") {
+    const brand = String.fromCharCode(...bytes.slice(8, 12));
+    return String.fromCharCode(...bytes.slice(4, 8)) === "ftyp" && (brand === "avif" || brand === "avis");
+  }
+
+  return false;
+}

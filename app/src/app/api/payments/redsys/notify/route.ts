@@ -40,6 +40,45 @@ import { SITE_URL } from "@/lib/supabase/env";
 export const dynamic = "force-dynamic";
 
 type Elevated = ReturnType<typeof createElevatedClient>;
+type AttemptRow = {
+  id: string;
+  order_id: string;
+  attempt_no: number;
+  status: string;
+  amount_cents: number;
+  orders: { stock_reserved: boolean } | { stock_reserved: boolean }[] | null;
+};
+
+const MAX_BODY_BYTES = 32 * 1024;
+const INVALID_WINDOW_MS = 10 * 60 * 1000;
+const INVALID_LIMIT = 30;
+const invalidHits = new Map<string, { count: number; resetAt: number }>();
+
+function clientKey(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwarded || request.headers.get("x-real-ip") || "unknown";
+}
+
+function tooLarge(request: NextRequest): boolean {
+  const raw = request.headers.get("content-length");
+  if (!raw) return false;
+  const bytes = Number(raw);
+  return Number.isFinite(bytes) && bytes > MAX_BODY_BYTES;
+}
+
+function shouldRecordInvalid(request: NextRequest): boolean {
+  const key = clientKey(request);
+  const now = Date.now();
+  const current = invalidHits.get(key);
+
+  if (!current || current.resetAt <= now) {
+    invalidHits.set(key, { count: 1, resetAt: now + INVALID_WINDOW_MS });
+    return true;
+  }
+
+  current.count += 1;
+  return current.count <= INVALID_LIMIT;
+}
 
 async function readBody(request: NextRequest): Promise<Record<string, string>> {
   const contentType = request.headers.get("content-type") ?? "";
@@ -62,6 +101,8 @@ async function readBody(request: NextRequest): Promise<Record<string, string>> {
 export async function POST(request: NextRequest) {
   const supabase = createElevatedClient();
 
+  if (tooLarge(request)) return ok();
+
   let body: Record<string, string>;
   try {
     body = await readBody(request);
@@ -71,9 +112,11 @@ export async function POST(request: NextRequest) {
 
   const credentials = await getRedsysCredentials();
   if (!credentials) {
-    await supabase
-      .from("payment_events")
-      .insert({ signature_ok: false, raw: { error: "gateway_not_configured", body } });
+    if (shouldRecordInvalid(request)) {
+      await supabase
+        .from("payment_events")
+        .insert({ signature_ok: false, raw: { error: "gateway_not_configured", body } });
+    }
     return ok();
   }
 
@@ -81,12 +124,14 @@ export async function POST(request: NextRequest) {
 
   if (!result.ok) {
     // Recorded on purpose: a run of these means someone is probing the endpoint.
-    await supabase.from("payment_events").insert({
-      order_ref: result.notification?.orderRef ?? null,
-      signature_ok: false,
-      response_code: result.notification?.responseCode ?? null,
-      raw: { reason: result.reason, body },
-    });
+    if (shouldRecordInvalid(request)) {
+      await supabase.from("payment_events").insert({
+        order_ref: result.notification?.orderRef ?? null,
+        signature_ok: false,
+        response_code: result.notification?.responseCode ?? null,
+        raw: { reason: result.reason, body },
+      });
+    }
     return ok();
   }
 
@@ -95,13 +140,11 @@ export async function POST(request: NextRequest) {
   // The reference belongs to an attempt, not the order.
   const { data: attemptRow } = await supabase
     .from("payment_attempts")
-    .select("id, order_id, attempt_no, status, amount_cents")
+    .select("id, order_id, attempt_no, status, amount_cents, orders(stock_reserved)")
     .eq("gateway_ref", notification.orderRef)
     .maybeSingle();
 
-  const attempt = attemptRow as
-    | { id: string; order_id: string; attempt_no: number; status: string; amount_cents: number }
-    | null;
+  const attempt = attemptRow as AttemptRow | null;
 
   await supabase.from("payment_events").insert({
     order_id: attempt?.order_id ?? null,
@@ -136,7 +179,7 @@ export async function POST(request: NextRequest) {
   const outcome = classifyResponse(notification.responseCode);
   const settledAt = new Date().toISOString();
 
-  await supabase
+  const { data: settled } = await supabase
     .from("payment_attempts")
     .update({
       status: outcome,
@@ -146,7 +189,10 @@ export async function POST(request: NextRequest) {
     })
     .eq("id", attempt.id)
     // Guard against a concurrent notification winning the race.
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
+
+  if (!settled || settled.length === 0) return ok();
 
   await supabase
     .from("orders")
@@ -159,10 +205,13 @@ export async function POST(request: NextRequest) {
     .eq("id", attempt.order_id);
 
   if (outcome === "paid") {
-    await decrementStock(supabase, attempt.order_id);
+    if (!stockReserved(attempt)) {
+      await decrementStock(supabase, attempt.order_id);
+    }
     await recordRedemption(supabase, attempt.order_id);
     await notifyPaid(supabase, attempt.order_id);
   } else {
+    await supabase.rpc("release_order_stock", { p_order_id: attempt.order_id });
     await notifyNotPaid(supabase, attempt.order_id);
   }
 
@@ -170,6 +219,11 @@ export async function POST(request: NextRequest) {
 }
 
 const ok = () => NextResponse.json({ received: true }, { status: 200 });
+
+function stockReserved(attempt: AttemptRow): boolean {
+  const order = Array.isArray(attempt.orders) ? attempt.orders[0] : attempt.orders;
+  return order?.stock_reserved === true;
+}
 
 /**
  * Takes the sold units out of stock.

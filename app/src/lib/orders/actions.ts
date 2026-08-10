@@ -5,10 +5,8 @@ import { getCatalog } from "@/lib/db/catalog";
 import { lookupDiscount } from "@/lib/db/discounts";
 import { getShippingSettings } from "@/lib/db/settings";
 import { evaluateDiscount, totalWithDiscount, type AppliedDiscount } from "@/lib/discounts";
-import { sendShopNotice } from "@/lib/email/shop-notice";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { href } from "@/lib/i18n/routes";
-import { SITE_URL } from "@/lib/supabase/env";
 import { discountLines, parseLines, type CheckoutLineInput } from "@/lib/orders/lines";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { frameSurcharge, stockFor, type FrameChoice } from "@/lib/catalog";
@@ -292,48 +290,6 @@ export async function placeOrder(
     console.error("placeOrder: could not insert order items", itemsError);
     return { error: "unknown", detail: itemsError.message };
   }
-
-  /*
-    Tell the shop. This is the "somebody is buying this" notice — the one that
-    says which frames were chosen — and it goes out before the bank has said
-    anything, which is the point: it is the first warning that a cuadro needs
-    mounting. The payment callback sends the second one when the money lands.
-
-    Built from what is already in hand rather than read back: these are the exact
-    rows that were just written, and a checkout should not wait on another query
-    to send an email that cannot fail it either way.
-  */
-  await sendShopNotice({
-    stage: "placed",
-    customer: {
-      name: shipName,
-      email,
-      phone: text(form, "tel") || null,
-      address: [
-        line1,
-        text(form, "addressExtra"),
-        `${postcode} ${city}`,
-        province,
-      ].filter(Boolean),
-    },
-    order: {
-      orderRef: created.order_ref,
-      amountCents: priced.totalCents,
-      shippingCents: priced.shippingCents,
-      discountCode: discount?.code ?? null,
-      discountCents: priced.discountCents,
-      vatRate: VAT_RATE,
-      items: items.map((item) => ({
-        name: item.name,
-        size: item.size,
-        qty: item.qty,
-        unitPriceCents: item.unit_price_cents,
-        artworkTitle: item.artwork_title,
-        frameFinish: item.frame_finish,
-      })),
-      url: `${SITE_URL}${href(locale, "order", created.order_ref)}`,
-    },
-  });
 
   redirect(href(locale, "order", created.order_ref));
 }
