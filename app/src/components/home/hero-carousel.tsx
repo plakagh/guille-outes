@@ -145,7 +145,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
         </div>
 
         {/* Art panel */}
-        <div className="relative flex min-h-[16rem] items-center justify-center lg:min-h-[26rem]">
+        <div className="relative flex min-h-[19rem] items-center justify-center lg:min-h-[32rem]">
           <span
             aria-hidden="true"
             className={cn(
@@ -155,7 +155,12 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           >
             {slide.ghost}
           </span>
-          <div key={`art-${index}`} className="relative w-[62%] max-w-sm animate-[fade-up_650ms_var(--ease-out-quint)]">
+          {/* The piece is what the slide is selling, so it takes most of the panel:
+              the ghost word behind it is a backdrop, not a competing element. */}
+          <div
+            key={`art-${index}`}
+            className="relative w-[82%] max-w-md animate-[fade-up_650ms_var(--ease-out-quint)] lg:max-w-lg"
+          >
             <SlideArt slide={slide} />
           </div>
         </div>
