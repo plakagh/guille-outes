@@ -22,11 +22,25 @@ RETENTION_LOCAL_DAYS=7
 RETENTION_REMOTE_DAYS=30
 
 ENV_FILE="${INSTALL_DIR}/infra/docker/.env"
-if [ -f "${ENV_FILE}" ]; then
-    # shellcheck disable=SC1090
-    source <(grep -E '^(POSTGRES_PASSWORD|SMTP_[A-Z_]*)=' "${ENV_FILE}" | sed 's/^/export /')
-fi
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
+
+# Read one value at a time rather than sourcing the file. Sourcing is fragile
+# here: a value containing a space (SMTP_SENDER_NAME) is silently truncated at
+# the space, and an unquoted one makes bash try to run the remainder as a
+# command. Compose's own parser is not bash's, so the file is not shell code.
+env_value() {
+    [ -f "${ENV_FILE}" ] || return 0
+    # The `|| true` matters: this script runs under `set -o pipefail`, so a grep
+    # that matches nothing would otherwise abort the whole backup.
+    { grep -E "^${1}=" "${ENV_FILE}" || true; } | head -1 | cut -d= -f2- | sed 's/^"\(.*\)"$/\1/'
+}
+
+POSTGRES_PASSWORD=$(env_value POSTGRES_PASSWORD)
+SMTP_HOST=$(env_value SMTP_HOST)
+SMTP_PORT=$(env_value SMTP_PORT)
+SMTP_USER=$(env_value SMTP_USER)
+SMTP_PASS=$(env_value SMTP_PASS)
+SMTP_ADMIN_EMAIL=$(env_value SMTP_ADMIN_EMAIL)
+SMTP_SENDER_NAME=$(env_value SMTP_SENDER_NAME)
 
 send_alert() {
     local subject="$1"
