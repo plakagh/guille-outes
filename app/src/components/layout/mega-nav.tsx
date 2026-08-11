@@ -9,6 +9,54 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { NavFeature, NavItem } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
+/** A scroll shorter than this is noise, not a change of direction. */
+const SCROLL_EPSILON = 6;
+
+/** Above the masthead plus this row, the page counts as "at the top". */
+const TOP_ZONE = 120;
+
+/**
+ * Hides the bar on the way down the page and brings it back on the way up.
+ *
+ * Only this row moves: the masthead keeps search, account and cart within reach,
+ * while the row that costs height on a long listing gets out of the way. A
+ * trackpad emits a stream of one-pixel events whose sign flips, so movement under
+ * `SCROLL_EPSILON` is ignored — and left unrecorded, which is what lets a slow
+ * drag accumulate into a direction rather than never reaching the threshold.
+ */
+function useHideOnScroll() {
+  const [hidden, setHidden] = useState(false);
+  const lastY = useRef(0);
+
+  useEffect(() => {
+    lastY.current = window.scrollY;
+    let frame: number | null = null;
+
+    // Scroll fires far more often than the screen repaints; one read per frame is
+    // all the bar can act on, and it keeps the handler off the scrolling path.
+    const read = () => {
+      frame = null;
+      const y = window.scrollY;
+      const delta = y - lastY.current;
+      if (Math.abs(delta) < SCROLL_EPSILON) return;
+      lastY.current = y;
+      setHidden(delta > 0 && y > TOP_ZONE);
+    };
+
+    const onScroll = () => {
+      if (frame === null) frame = window.requestAnimationFrame(read);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return { hidden, reveal: () => setHidden(false) };
+}
+
 /**
  * Desktop primary navigation. Panels open on hover with a short close delay (so
  * diagonal mouse paths don't dismiss them) and on keyboard focus; Escape closes.
@@ -24,6 +72,7 @@ export function MegaNav({
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const closeTimer = useRef<number | null>(null);
+  const { hidden, reveal } = useHideOnScroll();
 
   const cancelClose = () => {
     if (closeTimer.current !== null) {
@@ -48,17 +97,30 @@ export function MegaNav({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [openIndex]);
 
-  const open = openIndex !== null ? nav[openIndex] : null;
+  // A panel left hanging while the bar slides away would float over the page on
+  // its own. Derived rather than stored: a hidden bar has no open panel, so there
+  // is no second piece of state to keep in step with the first.
+  const activeIndex = hidden ? null : openIndex;
+  const open = activeIndex !== null ? nav[activeIndex] : null;
 
   return (
     <nav
       aria-label={t.header.mainNav}
-      className="relative hidden border-t border-line-soft bg-white lg:block"
+      className={cn(
+        "relative hidden border-t border-line-soft bg-white lg:block",
+        // Sliding up alone would leave a white gap under the masthead, so the row
+        // gives back its own height as it goes; both sides of that are animated,
+        // which is what keeps the page below from jumping.
+        "transition-[transform,margin-bottom] duration-300 ease-[var(--ease-out-quint)] motion-reduce:transition-none",
+        hidden && "-mb-navbar -translate-y-full",
+      )}
       onMouseLeave={scheduleClose}
+      // Tabbing into a hidden row would move focus to something nobody can see.
+      onFocusCapture={reveal}
     >
       <ul className="shell flex h-navbar items-stretch justify-center gap-1">
         {nav.map((item, index) => {
-          const isOpen = openIndex === index;
+          const isOpen = activeIndex === index;
           return (
             <li
               key={item.label}

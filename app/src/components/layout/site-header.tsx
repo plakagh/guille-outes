@@ -80,7 +80,9 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
       <PromoBar locale={locale} t={t} messages={messages} />
 
       <div className="sticky top-0 z-50 bg-white shadow-[0_1px_0_var(--color-line)]">
-        <div className="shell flex h-masthead items-center gap-3 md:gap-6">
+        {/* Opaque and raised: the nav row below slides up behind this one on the
+            way down the page, and must disappear under it rather than through it. */}
+        <div className="relative z-10 shell flex h-masthead items-center gap-3 bg-white md:gap-6">
           <MobileNav locale={locale} t={t} nav={nav} viewer={viewer} />
 
           <Link href={href(locale)} aria-label={t.header.home} className="shrink-0">
