@@ -408,10 +408,13 @@ mkdir -p /etc/ssh/sshd_config.d
 cat > "${SSHD_DROPIN}" <<EOF
 # Managed by infra/scripts/setup-vps.sh — edits here are overwritten on re-run.
 #
-# Both ports, deliberately. A `Port` directive REPLACES the default rather than
+# Both ports, deliberately. A Port directive REPLACES the default rather than
 # adding to it, so listing only the new one would stop sshd answering on 22 the
 # moment it restarts — and 22 is the way back in if the new port turns out not to
 # work. Step 14 drops this line once the new access has been proven.
+#
+# (No backticks anywhere in this heredoc. It is unquoted so the port number
+# expands, which also means bash would read backticks as command substitution.)
 Port 22
 Port ${SSH_PORT}
 
