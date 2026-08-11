@@ -149,8 +149,13 @@ jobs:
 
             # Bring up the backing services first, migrate, and only then restart
             # the storefront — so the new build never talks to an old schema.
+            #
+            # --wait blocks until every healthcheck passes. Without it, compose
+            # returns as soon as the containers are *started*, and the media
+            # import a few steps below would race storage's boot: Kong finds no
+            # upstream and answers 502, failing a deploy for no real reason.
             echo "→ Starting backing services..."
-            docker compose up -d
+            docker compose up -d --wait --wait-timeout 180
 
             echo "→ Waiting for the database..."
             for _ in $(seq 1 60); do
@@ -186,7 +191,9 @@ jobs:
             # --remove-orphans clears containers whose service no longer exists in
             # the compose file. It runs with the frontend profile active so the
             # storefront itself is never mistaken for an orphan.
-            docker compose --profile frontend up -d --remove-orphans
+            # --wait here too, so a storefront that starts but never answers
+            # fails the deploy instead of reporting green over a broken shop.
+            docker compose --profile frontend up -d --remove-orphans --wait --wait-timeout 180
 
             echo "→ Pruning old images..."
             docker image prune -f
