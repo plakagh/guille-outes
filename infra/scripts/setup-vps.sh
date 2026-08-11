@@ -418,7 +418,13 @@ Port ${SSH_PORT}
 PubkeyAuthentication yes
 PermitEmptyPasswords no
 X11Forwarding no
-MaxAuthTries 3
+
+# Deliberately generous. An SSH agent offers its keys one at a time and each one
+# counts against this limit, so a client whose agent holds several keys — 1Password
+# and the like — gets "Too many authentication failures" before the right key is
+# ever tried. Tightening this does not buy much either: with passwords off and
+# pubkey-only auth, there is nothing here to brute-force.
+MaxAuthTries 10
 
 # Nothing is taken away yet either. On a server reached by password — the normal
 # case for a fresh VPS — turning passwords off here would lock you out the instant
