@@ -461,7 +461,11 @@ fi
 success "sshd is listening on ${SSH_PORT} (and still on 22)"
 
 # ── 14. Prove the new access works, then close the old door ────────
-VPS_IP=$(curl -fsSL https://ifconfig.me 2>/dev/null || echo "<SERVER_IP>")
+# -4 matters. GitHub Actions runners have no IPv6 connectivity, so an address
+# discovered over IPv6 — which is what a dual-stacked VPS will happily return —
+# becomes a VPS_HOST secret the deploy job can never reach.
+VPS_IP=$(curl -4 -fsSL https://ifconfig.me 2>/dev/null || echo "<SERVER_IPv4>")
+VPS_IP6=$(curl -6 -fsSL https://ifconfig.me 2>/dev/null || true)
 
 echo ""
 echo -e "${YELLOW}══════════════════════════════════════════════════════════════${NC}"
@@ -548,7 +552,7 @@ echo -e "${GREEN}═════════════════════
 echo -e "${GREEN}  GitHub → Settings → Secrets and variables → Actions          ${NC}"
 echo -e "${GREEN}══════════════════════════════════════════════════════════════${NC}"
 echo ""
-echo "  VPS_HOST                       →  ${VPS_IP}"
+echo "  VPS_HOST                       →  ${VPS_IP}   (IPv4 — Actions runners cannot reach IPv6)"
 echo "  VPS_PORT                       →  ${SSH_PORT}"
 echo "  VPS_USER                       →  ${DEPLOY_USER}"
 echo "  VPS_SSH_KEY                    →  ~/.ssh/guille-outes-actions  (the PRIVATE half, whole file)"
