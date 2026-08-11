@@ -219,7 +219,8 @@ resolve.
 
 ### Step 2 — Generate the keys
 
-Two pairs, both on your own machine, never on the server:
+Two **Ed25519** pairs — same type for both — created on your own machine or in a
+password manager, never on the server:
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/guille-outes-admin   -N ''   # you
@@ -228,6 +229,14 @@ ssh-keygen -t ed25519 -f ~/.ssh/guille-outes-actions -N ''   # GitHub Actions
 
 You paste the two **public** halves when the script asks. The Actions private half
 becomes the `VPS_SSH_KEY` secret in step 5; your own private half stays put.
+
+> **Using 1Password (or any SSH agent).** The admin key works well there: with the
+> agent configured, plain `ssh -p 2222 admin@<IP>` finds it, no `-i` needed.
+>
+> The Actions key is different — GitHub needs the **private** key as text in a
+> secret, so it has to leave the vault either way (1Password → the key item →
+> *Copy private key*). Generating that one pair with `ssh-keygen` is simpler, since
+> a CI secret gains nothing from being in a vault as well.
 
 > If the VPS is currently reached **by password**, as a fresh one usually is, the
 > admin pair is not optional — it is the only thing that will get you back in once
