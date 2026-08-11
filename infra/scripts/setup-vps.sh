@@ -166,10 +166,25 @@ add_key() {
 info "Installing SSH keys..."
 
 # The admin key: how you will reach this machine once root login and passwords are
-# off. If root already has an authorized_keys, offer it as the default rather than
-# making you paste a key you are evidently already using — but on a server reached
-# by password there will be none, which is the normal case for a fresh VPS.
-ROOT_KEY=$(head -1 /root/.ssh/authorized_keys 2>/dev/null || true)
+# off. If a key is already in use, offer it as the default rather than making you
+# paste one you are evidently already using.
+#
+# Look at the invoking user's file first: on an Ubuntu cloud image you arrive as
+# `ubuntu` via sudo, and that is where the real key lives. Root's file on those
+# images is not empty but holds a forced-command stub —
+#   no-port-forwarding,...,command="echo 'Please login as the user \"ubuntu\"...'"
+# — so match only lines that actually begin with a key type, or that stub would be
+# offered as a key and rejected a moment later for the wrong reason.
+first_key() {
+    [ -f "$1" ] || return 0
+    grep -m1 -E '^(ssh-(ed25519|rsa|dss)|ecdsa-sha2-)' "$1" 2>/dev/null || true
+}
+
+ROOT_KEY=""
+if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+    ROOT_KEY=$(first_key "/home/${SUDO_USER}/.ssh/authorized_keys")
+fi
+[ -n "${ROOT_KEY}" ] || ROOT_KEY=$(first_key /root/.ssh/authorized_keys)
 
 if [ -n "${ADMIN_PUBLIC_KEY:-}" ]; then
     ADMIN_KEY="${ADMIN_PUBLIC_KEY}"
@@ -183,8 +198,8 @@ else
         warn "Press Enter to reuse the key root is currently using:"
         warn "  ${ROOT_KEY:0:60}..."
     else
-        warn "root has no authorised key, so you are logging in by password. You need"
-        warn "a key pair now. On your OWN machine, in another terminal:"
+        warn "No existing authorised key was found, so you are logging in by password."
+        warn "You need a key pair now. On your OWN machine, in another terminal:"
         warn "    ssh-keygen -t ed25519 -f ~/.ssh/guille-outes-admin -N ''"
         warn "    cat ~/.ssh/guille-outes-admin.pub"
         warn "Paste that single line here:"
