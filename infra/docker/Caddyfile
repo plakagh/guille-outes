@@ -1,14 +1,31 @@
+# TLS termination and the only two ports open to the internet (80, 443).
+#
+# Caddy obtains and renews Let's Encrypt certificates by itself, which is why the
+# DNS A records must already point here before the stack first starts.
+#
+# Note what is absent: Studio and Postgres. Neither is routed, and both are bound
+# to 127.0.0.1 in docker-compose.yml, so the only way in is an SSH tunnel.
+
 {
-    email admin@your-domain.com
+	email pedidos@guilleoutes.com
 }
 
-your-domain.com {
-    reverse_proxy /* frontend:3000
+guilleoutes.com {
+	# Next.js compresses its own responses, but images served straight from
+	# storage and API JSON pass through untouched otherwise.
+	encode zstd gzip
+
+	reverse_proxy frontend:3000
 }
 
-api.your-domain.com {
-    reverse_proxy /rest/*      kong:8000
-    reverse_proxy /auth/*      kong:8000
-    reverse_proxy /storage/*   kong:8000
-    reverse_proxy /realtime/*  kong:8000
+api.guilleoutes.com {
+	encode zstd gzip
+
+	# Only the four Supabase paths the storefront actually uses. Anything else —
+	# /pg, the metrics endpoints, the Studio API — is not routed at all, so a
+	# missing Kong ACL cannot turn into an exposed endpoint.
+	reverse_proxy /rest/*      kong:8000
+	reverse_proxy /auth/*      kong:8000
+	reverse_proxy /storage/*   kong:8000
+	reverse_proxy /realtime/*  kong:8000
 }

@@ -1,21 +1,44 @@
 # infra
 
-Self-hosted Supabase infrastructure. Includes a Docker Compose stack with Caddy TLS termination,
-Supabase CLI project, deployment scripts, and a GitHub Actions CI/CD pipeline.
+Self-hosted Supabase infrastructure. A Docker Compose stack with Caddy TLS
+termination, the Supabase CLI project, deployment scripts, and the server half of
+the CI/CD pipeline (the workflow itself lives in `../.github/workflows/deploy.yml`).
 
 ## Contents
 
 ```
 infra/
-├── supabase/           # Supabase CLI project (config.toml, migrations, edge functions)
+├── supabase/           # Supabase CLI project (config.toml, migrations, mail templates)
 ├── docker/
-│   ├── .env.example    # Production Docker Compose environment variables template
-│   └── ...             # Docker Compose stack, Caddy config, volume files
-├── scripts/            # VPS setup, backup, update, and security check scripts
-├── .github/            # CI/CD workflow — auto-deploys on push to main
-├── .env.example        # Local dev environment variables template
-└── package.json        # pnpm scripts wrapping Supabase CLI commands
+│   ├── .env.example    # Production Docker Compose environment template
+│   ├── docker-compose.yml
+│   ├── Caddyfile       # TLS + the only two public ports
+│   └── volumes/        # Kong routes, db init SQL, mail templates
+├── media/              # Product photographs, committed; imported on deploy
+├── scripts/            # VPS setup, backup, update, media, security check
+├── .env.example        # Local dev environment template
+└── package.json        # pnpm scripts wrapping the Supabase CLI
 ```
+
+## What runs in production
+
+Twelve containers, not the sixteen the stock Supabase self-host compose file
+starts. Four are deliberately absent, because the target is a 2 vCPU / 4 GB VPS
+and between them they reserved roughly 1–1.4 GB to do nothing this shop needs:
+
+| Dropped | Why |
+|---|---|
+| `analytics` (Logflare) | 400–700 MB of Elixir aggregating logs nobody reads. `docker compose logs` is enough at this size. |
+| `vector` | Existed only to ship logs into `analytics`. |
+| `supavisor` (pooler) | A second connection pool nothing dialled: every service talks to `db:5432` directly, and PostgREST keeps its own pool. |
+| `functions` (edge runtime) | There are no edge functions in this project. Its `--main-service` directory was empty, so it crash-looped on restart forever. |
+
+The remaining twelve idle at roughly 1.8–2.4 GB, and `setup-vps.sh` adds 2 GB of
+swap for the spikes (the 03:00 dump overlapping with image resizing).
+
+The storefront image is **built in GitHub Actions**, never on the server —
+`next build` is the one step heavy enough to matter on two cores. See
+[../app/Dockerfile](../app/Dockerfile).
 
 ### Why two `.env.example` files?
 
@@ -169,154 +192,236 @@ pnpm db:push:prod   # reads PROD_DB_URL from .env.local
 
 ## First Production Deploy
 
+Everything below is already filled in for `plakagh/guille-outes` and
+`guilleoutes.com` — there are no placeholders left to substitute. If the domain
+is ever wrong, it appears in exactly four files: `docker/Caddyfile`,
+`docker/.env.example`, `supabase/config.toml`, and the two GitHub secrets in
+step 5.
+
 ### Prerequisites
 
-- SSH access to the target VPS (Ubuntu 24.04)
-- Supabase CLI installed locally
+- A VPS running **Ubuntu 24.04 LTS** (2 vCPU / 4 GB is enough — see "What runs in production")
+- Root SSH access to it
+- Control of the DNS for the domain
 
-### Step 1 — Replace placeholders with your project values
+### Step 1 — DNS records
 
-All client-specific values use consistent placeholders across the codebase. Do a global search-and-replace before deploying:
-
-| Placeholder | Replace with | Where |
-|---|---|---|
-| `your-org/your-repo` | Your GitHub org and repo (e.g. `acme/my-infra`) | `setup-vps.sh` |
-| `your-github-username` | Your GitHub username (for ghcr.io login) | `setup-vps.sh` |
-| `your-project` | Short slug for your project (e.g. `acme`) | `setup-vps.sh`, `backup.sh`, `update.sh`, `deploy.yml`, `docker/.env.example` |
-| `/opt/your-project` | Server install path (e.g. `/opt/acme`) | `setup-vps.sh`, `backup.sh`, `update.sh`, `deploy.yml` |
-| `/opt/your-project-data` | Server data directory (e.g. `/opt/acme-data`) | `setup-vps.sh`, `docker-compose.yml` |
-| `your-domain.com` | Your app's public domain | `Caddyfile`, `docker/.env.example`, `supabase/config.toml` (redirect URL) |
-| `api.your-domain.com` | Your API subdomain | `Caddyfile`, `docker/.env.example` |
-| `your-org/your-app` | Container image path on ghcr.io (e.g. `acme/my-app`) | `docker-compose.yml`, `docker/.env.example` |
-| `your-table` | A table name to use in the exposure security check | `scripts/check-exposure.sh` |
-| `your-remote` | rclone remote name for backup uploads | `scripts/backup.sh` |
-| `YOUR_LOGO_URL` | URL of your logo image for email templates | `docker/volumes/templates/*.html` |
-| `Your Organization` | Your organization name in email footers | `docker/volumes/templates/*.html` |
-
-> **Tip:** Most editors support project-wide find-and-replace. Running it in order (project slug first, then paths) avoids partial replacements.
-
-### Step 2 — DNS records
-
-Create two **A records** pointing to your VPS IP:
+Two **A records**, both pointing at the VPS IP:
 
 | Record | Value |
 |---|---|
-| `your-domain.com` | `<VPS_IP>` |
-| `api.your-domain.com` | `<VPS_IP>` |
+| `guilleoutes.com` | `<VPS_IP>` |
+| `api.guilleoutes.com` | `<VPS_IP>` |
 
-Wait for DNS to propagate before proceeding.
+Do this **first and wait for propagation.** Caddy asks Let's Encrypt for
+certificates the moment the stack starts, and that only works once the records
+resolve.
+
+### Step 2 — Generate the keys
+
+Two pairs, both on your own machine, never on the server:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/guille-outes-admin   -N ''   # you
+ssh-keygen -t ed25519 -f ~/.ssh/guille-outes-actions -N ''   # GitHub Actions
+```
+
+You paste the two **public** halves when the script asks. The Actions private half
+becomes the `VPS_SSH_KEY` secret in step 5; your own private half stays put.
+
+> If the VPS is currently reached **by password**, as a fresh one usually is, the
+> admin pair is not optional — it is the only thing that will get you back in once
+> passwords are turned off. The script refuses to continue without it, and it does
+> not turn passwords off until you have proven the key works.
+>
+> If root already has an authorised key, the script offers it as the default
+> instead and you can skip the first command.
 
 ### Step 3 — Run the setup script on the VPS
 
-Copy and run `setup-vps.sh` as root:
-
 ```bash
-scp scripts/setup-vps.sh root@<VPS_IP>:/root/
-ssh root@<VPS_IP>
-bash /root/setup-vps.sh
+scp infra/scripts/setup-vps.sh root@<VPS_IP>:/root/
+ssh root@<VPS_IP> 'bash /root/setup-vps.sh'
 ```
 
-The script will:
+It is idempotent — safe to re-run if a step fails. Defaults are overridable:
+`SSH_PORT=2222 ADMIN_USER=admin DEPLOY_USER=deploy`.
 
-1. Install Docker, Supabase CLI, git, and rclone
-2. Generate an ED25519 deploy key — it will **pause and print the public key**. At this point:
-   - Add the key as a **read-only deploy key** in your GitHub repo: Settings → Deploy keys → Add deploy key
-   - Press Enter to continue
-3. Clone the repo to the install directory
-4. Generate random secrets for `POSTGRES_PASSWORD`, `JWT_SECRET`, and other internal tokens — written directly to `docker/.env`
-5. Ask for the public SSH key that **GitHub Actions** will use to SSH into the server:
-   - Generate a dedicated key pair locally if you don't have one: `ssh-keygen -t ed25519 -f ~/.ssh/github-actions`
-   - Paste the contents of `~/.ssh/github-actions.pub` when prompted
-6. Print the GitHub Secrets you'll need to configure (see step 6)
-7. Prompt for a GitHub PAT with `read:packages` scope if you're using a private container image for the frontend
-8. Configure the nightly backup cron (03:00 daily)
-9. Start the Docker stack
+1. Install Docker, the Supabase CLI, git and rclone
+2. Add 2 GB of swap and set `vm.swappiness=10`
+3. Create the two accounts (see "Accounts and SSH" below) and install their keys
+4. Generate an ED25519 deploy key in the deploy account's home and **pause**,
+   printing the public key. Add it at
+   [Settings → Deploy keys](https://github.com/plakagh/guille-outes/settings/keys)
+   as **read-only**, then press Enter
+5. Clone the repo to `/opt/guille-outes`, owned by the deploy account
+6. Create `docker/.env` (mode 600) and generate every random secret in it
+7. **Derive `ANON_KEY` and `SERVICE_ROLE_KEY`** from the generated `JWT_SECRET`.
+   These are HS256 JWTs, not random strings — every service verifies them against
+   that secret, so they cannot be invented
+8. Enable UFW and start listening on the new SSH port. This phase only **adds** —
+   port 22, root login and password authentication all keep working
+9. **Pause and make you prove the new access works** from a second terminal. Only
+   after you confirm does it disable root login, turn password authentication off
+   and close port 22
+10. Install the nightly backup cron (03:00)
+11. Start the backing services — **without** the storefront, whose image does not
+    exist until the first CI run
+12. Print the GitHub secrets you need, including the derived anon key
 
-### Step 4 — Fill in `docker/.env` on the server
+> The pause in step 9 is the point of the whole design, and the split matters. The
+> first phase takes nothing away: sshd is told to listen on **both** ports, and root
+> and passwords stay enabled. So if your key or the new port turns out not to work,
+> Ctrl+C leaves every way in exactly as it was.
+>
+> A `Port` directive *replaces* the default rather than adding to it, which is why
+> the first phase lists `Port 22` explicitly — otherwise sshd would stop answering
+> on 22 the moment it restarted, taking the fallback with it.
+>
+> Both phases validate with `sshd -t` before restarting and then check with `ss`
+> that something really is listening; either failure rolls the file back.
 
-The setup script auto-generates most secrets but **`ANON_KEY` and `SERVICE_ROLE_KEY` must be derived from `JWT_SECRET`**.
+### Step 4 — Fill in SMTP by hand
 
-On the server, run:
-
-```bash
-ENV_FILE="<INSTALL_DIR>/docker/.env"
-JWT_SECRET=$(grep "^JWT_SECRET=" "${ENV_FILE}" | cut -d= -f2)
-
-python3 - <<EOF
-import json, base64, hmac, hashlib
-
-secret = '${JWT_SECRET}'
-
-def b64(d):
-    return base64.urlsafe_b64encode(d).rstrip(b'=').decode()
-
-header = b64(json.dumps({'alg': 'HS256', 'typ': 'JWT'}).encode())
-
-for role in ('anon', 'service_role'):
-    payload = b64(json.dumps({'role': role, 'iss': 'supabase', 'iat': 1700000000, 'exp': 2000000000}).encode())
-    sig = b64(hmac.new(secret.encode(), f'{header}.{payload}'.encode(), hashlib.sha256).digest())
-    key_name = 'ANON_KEY' if role == 'anon' else 'SERVICE_ROLE_KEY'
-    print(f'{key_name}={header}.{payload}.{sig}')
-EOF
-```
-
-Paste the printed values into `docker/.env`:
+The only values the script cannot invent:
 
 ```bash
-nano <INSTALL_DIR>/docker/.env
+ssh -p 2222 admin@<VPS_IP>
+sudo nano /opt/guille-outes/infra/docker/.env
 ```
 
-Also fill in:
-- `SITE_URL` and `API_EXTERNAL_URL` — your public domain URLs
-- `SMTP_*` — mail server credentials (required for auth emails and backup failure alerts)
-- `FRONTEND_IMAGE` — your container image if using the bundled frontend service
+Set `SMTP_HOST`, `SMTP_USER` and `SMTP_PASS`. They serve three purposes: GoTrue's
+confirmation and recovery mail, the storefront's order confirmations, and the
+alert `backup.sh` sends when a backup fails.
 
-### Step 5 — Configure rclone for backups
+Then restart so the values take effect:
 
-The backup script uploads dumps to object storage via rclone. Configure the remote on the server:
+```bash
+cd /opt/guille-outes/infra/docker && sudo -u deploy docker compose up -d
+```
+
+### Step 5 — Configure GitHub Secrets
+
+**Settings → Secrets and variables → Actions → New repository secret.** The setup
+script printed all seven:
+
+| Secret | Value |
+|---|---|
+| `VPS_HOST` | The VPS IP |
+| `VPS_PORT` | `2222` — required, since SSH no longer answers on 22 |
+| `VPS_USER` | `deploy` |
+| `VPS_SSH_KEY` | The **private** key from step 2 (whole file, including the header line) |
+| `NEXT_PUBLIC_SITE_URL` | `https://guilleoutes.com` |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://api.guilleoutes.com` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The `ANON_KEY` the script derived |
+
+The three `NEXT_PUBLIC_*` values are **build inputs, not runtime configuration.**
+`next build` substitutes them into the bundles textually, so they have to be
+present when the image is built and changing one means a rebuild. They are all
+values the browser receives anyway, so none of them is secret — they live in
+Secrets rather than Variables only to keep the setup in one place.
+
+No registry credential is needed. The deploy job logs in to ghcr.io with the
+workflow's own `GITHUB_TOKEN`, which expires when the run ends, so no long-lived
+token sits on the server.
+
+### Step 6 — Configure rclone for backups
+
+On the server:
 
 ```bash
 rclone config
 ```
 
-Create a remote whose name matches `RCLONE_REMOTE` in `scripts/backup.sh` (default: `hetzner-obs`). For Hetzner Object Storage use the S3-compatible provider. Other providers (AWS S3, Backblaze, etc.) work the same way.
+Create a remote named **`hetzner-obs`** — the name `backup.sh` expects. For
+Hetzner Object Storage pick the S3-compatible provider; AWS S3, Backblaze and the
+rest work the same way. The bucket is `guille-outes-backups`.
 
-### Step 6 — Configure GitHub Secrets
-
-In your repo: **Settings → Secrets and variables → Actions → New repository secret**
-
-| Secret | Value |
-|---|---|
-| `VPS_HOST` | VPS IP address (printed by setup script) |
-| `VPS_USER` | `root` (or the user you ran setup as) |
-| `VPS_SSH_KEY` | **Private** key matching the public key added in step 3 (contents of `~/.ssh/github-actions`) |
-| `PROD_DB_PASSWORD` | Postgres password (printed by setup script) |
-
-### Step 7 — Restart the stack and trigger the first deploy
-
-Restart Docker on the server so it picks up the completed `.env`:
-
-```bash
-cd <INSTALL_DIR>/docker
-docker compose up -d
-```
-
-Then push to `main` from your local machine to trigger the CI pipeline:
+### Step 7 — Trigger the first deploy
 
 ```bash
 git push origin main
 ```
 
-The workflow will SSH in, apply pending migrations, restart services, and prune old images.
+The workflow runs the Redsys tests and the linter, builds the storefront image and
+pushes it to `ghcr.io/plakagh/guille-outes-app`, then SSHes in to pull it, apply
+migrations, import the product photographs and start the storefront.
 
----
+Watch it under the repo's **Actions** tab. When it goes green,
+`https://guilleoutes.com` is live.
+
+### Step 8 — Make yourself an administrator
+
+Registering through the shop creates an ordinary account: `profiles.is_admin`
+cannot be set by the account itself — column privileges plus a trigger see to
+that. Flip it as `postgres`, over an SSH tunnel to Studio (see below) or directly:
+
+```bash
+ssh -p 2222 admin@<VPS_IP>
+docker exec -it supabase-db psql -U postgres -c \
+  "update public.profiles set is_admin = true where email = 'you@example.com';"
+```
+
+Then sign in and enter the Redsys credentials under the admin panel's payments
+page. They are encrypted with `PAYMENTS_ENCRYPTION_KEY` before they touch the
+database, which is why they are not part of `docker/.env`.
+
+### Step 9 — Verify nothing is exposed
+
+From your own machine, not the server:
+
+```bash
+bash infra/scripts/check-exposure.sh <VPS_IP> "<ANON_KEY>" guilleoutes.com
+```
+
+It checks that the catalogue is readable, that orders and payment settings are
+not, and that Postgres, Kong and Studio are unreachable from outside.
+
+## Accounts and SSH
+
+Nothing logs in as root, and the two accounts that exist have deliberately
+different powers:
+
+| Account | Groups | Purpose |
+|---|---|---|
+| `admin` | `sudo`, `docker` | You, doing maintenance. Passwordless sudo, because a key-only account has no password to type. |
+| `deploy` | `docker` | GitHub Actions. **No sudo at all.** |
+
+The deploy account needs no privileges because of how the work is arranged: it
+owns `/opt/guille-outes` (so `git pull` and the `FRONTEND_IMAGE` rewrite work) and
+it is in the `docker` group (so compose works). That is the entire requirement.
+Anything that escapes the deploy pipeline therefore escapes into an unprivileged
+account rather than into root.
+
+SSH itself: **key-only** (`PasswordAuthentication no`), **no root login**, on
+**port 2222**, and `AllowUsers` limited to those two accounts. The port change is
+not a security boundary — key-only auth is — but it keeps the constant background
+brute-forcing out of the logs, which is what makes a real attempt visible.
+
+```bash
+ssh -i ~/.ssh/guille-outes-admin -p 2222 admin@<VPS_IP>
+```
+
+The whole configuration lives in one file,
+`/etc/ssh/sshd_config.d/99-guille-outes.conf`, which `setup-vps.sh` rewrites on
+every run. Two things about it are easy to get wrong and worth knowing:
+
+> On Ubuntu 23.04 and later, sshd is started through socket activation, and under
+> it the `Port` directive in `sshd_config` is **ignored** — the socket unit decides.
+> `setup-vps.sh` disables `ssh.socket` and enables `ssh.service` so that one config
+> file is the single source of truth.
+
+> A `Port` directive **replaces** the default port rather than adding to it. During
+> the transition the file therefore lists `Port 22` alongside the new one, and only
+> drops it once key-based login has been proven.
 
 ## Accessing Studio in Production
 
-Studio is not exposed to the internet. Access it via an SSH tunnel:
+Studio is not exposed to the internet — it is bound to `127.0.0.1:3000` and Caddy
+routes nothing to it. Reach it through an SSH tunnel:
 
 ```bash
-ssh -L 8080:localhost:3000 root@<VPS_IP>
+ssh -p 2222 -L 8080:localhost:3000 admin@<VPS_IP>
 ```
 
 Then open [http://localhost:8080](http://localhost:8080). Close the tunnel with `Ctrl+C`.
@@ -325,46 +430,104 @@ Then open [http://localhost:8080](http://localhost:8080). Close the tunnel with 
 
 ## Subsequent Deploys
 
-- **Automatic:** any push to `main` triggers the GitHub Actions workflow — pulls latest code, applies migrations, restarts services, prunes old images.
-- **Manual emergency deploy** (without waiting for CI):
-  ```bash
-  ssh root@<VPS_IP>
-  bash <INSTALL_DIR>/scripts/update.sh
-  ```
+**Automatic.** Any push to `main` runs the workflow: tests and lint, then build and
+push the image, then over SSH — pull the code, start the backing services, apply
+migrations, import any new photographs, and finally restart the storefront. The
+storefront restarts *last*, on purpose, so a new build never meets an old schema.
+
+**Rollback.** Every build is tagged with its commit SHA, so going back is one edit:
+
+```bash
+ssh -p 2222 admin@<VPS_IP>
+sudo nano /opt/guille-outes/infra/docker/.env   # FRONTEND_IMAGE=ghcr.io/plakagh/guille-outes-app:<sha>
+cd /opt/guille-outes/infra/docker && sudo -u deploy docker compose --profile frontend up -d
+```
+
+Migrations do not roll back with it. If the bad deploy carried one, write a new
+migration that reverses it.
+
+**Manual emergency deploy**, when you need a migration or a compose change without
+waiting for a workflow run:
+
+```bash
+ssh -p 2222 admin@<VPS_IP>
+bash /opt/guille-outes/infra/scripts/update.sh
+```
+
+It re-executes itself as the `deploy` account, so it never leaves root-owned files
+for the next `git pull` to trip over. It also deliberately does not fetch a new
+storefront image — building and publishing that is CI's job — so it never needs
+registry credentials.
+
+> **`--profile frontend`.** The storefront is behind a compose profile, so that the
+> very first `docker compose up -d` works before its image exists. The consequence:
+> a bare `docker compose up -d` starts everything *except* the shop. It will not
+> stop an already-running one, but it will not start a stopped one either. Any
+> command meant to bring the shop up needs `--profile frontend`.
 
 ---
 
 ## Backups
 
-`scripts/backup.sh` runs automatically every night at **03:00** via cron (configured by setup-vps.sh).
+`scripts/backup.sh` runs nightly at **03:00** from `/etc/crontab`.
 
-- Compressed `pg_dump` (format=custom, gzip level 9) with a UTC timestamp in the filename
-- Uploaded to object storage via rclone
-- **Local retention:** 7 days
-- **Remote retention:** 30 days
-- Email alert on failure (requires `SMTP_*` configured in `docker/.env`)
-- Logs written to the path set in `LOG_FILE` inside `backup.sh`
+Two things are backed up, because losing either loses the shop:
 
-**To restore a backup:**
+- **The database** — a `pg_dump` in custom format, compression level 9, taken
+  inside the `supabase-db` container so the dump is written by exactly the server
+  version that holds the data. Uploaded to `hetzner-obs:guille-outes-backups/db/`.
+- **The storage bucket** — `/opt/guille-outes-data/storage`, uploaded to
+  `…/storage/`. Product photographs could be rebuilt from git, since `media/` is
+  committed, but artwork uploaded through the admin panel exists nowhere else.
+
+Retention is 7 days locally and 30 days remotely **for the dumps only** — storage
+objects are never deleted remotely, being the sole copy of anything uploaded. A
+failed backup sends mail to `SMTP_ADMIN_EMAIL`, and an empty dump counts as a
+failure rather than passing quietly.
+
+**To restore the database:**
 
 ```bash
-gunzip -c /var/backups/db_YYYYMMDD_HHMMSS.dump.gz \
-  | PGPASSWORD=<POSTGRES_PASSWORD> pg_restore \
-      -h localhost -p 5432 -U postgres -d postgres --clean
+ssh -p 2222 admin@<VPS_IP>
+rclone copy hetzner-obs:guille-outes-backups/db/db_YYYYMMDD_HHMMSS.dump /tmp/
+docker cp /tmp/db_YYYYMMDD_HHMMSS.dump supabase-db:/tmp/restore.dump
+docker exec -e PGPASSWORD=<POSTGRES_PASSWORD> -it supabase-db \
+  pg_restore -U postgres -h localhost -d postgres --clean /tmp/restore.dump
 ```
+
+**To restore storage files**, `rclone copy` them back into
+`/opt/guille-outes-data/storage` — the storage API reads the filesystem directly,
+so no re-import is needed, though the matching `product_images` rows have to be in
+the database for the shop to reference them.
 
 ---
 
 ## Security Notes
 
-- **Postgres is never exposed to the internet** — port 5432 is localhost-only inside Docker.
-- **Studio is never exposed to the internet** — access only via SSH tunnel.
+- **Only ports 2222, 80 and 443 are open.** UFW enforces it; every internal service
+  is additionally bound to `127.0.0.1` in `docker-compose.yml`, so the firewall is
+  the second lock, not the first.
+- **No root SSH, no passwords, and two accounts with different powers** — see
+  "Accounts and SSH". The account CI logs in as has no sudo.
+- **Postgres is never exposed to the internet** — published on `127.0.0.1:5433`.
+- **Studio is never exposed to the internet** — SSH tunnel only, and Caddy routes
+  nothing to it.
+- **Caddy routes only four API paths** — `/rest`, `/auth`, `/storage`, `/realtime`.
+  Anything else on `api.guilleoutes.com` has no route at all, so a missing Kong ACL
+  cannot become an exposed endpoint.
 - **RLS is enabled on every application table** — see `supabase/migrations/`. Reads are
   public but limited to published rows; every write requires `public.is_admin()`.
 - **`profiles.is_admin` cannot be set by the account itself** — column-level privileges plus
   a trigger. Flip it as `postgres` (Studio or psql). The reasoning, including two bugs found
   and fixed while building it, is commented in `20260804120000_profiles_and_roles.sql`.
-- **No service-role key reaches the client app** — `app/` only ever holds the publishable
-  key, so Row Level Security has no bypass path.
+- **The service-role key never reaches a browser.** It is set on the frontend
+  *container*, and exactly one server-side module reads it: the Redsys callback,
+  which arrives from the bank with no session and must mark an order paid.
+  `import "server-only"` makes the build fail if that module is ever pulled into a
+  Client Component, and the variable has no `NEXT_PUBLIC_` prefix, so Next.js will
+  not inline it. See [../app/src/lib/supabase/elevated.ts](../app/src/lib/supabase/elevated.ts).
+- **The Redsys merchant secret is encrypted at rest** with `PAYMENTS_ENCRYPTION_KEY`,
+  which lives only in `docker/.env`. A leaked database dump therefore contains no
+  usable bank credential — the reason the key is not stored alongside it.
 - **No secrets live in the repo** — `docker/.env` is gitignored and generated on the server during setup.
-- **Production data** lives in the data directory on the server (outside the repo), not tracked by git.
+- **Production data** lives in `/opt/guille-outes-data`, outside the repo and untracked.

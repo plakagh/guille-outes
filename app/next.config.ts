@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Emit a self-contained server bundle. `app/Dockerfile` ships only this tree
+  // plus the static assets, which is what keeps the production image small
+  // enough to be worth pulling on every deploy.
+  output: "standalone",
+
   async headers() {
     return [
       {

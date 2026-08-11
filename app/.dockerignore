@@ -1,0 +1,10 @@
+# Keeps the build context small and, more importantly, keeps local secrets and a
+# host-built `node_modules` (wrong platform, wrong binaries) out of the image.
+node_modules
+.next
+.env
+.env.local
+.env.*.local
+Dockerfile
+.dockerignore
+*.md

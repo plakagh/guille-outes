@@ -34,7 +34,7 @@ additional_redirect_urls = [
   "http://localhost:3000/es/cuenta",
   "http://localhost:3000/gl/conta",
   "http://localhost:3000/en/account",
-  "https://your-domain.com",
+  "https://guilleoutes.com",
 ]
 jwt_expiry = 3600
 enable_signup = true

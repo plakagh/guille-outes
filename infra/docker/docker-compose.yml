@@ -1,4 +1,19 @@
-name: your-project
+name: guille-outes
+
+# Trimmed for a 2 vCPU / 4 GB VPS. Four services from the stock Supabase stack are
+# deliberately absent:
+#
+#   analytics (Logflare)  — 400-700 MB of Elixir to aggregate logs nobody reads;
+#                           `docker compose logs` covers the need at this size.
+#   vector                — only existed to ship logs into analytics.
+#   supavisor (pooler)    — a second connection pool in front of Postgres. Every
+#                           service here dials `db:5432` directly and PostgREST
+#                           keeps its own pool, so it pooled nothing.
+#   functions (edge)      — there are no edge functions in this project. Its
+#                           --main-service directory was empty, so it crash-looped.
+#
+# Together they cost roughly 1-1.4 GB in reserved memory, which is the difference
+# between comfortable and swapping on this box.
 
 services:
 
@@ -14,7 +29,7 @@ services:
       interval: 5s
       retries: 3
     depends_on:
-      analytics:
+      db:
         condition: service_healthy
     environment:
       HOSTNAME: "0.0.0.0"
@@ -35,12 +50,8 @@ services:
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}
-      LOGFLARE_API_KEY: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-      LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
-      LOGFLARE_URL: http://analytics:4000
-      NEXT_PUBLIC_ENABLE_LOGS: "true"
-      NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
+      # The Logs section of Studio needs Logflare, which this stack does not run.
+      NEXT_PUBLIC_ENABLE_LOGS: "false"
       SNIPPETS_MANAGEMENT_FOLDER: /app/snippets
       EDGE_FUNCTIONS_MANAGEMENT_FOLDER: /app/edge-functions
     volumes:
@@ -61,8 +72,11 @@ services:
       timeout: 5s
       retries: 5
     depends_on:
+      # Deliberately `service_started`, not `service_healthy`: Kong routes the
+      # API and does not need Studio to work. Gating it on Studio's health would
+      # take the whole storefront down over an admin-only container.
       studio:
-        condition: service_healthy
+        condition: service_started
     ports:
       - 127.0.0.1:${KONG_HTTP_PORT}:8000/tcp
       - 127.0.0.1:${KONG_HTTPS_PORT}:8443/tcp
@@ -237,14 +251,14 @@ services:
       S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID}
       S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET}
     volumes:
-      - /opt/your-project-data/storage:/var/lib/storage:z
+      - /opt/guille-outes-data/storage:/var/lib/storage:z
 
   imgproxy:
     container_name: supabase-imgproxy
     image: darthsim/imgproxy:v3.30.1
     restart: unless-stopped
     volumes:
-      - /opt/your-project-data/storage:/var/lib/storage:z
+      - /opt/guille-outes-data/storage:/var/lib/storage:z
     healthcheck:
       test: ["CMD", "imgproxy", "health"]
       timeout: 5s
@@ -273,56 +287,6 @@ services:
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
       CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
 
-  functions:
-    container_name: supabase-edge-functions
-    image: supabase/edge-runtime:v1.71.2
-    restart: unless-stopped
-    volumes:
-      - ./volumes/functions:/home/deno/functions:Z
-      - deno-cache:/root/.cache/deno
-    depends_on:
-      kong:
-        condition: service_healthy
-    environment:
-      JWT_SECRET: ${JWT_SECRET}
-      SUPABASE_URL: http://kong:8000
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-      SUPABASE_PUBLISHABLE_KEYS: "{\"default\":\"${SUPABASE_PUBLISHABLE_KEY:-}\"}"
-      SUPABASE_SECRET_KEYS: "{\"default\":\"${SUPABASE_SECRET_KEY:-}\"}"
-      SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-    command: ["start", "--main-service", "/home/deno/functions/main"]
-
-  analytics:
-    container_name: supabase-analytics
-    image: supabase/logflare:1.36.1
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "http://localhost:4000/health"]
-      timeout: 5s
-      interval: 5s
-      retries: 10
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      LOGFLARE_NODE_HOST: 127.0.0.1
-      DB_USERNAME: supabase_admin
-      DB_DATABASE: _supabase
-      DB_HOSTNAME: ${POSTGRES_HOST}
-      DB_PORT: ${POSTGRES_PORT}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_SCHEMA: _analytics
-      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-      LOGFLARE_PRIVATE_ACCESS_TOKEN: ${LOGFLARE_PRIVATE_ACCESS_TOKEN}
-      LOGFLARE_SINGLE_TENANT: "true"
-      LOGFLARE_SUPABASE_MODE: "true"
-      POSTGRES_BACKEND_URL: postgresql://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/_supabase
-      POSTGRES_BACKEND_SCHEMA: _analytics
-      LOGFLARE_FEATURE_FLAG_OVERRIDE: multibackend=true
-
   db:
     container_name: supabase-db
     image: supabase/postgres:15.8.1.085
@@ -334,7 +298,7 @@ services:
       - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
       - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
       - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      - /opt/your-project-data/db/data:/var/lib/postgresql/data:Z
+      - /opt/guille-outes-data/db/data:/var/lib/postgresql/data:Z
       - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
       - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
       - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
@@ -356,62 +320,6 @@ services:
       JWT_EXP: ${JWT_EXPIRY}
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "log_min_messages=fatal"]
 
-  vector:
-    container_name: supabase-vector
-    image: timberio/vector:0.53.0-alpine
-    restart: unless-stopped
-    volumes:
-      - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro,z
-      - ${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro,z
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://vector:9001/health"]
-      timeout: 5s
-      interval: 5s
-      retries: 3
-    environment:
-      LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
-    command: ["--config", "/etc/vector/vector.yml"]
-    security_opt:
-      - "label=disable"
-
-  supavisor:
-    container_name: supabase-pooler
-    image: supabase/supavisor:2.7.4
-    restart: unless-stopped
-    ports:
-      - 127.0.0.1:${POSTGRES_PORT}:5432
-      - 127.0.0.1:${POOLER_PROXY_PORT_TRANSACTION}:6543
-    volumes:
-      - ./volumes/pooler/pooler.exs:/etc/pooler/pooler.exs:ro,z
-    healthcheck:
-      test: ["CMD", "curl", "-sSfL", "--head", "-o", "/dev/null", "http://127.0.0.1:4000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PORT: 4000
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASE_URL: ecto://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/_supabase
-      CLUSTER_POSTGRES: "true"
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-      VAULT_ENC_KEY: ${VAULT_ENC_KEY}
-      API_JWT_SECRET: ${JWT_SECRET}
-      METRICS_JWT_SECRET: ${JWT_SECRET}
-      REGION: local
-      ERL_AFLAGS: -proto_dist inet_tcp
-      POOLER_TENANT_ID: ${POOLER_TENANT_ID}
-      POOLER_DEFAULT_POOL_SIZE: ${POOLER_DEFAULT_POOL_SIZE}
-      POOLER_MAX_CLIENT_CONN: ${POOLER_MAX_CLIENT_CONN}
-      POOLER_POOL_MODE: transaction
-      DB_POOL_SIZE: ${POOLER_DB_POOL_SIZE}
-    command: ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"]
-
   caddy:
     container_name: supabase-caddy
     image: caddy:alpine
@@ -429,21 +337,46 @@ services:
         condition: service_healthy
 
   frontend:
-    container_name: your-project-frontend
-    image: ${FRONTEND_IMAGE:-ghcr.io/your-org/your-app:latest}
+    container_name: guille-outes-frontend
+    # Built and pushed by CI, then pinned to a commit SHA in docker/.env by the
+    # deploy. Never built on this machine — see .github/workflows/deploy.yml.
+    image: ${FRONTEND_IMAGE:-ghcr.io/plakagh/guille-outes-app:latest}
     restart: unless-stopped
+    # Behind a profile so `docker compose up -d` works during the very first
+    # server setup, when this image does not exist yet. Every routine operation
+    # must therefore pass `--profile frontend` — the deploy workflow and
+    # scripts/update.sh both do.
     profiles:
       - frontend
     depends_on:
       kong:
         condition: service_healthy
+    healthcheck:
+      # "/" answers 307 on its way to /es, which is a healthy answer.
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/').then((r) => {if (r.status >= 500) throw new Error(r.status)})\""]
+      timeout: 5s
+      interval: 15s
+      retries: 3
+      start_period: 20s
+    # Only server-side values belong here. NEXT_PUBLIC_* are inlined into the
+    # bundles by `next build` and cannot be changed at runtime — they are build
+    # arguments in app/Dockerfile, and listing them here would only pretend
+    # otherwise.
     environment:
-      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
-      SITE_URL: ${SITE_URL}
+      # Bypasses RLS. One module uses it: the Redsys callback, which arrives from
+      # the bank with no session and has to mark the order paid.
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      # Encrypts the Redsys merchant secret at rest, so the nightly pg_dump that
+      # leaves this machine never contains a usable bank credential.
+      PAYMENTS_ENCRYPTION_KEY: ${PAYMENTS_ENCRYPTION_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
+      SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
 
 volumes:
   db-config:
-  deno-cache:
   caddy-data:
   caddy-config:

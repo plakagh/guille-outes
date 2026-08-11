@@ -1,5 +1,5 @@
 {
-  "name": "your-project-infra",
+  "name": "guille-outes-infra",
   "private": true,
   "scripts": {
     "supabase:start": "supabase start",

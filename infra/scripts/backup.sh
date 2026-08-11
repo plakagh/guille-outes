@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
-# backup.sh — back up Postgres to Hetzner Object Storage
-# Runs via cron every night at 03:00
+# backup.sh — nightly backup to object storage. Runs from /etc/crontab at 03:00.
+#
+# Two things are backed up, because losing either loses the shop:
+#
+#   1. The database — orders, accounts, the catalogue, the encrypted Redsys
+#      credential. A custom-format pg_dump.
+#   2. The storage bucket — /opt/guille-outes-data/storage. Product photographs
+#      can be rebuilt from git (infra/media/ is committed) but artwork uploaded
+#      through the admin panel cannot: those files exist nowhere else.
 set -euo pipefail
 
-INSTALL_DIR="/opt/your-project"
-PROJECT_NAME="your-project"
-BACKUP_DIR="/var/backups/your-project"
-LOG_FILE="/var/log/your-project-backup.log"
+INSTALL_DIR="/opt/guille-outes"
+DATA_DIR="/opt/guille-outes-data"
+PROJECT_NAME="guille-outes"
+BACKUP_DIR="/var/backups/guille-outes"
+LOG_FILE="/var/log/guille-outes-backup.log"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/db_${DATE}.dump.gz"
-RCLONE_REMOTE="your-remote:your-project-backups"
+BACKUP_FILE="${BACKUP_DIR}/db_${DATE}.dump"
+RCLONE_REMOTE="hetzner-obs:guille-outes-backups"
 RETENTION_LOCAL_DAYS=7
 RETENTION_REMOTE_DAYS=30
 
-# Load production variables
-ENV_FILE="${INSTALL_DIR}/docker/.env"
+ENV_FILE="${INSTALL_DIR}/infra/docker/.env"
 if [ -f "${ENV_FILE}" ]; then
     # shellcheck disable=SC1090
-    source <(grep -E '^(POSTGRES_PASSWORD|SMTP_.*)=' "${ENV_FILE}" | sed 's/^/export /')
+    source <(grep -E '^(POSTGRES_PASSWORD|SMTP_[A-Z_]*)=' "${ENV_FILE}" | sed 's/^/export /')
 fi
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
 
@@ -28,12 +35,12 @@ send_alert() {
         curl -fsSL --ssl-reqd \
             --url "smtp://${SMTP_HOST}:${SMTP_PORT:-587}" \
             --user "${SMTP_USER}:${SMTP_PASS}" \
-            --mail-from "${SMTP_ADMIN_EMAIL:-noreply@your-domain.com}" \
-            --mail-rcpt "${SMTP_ADMIN_EMAIL:-noreply@your-domain.com}" \
+            --mail-from "${SMTP_ADMIN_EMAIL:-pedidos@guilleoutes.com}" \
+            --mail-rcpt "${SMTP_ADMIN_EMAIL:-pedidos@guilleoutes.com}" \
             --upload-file - <<EOF || true
-From: ${SMTP_SENDER_NAME:-Project Backup} <${SMTP_ADMIN_EMAIL:-noreply@your-domain.com}>
-To: ${SMTP_ADMIN_EMAIL:-noreply@your-domain.com}
-Subject: [${PROJECT_NAME^^}] ${subject}
+From: ${SMTP_SENDER_NAME:-Guille Outes Backup} <${SMTP_ADMIN_EMAIL:-pedidos@guilleoutes.com}>
+To: ${SMTP_ADMIN_EMAIL:-pedidos@guilleoutes.com}
+Subject: [${PROJECT_NAME}] ${subject}
 
 ${body}
 EOF
@@ -51,35 +58,57 @@ log() {
 }
 
 # ── 1. pg_dump ────────────────────────────────────────────────────
+# Run inside the db container: it guarantees the dump is taken by exactly the
+# server version that wrote the data, and saves installing postgresql-client on
+# the host. --compress=9 is part of the custom format, so no outer gzip.
 log "Starting backup ${DATE}..."
 mkdir -p "${BACKUP_DIR}"
 
-PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
-    -h localhost -p 5432 -U postgres \
-    --format=custom --compress=9 \
-    postgres \
-    | gzip > "${BACKUP_FILE}" \
+docker exec -e PGPASSWORD="${POSTGRES_PASSWORD}" supabase-db \
+    pg_dump -U postgres -h localhost --format=custom --compress=9 postgres \
+    > "${BACKUP_FILE}" \
     || fail "pg_dump failed"
+
+# An empty or truncated dump is worse than no dump, because it looks like one.
+if [ ! -s "${BACKUP_FILE}" ]; then
+    fail "pg_dump produced an empty file"
+fi
 
 BACKUP_SIZE=$(du -sh "${BACKUP_FILE}" | cut -f1)
 log "Dump complete: ${BACKUP_FILE} (${BACKUP_SIZE})"
 
-# ── 2. Upload to Hetzner Object Storage ──────────────────────────
-log "Uploading to ${RCLONE_REMOTE}..."
-rclone copy "${BACKUP_FILE}" "${RCLONE_REMOTE}/" \
+# ── 2. Upload the dump ────────────────────────────────────────────
+log "Uploading the dump to ${RCLONE_REMOTE}..."
+rclone copy "${BACKUP_FILE}" "${RCLONE_REMOTE}/db/" \
     --log-level INFO \
     >> "${LOG_FILE}" 2>&1 \
-    || fail "rclone copy failed"
-log "Upload complete"
+    || fail "rclone copy of the dump failed"
+log "Dump uploaded"
 
-# ── 3. Local cleanup (older than 7 days) ─────────────────────────
-log "Removing local backups older than ${RETENTION_LOCAL_DAYS} days..."
-find "${BACKUP_DIR}" -name "db_*.dump.gz" -mtime "+${RETENTION_LOCAL_DAYS}" -delete
+# ── 3. Upload the storage bucket ──────────────────────────────────
+# `copy`, not `sync`: a file deleted on the server should stay in the backup.
+# Object names are content hashes, so nothing is ever re-uploaded needlessly.
+log "Uploading storage files..."
+if [ -d "${DATA_DIR}/storage" ]; then
+    rclone copy "${DATA_DIR}/storage" "${RCLONE_REMOTE}/storage/" \
+        --log-level INFO \
+        >> "${LOG_FILE}" 2>&1 \
+        || fail "rclone copy of storage failed"
+    log "Storage uploaded"
+else
+    log "No storage directory at ${DATA_DIR}/storage — skipped"
+fi
+
+# ── 4. Local cleanup ──────────────────────────────────────────────
+log "Removing local dumps older than ${RETENTION_LOCAL_DAYS} days..."
+find "${BACKUP_DIR}" -name "db_*.dump" -mtime "+${RETENTION_LOCAL_DAYS}" -delete
 log "Local cleanup complete"
 
-# ── 4. Remote cleanup (older than 30 days) ───────────────────────
-log "Removing remote backups older than ${RETENTION_REMOTE_DAYS} days..."
-rclone delete "${RCLONE_REMOTE}/" \
+# ── 5. Remote cleanup ─────────────────────────────────────────────
+# Only the dumps age out. Storage files are never deleted remotely: they are the
+# only copy of anything uploaded through the admin panel.
+log "Removing remote dumps older than ${RETENTION_REMOTE_DAYS} days..."
+rclone delete "${RCLONE_REMOTE}/db/" \
     --min-age "${RETENTION_REMOTE_DAYS}d" \
     --log-level INFO \
     >> "${LOG_FILE}" 2>&1 \

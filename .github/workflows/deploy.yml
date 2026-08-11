@@ -3,39 +3,165 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+# Two deploys at once would race on the same working tree and the same database.
+# Queue them instead of cancelling: a half-applied migration is worse than a wait.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  # The Redsys signing code is cross-checked against OpenSSL in these tests. A
+  # broken signature means every payment fails, so this gates the deploy.
+  test:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.22.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: app
+
+      - run: pnpm test
+        working-directory: app
+
+      - run: pnpm lint
+        working-directory: app
+
+  # `next build` is the one step heavy enough to matter on a 2-vCPU VPS, so it
+  # happens here and the server only ever pulls the finished image.
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # ghcr.io rejects uppercase in image paths, and repository owners are free
+      # to have it, so fold the case rather than hard-coding the name.
+      - name: Work out the image name
+        id: image
+        run: |
+          repo=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "name=ghcr.io/${repo}-app" >> "$GITHUB_OUTPUT"
+          echo "ref=ghcr.io/${repo}-app:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          push: true
+          # Tagged with the commit SHA so a rollback is a one-line change to
+          # FRONTEND_IMAGE, and with :latest for anyone reading `docker images`.
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.ref }}
+          # NEXT_PUBLIC_* are inlined by `next build` and cannot be injected at
+          # runtime — see the comment in app/Dockerfile. All three are values the
+          # browser receives anyway, so they carry no secrecy.
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          FRONTEND_IMAGE: ${{ needs.build.outputs.image }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.VPS_HOST }}
+          # SSH does not answer on 22: setup-vps.sh moves it and closes the old
+          # port, so this secret is required, not optional.
+          port: ${{ secrets.VPS_PORT }}
+          # An unprivileged account with no sudo. It gets by on docker group
+          # membership plus ownership of /opt/guille-outes, which is the whole
+          # point: nothing that escapes this pipeline escapes as root.
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: FRONTEND_IMAGE,GHCR_USER,GHCR_TOKEN
           script: |
-            set -e
+            set -eu
 
-            cd /opt/your-project
+            INSTALL_DIR=/opt/guille-outes
+            INFRA_DIR="${INSTALL_DIR}/infra"
+            COMPOSE_DIR="${INFRA_DIR}/docker"
+            ENV_FILE="${COMPOSE_DIR}/.env"
+
+            # Read one value out of docker/.env without sourcing the file: SMTP
+            # passwords and the like may contain characters the shell would eat.
+            env_value() {
+              grep -E "^${1}=" "${ENV_FILE}" | head -1 | cut -d= -f2-
+            }
 
             echo "→ Pulling latest changes..."
-            git pull origin main
+            git -C "${INSTALL_DIR}" pull --ff-only origin main
 
-            echo "→ Pulling updated Docker images..."
-            cd docker
-            docker compose pull
+            echo "→ Logging in to ghcr.io..."
+            # This token dies with the workflow run, so no long-lived registry
+            # credential has to live on the server.
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
 
-            echo "→ Starting services..."
+            echo "→ Pinning the frontend to ${FRONTEND_IMAGE}..."
+            # Recorded in docker/.env so a later manual `docker compose up -d`,
+            # or scripts/update.sh, brings back exactly what CI deployed.
+            if grep -q '^FRONTEND_IMAGE=' "${ENV_FILE}"; then
+              sed -i "s|^FRONTEND_IMAGE=.*|FRONTEND_IMAGE=${FRONTEND_IMAGE}|" "${ENV_FILE}"
+            else
+              echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}" >> "${ENV_FILE}"
+            fi
+
+            cd "${COMPOSE_DIR}"
+
+            echo "→ Pulling images..."
+            docker compose --profile frontend pull
+
+            # Bring up the backing services first, migrate, and only then restart
+            # the storefront — so the new build never talks to an old schema.
+            echo "→ Starting backing services..."
             docker compose up -d
 
-            echo "→ Waiting for database..."
-            until docker exec supabase-db pg_isready -U postgres -q; do sleep 2; done
+            echo "→ Waiting for the database..."
+            for _ in $(seq 1 60); do
+              if docker exec supabase-db pg_isready -U postgres -h localhost -q; then break; fi
+              sleep 2
+            done
+            docker exec supabase-db pg_isready -U postgres -h localhost -q
 
             echo "→ Applying migrations..."
-            cd /opt/your-project
-            PGSSLMODE=disable supabase db push \
-              --db-url "postgresql://postgres:${{ secrets.PROD_DB_PASSWORD }}@127.0.0.1:5433/postgres"
+            PGSSLMODE=disable supabase --workdir "${INFRA_DIR}" db push --yes \
+              --db-url "postgresql://postgres:$(env_value POSTGRES_PASSWORD)@127.0.0.1:5433/postgres"
 
             # The migrations carry the catalogue rows, but not the photographs:
             # SQL moves text. The image files arrived with the `git pull` above,
@@ -50,14 +176,17 @@ jobs:
             # Idempotent: object paths are hashes of the file contents, so a
             # deploy that changes no image uploads nothing new.
             echo "→ Importing product images..."
-            set -a
-            . /opt/your-project/docker/.env
-            set +a
             docker run --rm --network host \
-              -v /opt/your-project:/infra -w /infra \
-              -e SUPABASE_URL="http://127.0.0.1:${KONG_HTTP_PORT}" \
-              -e SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY}" \
+              -v "${INFRA_DIR}":/infra -w /infra \
+              -e SUPABASE_URL="http://127.0.0.1:$(env_value KONG_HTTP_PORT)" \
+              -e SERVICE_ROLE_KEY="$(env_value SERVICE_ROLE_KEY)" \
               node:22-alpine node scripts/import-media.mjs
+
+            echo "→ Starting the storefront..."
+            # --remove-orphans clears containers whose service no longer exists in
+            # the compose file. It runs with the frontend profile active so the
+            # storefront itself is never mistaken for an orphan.
+            docker compose --profile frontend up -d --remove-orphans
 
             echo "→ Pruning old images..."
             docker image prune -f

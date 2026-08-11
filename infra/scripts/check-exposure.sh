@@ -62,8 +62,14 @@ echo "=== Exposure check: $VPS_IP ==="
 if [[ -n "$ANON_KEY" && -n "$DOMAIN" ]]; then
     echo ""
     echo "--- HTTP endpoints: must respond with valid anon key ---"
-    http_ok_with_key    "REST API reachable"    "https://$DOMAIN/rest/v1/your-table?select=count" "$ANON_KEY"
-    http_returns_empty  "your-table exposure"   "https://$DOMAIN/rest/v1/your-table"              "$ANON_KEY"
+    # `products` is public by design — RLS exposes published rows to anyone, which
+    # is what makes the shop browsable. It proves the API is actually reachable.
+    http_ok_with_key    "REST API reachable"  "https://$DOMAIN/rest/v1/products?select=count" "$ANON_KEY"
+    # `orders` is the opposite: an anon key must see nothing at all. If this ever
+    # returns rows, someone's purchase history is public.
+    http_returns_empty  "orders exposure"     "https://$DOMAIN/rest/v1/orders"                "$ANON_KEY"
+    # Same for the table holding the encrypted Redsys credential.
+    http_returns_empty  "payment_settings exposure" "https://$DOMAIN/rest/v1/payment_settings" "$ANON_KEY"
 elif [[ -n "$ANON_KEY" ]]; then
     echo ""
     echo "--- HTTP endpoints: must respond with valid anon key ---"
@@ -72,17 +78,20 @@ fi
 
 echo ""
 echo "--- HTTP endpoints: must require auth ---"
-http_needs_auth "REST API (no key)"  "http://$VPS_IP/rest/v1/your-table"
+http_needs_auth "REST API (no key)"  "http://$VPS_IP/rest/v1/products"
 http_needs_auth "Auth service"       "http://$VPS_IP/auth/v1/user"
 
 echo ""
 echo "--- Ports that must NOT be reachable externally ---"
-port_closed "PostgreSQL"          5432
-port_closed "PostgreSQL (alt)"    5433
-port_closed "Supabase db port"    54422
-port_closed "Supabase Studio"     54423
-port_closed "Inbucket (email UI)" 54424
-port_closed "Supabase API (raw)"  54421
+# Everything below is bound to 127.0.0.1 in docker-compose.yml. This checks that
+# the binding is really what the file says, from outside the machine.
+port_closed "PostgreSQL"        5433
+port_closed "Kong (raw HTTP)"   8000
+port_closed "Kong (raw HTTPS)"  8443
+port_closed "Supabase Studio"   3000
+# setup-vps.sh moves SSH and closes 22. If this fails, the hardening step either
+# did not run or was reverted.
+port_closed "SSH (old port)"    22
 
 echo ""
 if [[ $FAIL -eq 0 ]]; then
