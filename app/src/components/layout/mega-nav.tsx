@@ -179,7 +179,18 @@ function MegaPanel({
   return (
     <div
       onMouseEnter={onMouseEnter}
-      className="absolute inset-x-0 top-full z-40 border-b border-line bg-white shadow-[0_24px_40px_-24px_rgba(0,0,0,0.28)]"
+      // Uncovered downwards from under the row, so it reads as belonging to the
+      // item you are pointing at rather than as a sheet of links that appeared
+      // over the page. Short: this opens on hover, and anything long enough to
+      // notice on the way in is long enough to be in the way on every pass.
+      //
+      // Only the way in is animated. Dismissal is not a state worth explaining,
+      // and holding the panel mounted to play it out would keep a menu on screen
+      // after the pointer has left, which is the opposite of what leaving means.
+      className={cn(
+        "absolute inset-x-0 top-full z-40 border-b border-line bg-white shadow-[0_24px_40px_-24px_rgba(0,0,0,0.28)]",
+        "animate-[panel-drop_180ms_var(--ease-out-quint)]",
+      )}
     >
       <div className="shell grid grid-cols-12 gap-8 py-8">
         <div

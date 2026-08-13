@@ -25,10 +25,13 @@ export function CartDrawer() {
         type="button"
         aria-label={t.common.close}
         onClick={close}
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-black/50 animate-[scrim-in_200ms_ease-out]"
       />
 
-      <div className="absolute inset-y-0 right-0 flex w-[min(28rem,100vw)] flex-col bg-white">
+      <div
+        className="absolute inset-y-0 right-0 flex w-[min(28rem,100vw)] flex-col bg-white animate-[drawer-in_300ms_var(--ease-out-quint)]"
+        style={{ "--from": "100%" } as React.CSSProperties}
+      >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="flex items-center gap-2 text-xl">
             <BagIcon className="size-5" />

@@ -180,6 +180,17 @@
   display: inline-flex;
 }
 
+/* ==========================================================================
+   Motion
+   ==========================================================================
+   The site is a shop: almost everything that moves is a colour or opacity
+   transition declared next to the control it belongs to, and it is short.
+   Only three things are authored here — a line of copy arriving in the promo
+   bar, the homepage fold changing slide, and a panel being uncovered from
+   under the nav row — because only those three carry meaning the static frame
+   cannot: what changed, which way it went, and where it came from.
+   ========================================================================== */
+
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -191,13 +202,161 @@
   }
 }
 
+/*
+  The homepage fold, changing slide.
+
+  `--dir` is +1 when the carousel moved forward and -1 when it moved back, so
+  the slide arrives from the side you sent it — a carousel that always fades in
+  place cannot tell you which way it went, and with an autoplay running that is
+  the difference between travel and a flicker.
+
+  `--travel` is the distance, set per layer: the piece gets the most, the copy
+  less, the ghost word behind them least. Same direction, three depths, so the
+  fold reads as one panel with a front and a back rather than three elements
+  that happen to animate together.
+*/
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(calc(var(--dir, 1) * var(--travel, 1.5rem)), 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+  The mega-panel belongs to the row above it, so it is uncovered downwards from
+  under that row rather than appearing whole somewhere below it. Its drop shadow
+  is clipped for the 180ms this runs and lands with the bottom edge, which is
+  what makes the panel read as arriving rather than as having always been there.
+*/
+@keyframes panel-drop {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/*
+  The drawers — the cart on the right, the menu on the left.
+
+  A panel that covers the page is the largest state change on the site, and
+  arriving whole it reads as a different page rather than as a layer over the one
+  you were on. Coming in from the edge it is anchored to, it says where it came
+  from and, by the same token, where closing it will put it back; the scrim
+  fading in underneath keeps the page it covers on screen long enough to still be
+  recognisable as the page you are coming back to.
+
+  `--from` is that edge, given by each drawer. Only the way in is animated: a
+  drawer is dismissed, and dismissal is not a claim that needs explaining.
+*/
+@keyframes drawer-in {
+  from {
+    transform: translateX(var(--from, 100%));
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Time left before the hero advances itself, drawn in the active pager bar. */
+@keyframes pager-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  /*
+    Fewer and gentler, not none.
+
+    Travel is what this setting is asking to be rid of, so the three keyframes
+    above are redefined here without any: the slide still changes visibly, the
+    panel still reads as appearing, and every colour and opacity transition on a
+    button still confirms the press that caused it. Blanking all of it — which
+    is what a global `animation-duration: 0.001ms` does — takes the movement out
+    by taking the feedback with it.
+
+    The hero does not autoplay under this setting (see `hero-carousel.tsx`), so
+    `pager-fill` never runs and needs no reduced form.
+  */
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes hero-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes panel-drop {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* The drawer still announces itself, from where it already is. */
+  @keyframes drawer-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /*
+    The same line drawn through transitions: what may still be tweened is
+    everything that is not travel. A product shot no longer creeps to 1.04 under
+    the pointer and an arrow no longer nudges — those changes land at once, or,
+    where the end state was only ever the movement itself, are not felt at all —
+    while the colour a button takes on when you press it, the opacity a disabled
+    control drops to and the shadow a card lifts by all still play at the length
+    they were written with.
+
+    Property list rather than `transition: none`: killing transitions outright
+    takes the confirmation off every control on the site, and a shop where
+    nothing acknowledges a click is not a calmer shop, only a deader one.
+  */
   *,
   *::before,
   *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
+    transition-property: color, background-color, border-color, outline-color,
+      text-decoration-color, fill, stroke, opacity, box-shadow, filter !important;
+  }
+
+  /* A rail jumps to the next card instead of gliding to it. */
+  .rail {
+    scroll-behavior: auto;
   }
 }

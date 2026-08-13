@@ -60,10 +60,13 @@ export function MobileNav({
             type="button"
             aria-label={t.header.closeMenu}
             onClick={close}
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/50 animate-[scrim-in_200ms_ease-out]"
           />
 
-          <div className="absolute inset-y-0 left-0 flex w-[min(22rem,88vw)] flex-col bg-white">
+          <div
+            className="absolute inset-y-0 left-0 flex w-[min(22rem,88vw)] flex-col bg-white animate-[drawer-in_300ms_var(--ease-out-quint)]"
+            style={{ "--from": "-100%" } as React.CSSProperties}
+          >
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
               <Link href={href(locale)} onClick={close}>
                 <Logo className="h-5" />
