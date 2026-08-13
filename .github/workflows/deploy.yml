@@ -157,6 +157,19 @@ jobs:
             echo "→ Starting backing services..."
             docker compose up -d --wait --wait-timeout 180
 
+            # Kong's routes live in a bind-mounted file, and compose decides what
+            # to recreate by comparing container configuration — which a changed
+            # file's *contents* are not part of. So the step above happily leaves
+            # Kong running with the routing table it loaded days ago, and an edit
+            # to volumes/api/kong.yml appears to deploy while changing nothing.
+            # Recreating it unconditionally costs a few seconds of gateway
+            # downtime inside a deploy that is already restarting the storefront,
+            # which is a better trade than a config change that silently no-ops.
+            # --no-deps keeps this to Kong alone; --wait fails the deploy on a
+            # gateway that comes back unhealthy, rather than deploying a dead API.
+            echo "→ Recreating the API gateway so route changes take effect..."
+            docker compose up -d --force-recreate --no-deps --wait --wait-timeout 60 kong
+
             echo "→ Waiting for the database..."
             for _ in $(seq 1 60); do
               if docker exec supabase-db pg_isready -U postgres -h localhost -q; then break; fi

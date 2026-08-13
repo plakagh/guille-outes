@@ -35,6 +35,13 @@ docker compose pull
 echo "→ Starting backing services..."
 docker compose up -d
 
+# Kong's routes are a bind-mounted file, and compose compares container
+# configuration rather than mounted file contents, so the line above leaves the
+# gateway running with whatever routing table it started with. Without this, an
+# edit to volumes/api/kong.yml deploys cleanly and does nothing.
+echo "→ Recreating the API gateway so route changes take effect..."
+docker compose up -d --force-recreate --no-deps kong
+
 echo "→ Waiting for the database..."
 for _ in $(seq 1 60); do
     if docker exec supabase-db pg_isready -U postgres -h localhost -q; then break; fi
