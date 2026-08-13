@@ -107,6 +107,30 @@ services:
             - admin
             - anon
 
+  ## Storage — public objects (no key required)
+  #
+  # The `media` bucket is public-read and every <img> on the storefront points
+  # straight at it, so those requests arrive from the browser with no apikey
+  # header. Under `storage-v1` below they would die on key-auth with "No API key
+  # found in request", which is why this route exists: its path is longer, Kong
+  # matches the most specific prefix first, and only reads under
+  # `object/public/` skip the key. Nothing is loosened by it — what may be read
+  # is still decided in Postgres, by the bucket's `public` flag and the
+  # "media: public read" policy on storage.objects.
+  #
+  # The service URL carries the `/object/public/` prefix because strip_path
+  # removes the whole matched path: Kong rejoins what is left onto the service
+  # path, so the two halves have to add back up to the storage API's own route.
+  - name: storage-v1-public
+    url: http://storage:5000/object/public/
+    routes:
+      - name: storage-v1-object-public
+        strip_path: true
+        paths:
+          - /storage/v1/object/public/
+    plugins:
+      - name: cors
+
   ## Storage
   - name: storage-v1
     url: http://storage:5000/
