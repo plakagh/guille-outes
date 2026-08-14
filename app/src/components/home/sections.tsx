@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { ProductShot } from "@/components/product/product-shot";
+import { FramedArt, framedAspect } from "@/components/product/framed-art";
 import { ArrowRight } from "@/components/icons";
 import { ProductCard } from "@/components/product/product-card";
 import { SectionHead } from "@/components/ui/bits";
 import { ButtonLink } from "@/components/ui/button";
 import { Rail } from "@/components/ui/rail";
 import { mediaUrl } from "@/lib/supabase/env";
-import type { Catalog, Product } from "@/lib/catalog";
+import {
+  frameAspect,
+  frameOrientation,
+  frameSizeOptions,
+  type Catalog,
+  type Product,
+} from "@/lib/catalog";
 import type { Artwork } from "@/lib/db/gallery";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
@@ -41,7 +48,7 @@ export function CategoryTiles({ locale, t, catalog }: Common) {
                 <div className="aspect-square overflow-hidden bg-shell">
                   {hero && (
                     <div className="h-full w-full transition-transform duration-500 ease-[var(--ease-out-quint)] group-hover:scale-110">
-                      <ProductShot product={hero} colorway={hero.colorways[0]} print="none" />
+                      <CategoryFace product={hero} />
                     </div>
                   )}
                 </div>
@@ -54,6 +61,61 @@ export function CategoryTiles({ locale, t, catalog }: Common) {
         })}
       </ul>
     </section>
+  );
+}
+
+/**
+ * The one product standing in for a whole category.
+ *
+ * A cuadro hangs in its frame here, exactly as it does on a product card and for
+ * the same reason: the frame is part of what is being sold, and a tile labelled
+ * "cuadros" showing a loose scan advertises a photograph of a sheet of paper.
+ * Everything else — a shirt, a tote — has nothing to hang and is shown as it is.
+ */
+function CategoryFace({ product }: { product: Product }) {
+  // Cuadros only: `framePreview` is null for everything that is not sold framed.
+  const frame = product.framePreview;
+  // The smallest format, as on a card. Nothing has been chosen at this point,
+  // and it is the same piece whichever size it is printed at.
+  const printSize = frame ? frameSizeOptions(product, frame)[0] : null;
+
+  if (!frame || !printSize) {
+    return <ProductShot product={product} colorway={product.colorways[0]} print="none" />;
+  }
+
+  /*
+    These tiles are squares and a frame is not, so the frame is given the shape
+    it will actually have and then sized by whichever side runs out first. The
+    product card can size by width because it is nearly the shape of a framed
+    portrait already; drawn at a square's full width, the same piece would stand
+    a fifth of itself outside the tile — and the tile crops.
+
+    No painted wall behind it either, unlike the card: at this size a gradient
+    inside the tile's own shading reads as a border rather than as a room.
+  */
+  const aspect = framedAspect(printSize, frame.mount);
+
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <div className={aspect <= 1 ? "h-full" : "w-full"} style={{ aspectRatio: aspect }}>
+        <FramedArt
+          finish={frame.finishes[0]}
+          mount={frame.mount}
+          onWall={false}
+          className="h-full w-full"
+        >
+          <div style={{ aspectRatio: frameAspect(printSize) }}>
+            <ProductShot
+              product={product}
+              colorway={product.colorways[0]}
+              print="none"
+              bare
+              orientation={frameOrientation(printSize)}
+            />
+          </div>
+        </FramedArt>
+      </div>
+    </div>
   );
 }
 
@@ -237,7 +299,12 @@ export function KidsGalleryBand({
       <div className="grid gap-8 bg-[#0b3d5c] p-8 text-white lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-center lg:gap-12 lg:p-12">
         <div>
           <p className="eyebrow mb-3 text-[#ffd400]">{t.home.kidsArtEyebrow}</p>
-          <h2 className="text-[clamp(1.875rem,4.5vw,3rem)] leading-[0.95]">
+          {/*
+            Looser than the other headings on purpose: the condensed face sets
+            its tilde high above the cap, and at 0.95 the Ñ of "NIÑOS" loses it
+            to the line above.
+          */}
+          <h2 className="text-[clamp(1.875rem,4.5vw,3rem)] leading-[1.08]">
             {t.home.kidsArtTitle}
           </h2>
           <p className="mt-4 text-[0.9375rem] leading-relaxed text-white/70">
