@@ -30,9 +30,21 @@ const DIRECTION_SLOP = 4;
  * is what would otherwise read back as a scroll upwards and unfold the chrome
  * again on the next frame.
  *
- * Only `lg` and up condenses. Below it the nav row is not rendered at all, so
- * the masthead is the whole of the navigation: it holds search, account and the
- * cart, and folding it away on a phone would leave nothing to come back to.
+ * What is folded away depends on how wide the screen is, and in every case it
+ * is everything *above* the row that has to survive:
+ *
+ * - `lg` and up: the announce bar and the masthead go, and the blue nav row
+ *   lands at y=0.
+ * - below `md`: the announce bar and the *search row* go — search sits on a row
+ *   of its own down here — and the masthead lands at y=0. The masthead is the
+ *   whole of the navigation on a phone, so it is the one band that stays; the
+ *   search row is the one worth a third of the screen while you are reading.
+ * - in between: only the announce bar, since search is back inside the masthead
+ *   and there is no separate row to fold.
+ *
+ * The masthead is pushed back down by the height of the row that folded (see
+ * `data-condensed` in `site-header.tsx`), which is what lets one transform on
+ * the header hide a band that is *not* at the top of it.
  */
 export function StickyChrome({ children }: { children: ReactNode }) {
   const [condensed, setCondensed] = useState(false);
@@ -76,10 +88,15 @@ export function StickyChrome({ children }: { children: ReactNode }) {
 
   return (
     <header
+      // Read by the masthead inside, which slides back down by whatever folded
+      // above it. A data attribute rather than a prop: everything in here is a
+      // server component, and this is the one bit of state it needs.
+      data-condensed={condensed ? "" : undefined}
       className={cn(
-        "sticky top-0 z-50",
+        "group sticky top-0 z-50",
         "transition-transform duration-300 ease-[var(--ease-out-quint)] motion-reduce:transition-none",
-        condensed && "lg:translate-y-[calc((var(--spacing-promo)+var(--spacing-masthead))*-1)]",
+        condensed &&
+          "translate-y-[calc((var(--spacing-promo)+var(--spacing-search))*-1)] md:translate-y-[calc(var(--spacing-promo)*-1)] lg:translate-y-[calc((var(--spacing-promo)+var(--spacing-masthead))*-1)]",
       )}
       // Tabbing into a band that has folded away would move focus to something
       // nobody can see; the same keystroke brings it back first.

@@ -115,6 +115,17 @@
   --spacing-masthead: 4.75rem;
   --spacing-navbar: 2.75rem;
 
+  /*
+    The fourth band, and the only one that exists on phones alone: below `md`
+    the search field drops out of the masthead onto a row of its own. It is a
+    token rather than padding on a div because the chrome slides that exact
+    amount when it folds away — the row has to measure what the transform says
+    it measures, or the masthead lands short of the top of the screen.
+
+    2.75rem of field plus the 0.75rem gap that keeps it off the nav below.
+  */
+  --spacing-search: 3.5rem;
+
   /* Motion */
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }

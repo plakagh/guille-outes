@@ -115,7 +115,18 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
         institutional blue it uses on white is invisible against this.
       */}
       <div data-chrome="dark" className="relative z-50 bg-black text-white">
-        <div className="relative z-10 shell flex h-masthead items-center gap-3 bg-black md:gap-6">
+        {/*
+          The masthead rides back down by exactly what folded above it.
+
+          On a phone the chrome slides up by the announce bar *plus* the search
+          row, and the search row is below this — so without this counter-slide
+          the masthead would be dragged half off the top of the screen. Pushed
+          back down by the search row's own height it lands at y=0 with the row
+          it left behind tucked underneath it, which is why the black fill and
+          the `z-10` here are load-bearing: they are what the search row hides
+          behind. Above `md` there is no separate row, so nothing to compensate.
+        */}
+        <div className="relative z-10 shell flex h-masthead items-center gap-3 bg-black transition-transform duration-300 ease-[var(--ease-out-quint)] group-data-[condensed]:translate-y-[var(--spacing-search)] motion-reduce:transition-none md:gap-6 md:group-data-[condensed]:translate-y-0">
           <MobileNav locale={locale} t={t} nav={nav} viewer={viewer} />
 
           <Link href={href(locale)} aria-label={t.header.home} className="shrink-0">
@@ -163,9 +174,23 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
           </div>
         </div>
 
-        {/* Search drops to its own row on phones */}
-        <div className="shell pb-3 md:hidden">
-          <SearchField locale={locale} t={t} index={searchIndex} categories={categoryLinks} />
+        {/*
+          Search drops to its own row on phones — and folds away as you read.
+
+          `h-search` is the token the fold is measured in, not a look: the
+          chrome slides up by exactly this much on the way down the page, so a
+          row that grew a pixel taller than the token would leave that pixel of
+          black under the masthead. The field keeps its own height inside it and
+          the rest is the gap to the row below.
+        */}
+        <div className="shell flex h-search items-start md:hidden">
+          <SearchField
+            locale={locale}
+            t={t}
+            index={searchIndex}
+            categories={categoryLinks}
+            className="w-full"
+          />
         </div>
 
         <MegaNav t={t} nav={nav} catalog={catalog} />
