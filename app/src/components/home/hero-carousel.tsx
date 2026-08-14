@@ -63,6 +63,9 @@ export type HeroSlide = {
 
 const AUTOPLAY_MS = 6500;
 
+/** How far a finger has to travel across the fold to count as a swipe, in px. */
+const SWIPE_MIN = 48;
+
 /**
  * May the carousel advance on its own right now?
  *
@@ -135,6 +138,38 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
 
   const running = allowed && !paused && slides.length > 1;
 
+  /*
+    Swipe.
+
+    A fold that moves on its own is a fold people expect to be able to move
+    themselves, and on a phone the gesture they reach for first is a drag across
+    the picture — the pager bars are a five-pixel target at the bottom of a
+    screenful. Nothing is prevented and nothing is captured: the reading is
+    taken on the way up and thrown away unless it was long enough and flat
+    enough to be a swipe rather than a tap or the start of a scroll, so a link
+    under the finger still opens and the page still scrolls.
+  */
+  const swipe = useRef<{ x: number; y: number } | null>(null);
+
+  const onPointerDown = (event: React.PointerEvent) => {
+    swipe.current = { x: event.clientX, y: event.clientY };
+  };
+
+  const onPointerUp = (event: React.PointerEvent) => {
+    const start = swipe.current;
+    swipe.current = null;
+    if (!start || slides.length < 2) return;
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+    // Dragging left pulls the next slide in from the right, which is the
+    // direction the entrance then plays.
+    const direction = dx < 0 ? 1 : -1;
+    go(index + direction, direction);
+  };
+
   // A timeout keyed to the slide, not a free-running interval: picking a slide
   // off the pager gives you the whole dwell to look at it, and the bar drawing
   // the countdown is then measuring the wait that is actually pending.
@@ -165,6 +200,11 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
       // under someone still tabbing through the slide they stopped it to read.
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
+      }}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerCancel={() => {
+        swipe.current = null;
       }}
       // The colour is the one thing every slide shares a slot for, so it is
       // crossed rather than cut: the fold stays one surface being repainted
@@ -379,7 +419,16 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           })}
         </ol>
 
-        <div className="hidden gap-2 md:flex">
+        {/*
+          The arrows are on the phone too.
+
+          They were `md:` and up, which left the small screen with the pager
+          bars as the only way to change slide — 1mm of target, and the one
+          place where a mistake means the fold has moved on before you have read
+          it. They cost a corner of a row that was otherwise empty down here,
+          and they are the control people go looking for.
+        */}
+        <div className="flex shrink-0 gap-2">
           {[
             { dir: -1 as const, Icon: ChevronLeft, label: t.common.previous },
             { dir: 1 as const, Icon: ChevronRight, label: t.common.next },
