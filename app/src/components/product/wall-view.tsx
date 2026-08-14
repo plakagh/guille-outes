@@ -41,15 +41,21 @@ import { drawFramedArt } from "@/lib/wall-photo";
  * hand works on every device that has a camera, and for the question being asked
  * — *is a 50 × 70 too big for that space?* — it answers just as well.
  *
- * ## Why the size is honest and the distance is a guess
+ * ## Why the size is honest and the distance is measured when it can be
  *
  * The centimetres come from the format the shopper is buying — the same two
  * numbers the size button stands for — and switching format here switches what is
  * hanging on the wall. What no browser will tell us is the camera's field of view,
  * so the scale rests on one assumption — {@link ASSUMED_FOV} — and on how far the
- * shopper says they are standing. That is why the distance is a control rather
- * than a reading: the shopper corrects it by pinching until the room looks right,
- * and the piece keeps its true proportions throughout.
+ * shopper is standing.
+ *
+ * That last number is asked of the camera first. A lens that autofocuses knows
+ * what it focused on, and some browsers publish it as `focusDistance` on the
+ * video track: point the phone at the wall and the distance is a *reading*
+ * rather than a guess. Where the platform is silent — iOS Safari today, and any
+ * camera with a fixed focus — it stays a control, and the control is the fallback
+ * rather than the feature. Either way the shopper can overrule it by pinching or
+ * by dragging the slider, and the piece keeps its true proportions throughout.
  *
  * Nothing is uploaded. The video never leaves the element it is painted in, and
  * the photograph is composed locally in a canvas.
@@ -62,6 +68,37 @@ const ASSUMED_FOV = 65;
 const MIN_DISTANCE = 60;
 const MAX_DISTANCE = 700;
 
+/**
+ * How long to let the lens hunt before believing what it says, in milliseconds.
+ *
+ * A camera that has just been pointed somewhere new reports the distance it was
+ * focused at a moment ago, and reading it straight away is reading the last
+ * wall rather than this one.
+ */
+const FOCUS_SETTLE_MS = 900;
+
+/**
+ * The slider's own scale: one step is a fixed *percentage* of the distance
+ * rather than a fixed number of centimetres.
+ *
+ * The piece is drawn at a size proportional to 1/distance, so a linear track
+ * spends its first centimetre going from enormous to normal and its last two
+ * thirds barely changing anything — which is exactly the complaint that "the
+ * distance adjustment does not work well". On a logarithmic track every
+ * millimetre of travel resizes the piece by the same fraction, top to bottom.
+ */
+const SLIDER_STEPS = 1000;
+
+function distanceToSlider(cm: number): number {
+  return Math.round(
+    (SLIDER_STEPS * Math.log(cm / MIN_DISTANCE)) / Math.log(MAX_DISTANCE / MIN_DISTANCE),
+  );
+}
+
+function sliderToDistance(value: number): number {
+  return MIN_DISTANCE * (MAX_DISTANCE / MIN_DISTANCE) ** (value / SLIDER_STEPS);
+}
+
 /** Roughly where someone stands to look at a picture in a room. */
 const INITIAL_DISTANCE = 250;
 
@@ -71,6 +108,60 @@ const INITIAL_POSITION = { x: 0.5, y: 0.44 };
 type Stage = "intro" | "starting" | "live" | "denied" | "unavailable";
 
 type Shot = { url: string; blob: Blob };
+
+/**
+ * Where the distance on screen came from: nobody has measured it (`idle`), the
+ * lens is being read right now, it told us (`measured`), or it was asked and had
+ * nothing to say (`failed`). Any adjustment by hand puts it back to `idle` —
+ * a reading that has been overruled is no longer a reading.
+ */
+type Reading = "idle" | "measuring" | "measured" | "failed";
+
+/* ============================================================ the lens knows */
+
+/**
+ * The video track of a live stream, if there is one.
+ *
+ * Everything below goes through this: the focus distance belongs to the track,
+ * not to the stream, and every one of these calls is optional in some browser.
+ */
+function videoTrack(stream: MediaStream | null): MediaStreamTrack | null {
+  return stream?.getVideoTracks?.()[0] ?? null;
+}
+
+/**
+ * Does this camera publish what it is focused on?
+ *
+ * `focusDistance` is part of the image-capture spec and shipped on Chrome for
+ * Android; Safari and Firefox do not implement it, and plenty of cameras that do
+ * have a fixed lens and omit it from their capabilities. So this is asked rather
+ * than assumed, and the button it controls is only rendered when the answer is
+ * yes — a "measure" button that can never measure is worse than no button.
+ */
+function canMeasure(track: MediaStreamTrack | null): boolean {
+  const capabilities = track?.getCapabilities?.() as
+    | (MediaTrackCapabilities & { focusDistance?: { min?: number; max?: number } })
+    | undefined;
+  const range = capabilities?.focusDistance;
+  return typeof range?.min === "number" && typeof range?.max === "number";
+}
+
+/**
+ * What the lens is focused on, in centimetres — `null` when it will not say.
+ *
+ * The spec gives the setting in metres. A camera focused at infinity reports
+ * something absurd rather than an error, so anything outside the range a person
+ * could be standing in is clamped to the end of it: standing further from the
+ * wall than seven metres is a reading we cannot use either way.
+ */
+function focusedAt(track: MediaStreamTrack | null): number | null {
+  const settings = track?.getSettings?.() as
+    | (MediaTrackSettings & { focusDistance?: number })
+    | undefined;
+  const metres = settings?.focusDistance;
+  if (typeof metres !== "number" || !Number.isFinite(metres) || metres <= 0) return null;
+  return clampDistance(metres * 100);
+}
 
 /* ================================================================= support */
 
@@ -183,6 +274,9 @@ export function WallView({
   // The camera's own resolution, which is what the cover crop is computed from.
   const [source, setSource] = useState({ width: 0, height: 0 });
   const [distance, setDistance] = useState(INITIAL_DISTANCE);
+  const [reading, setReading] = useState<Reading>("idle");
+  /** Whether this camera can be asked at all — decided once, when it opens. */
+  const [measurable, setMeasurable] = useState(false);
   const [position, setPosition] = useState(INITIAL_POSITION);
   const [finish, setFinish] = useState<FrameFinish>(initialFinish);
   const [colorway, setColorway] = useState<Colorway>(initialColorway);
@@ -264,6 +358,65 @@ export function WallView({
     return () => observer.disconnect();
   }, [stage, measure]);
 
+  /* ----------------------------------------------------------- the distance */
+
+  /** Bumped by every measurement and every adjustment, so the two can tell
+      whose turn it still is when a reading finally comes back. */
+  const measureRun = useRef(0);
+
+  /**
+   * Every change made by hand — the slider, a pinch, the arrow keys, recentring.
+   *
+   * It goes through here rather than through `setDistance` so that one thing is
+   * always true: the moment the shopper moves it themselves, the number stops
+   * claiming to have been measured.
+   */
+  const adjust = useCallback((next: number | ((current: number) => number)) => {
+    // Anything in flight is abandoned here: a reading that lands a second after
+    // the shopper has dragged the slider would take the piece off the size they
+    // just chose, which is the worst way for a helpful feature to behave.
+    measureRun.current += 1;
+    setReading("idle");
+    setDistance((current) =>
+      clampDistance(typeof next === "function" ? next(current) : next),
+    );
+  }, []);
+
+  /**
+   * Ask the lens how far the wall is.
+   *
+   * Focus is nudged back to continuous first: a camera that has already settled
+   * on something reports that something, and the point of pressing the button is
+   * usually that it settled on the wrong thing. Then a beat for the lens to hunt,
+   * then the reading. Every step is allowed to fail — on most of the world's
+   * phones this whole function is a no-op, which is why the slider stays.
+   */
+  const measureDistance = useCallback(async () => {
+    const track = videoTrack(streamRef.current);
+    if (!track) return;
+
+    const run = (measureRun.current += 1);
+    setReading("measuring");
+    try {
+      await track.applyConstraints({
+        advanced: [{ focusMode: "continuous" }],
+      } as unknown as MediaTrackConstraints);
+    } catch {
+      /* a camera that will not take the constraint may still report a distance */
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, FOCUS_SETTLE_MS));
+    if (!open.current || measureRun.current !== run) return;
+
+    const cm = focusedAt(track);
+    if (cm === null) {
+      setReading("failed");
+      return;
+    }
+    setDistance(cm);
+    setReading("measured");
+  }, []);
+
   const start = async () => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setStage("unavailable");
@@ -290,6 +443,15 @@ export function WallView({
 
       streamRef.current = stream;
       setStage("live");
+
+      // The first measurement is taken without being asked for. Standing in
+      // front of the wall with the camera pointed at it is exactly the moment
+      // the reading is worth taking, and a shopper who has to find a button
+      // before the scale is right has already judged the size off a wrong one.
+      if (canMeasure(videoTrack(stream))) {
+        setMeasurable(true);
+        void measureDistance();
+      }
 
       // The element exists only once the stage is live, so attach on the next
       // frame rather than to a node React has not rendered yet.
@@ -356,7 +518,7 @@ export function WallView({
 
       // Fingers apart is a step towards the wall, which is a smaller distance.
       const ratio = spread / pinch.current.spread;
-      setDistance(clampDistance(pinch.current.distance / ratio));
+      adjust(pinch.current.distance / ratio);
     }
   };
 
@@ -381,13 +543,15 @@ export function WallView({
       return;
     }
 
+    // A tenth of the way along the track either way, which on a logarithmic
+    // scale is the same visible step at two metres as at six.
     if (event.key === "+" || event.key === "=") {
       event.preventDefault();
-      setDistance((current) => clampDistance(current - 20));
+      adjust((current) => stepDistance(current, -1));
     }
     if (event.key === "-" || event.key === "_") {
       event.preventDefault();
-      setDistance((current) => clampDistance(current + 20));
+      adjust((current) => stepDistance(current, 1));
     }
   };
 
@@ -626,21 +790,80 @@ export function WallView({
               )}
             </div>
 
-            <label className="flex items-center gap-3 text-[0.75rem] text-white/80">
-              <span className="shrink-0">{t.wall.distance}</span>
+            {/*
+              The distance, and where it came from.
+
+              The slider carries the value on its own logarithmic scale rather
+              than in centimetres — `aria-valuetext` is what puts the real
+              measurement back for a screen reader, which would otherwise read
+              out a position on a track that means nothing. The readout beside
+              it says the number either way, and says whether the camera or the
+              shopper is the one claiming it.
+            */}
+            <div className="flex flex-col gap-1.5 text-[0.75rem] text-white/80">
+              <div className="flex items-center gap-3">
+                <span id="wall-distance" className="min-w-0 flex-1 truncate">
+                  {t.wall.distance}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {formatDistance(distance, locale)}
+                </span>
+
+                {/*
+                  Only where the lens will answer. Pressed after moving — a step
+                  back, a different wall — it is faster and truer than finding
+                  the right spot on the slider by eye.
+                */}
+                {measurable && (
+                  <button
+                    type="button"
+                    onClick={() => void measureDistance()}
+                    disabled={reading === "measuring"}
+                    className={cn(
+                      "shrink-0 border px-2 py-1 text-[0.6875rem] uppercase tracking-cta transition disabled:opacity-60",
+                      reading === "measured"
+                        ? "border-white bg-white/15 text-white"
+                        : "border-white/40 text-white/75 hover:border-white/80",
+                    )}
+                  >
+                    {reading === "measuring"
+                      ? t.wall.measuring
+                      : reading === "measured"
+                        ? t.wall.measured
+                        : t.wall.measure}
+                  </button>
+                )}
+              </div>
+
+              {/*
+                The track gets the whole width, on its own line.
+
+                Sharing a row with the label, the readout and the measure button
+                left it about eighty pixels long on a phone — a control you are
+                asked to be precise with, given less room than the words
+                describing it. `aria-labelledby` is what keeps the label attached
+                once the two are no longer nested, and `aria-valuetext` puts the
+                real measurement back: the value on the input is a position on a
+                logarithmic track and means nothing read aloud.
+              */}
               <input
                 type="range"
-                min={MIN_DISTANCE}
-                max={MAX_DISTANCE}
-                step={10}
-                value={Math.round(distance)}
-                onChange={(event) => setDistance(Number(event.target.value))}
-                className="h-1 min-w-0 flex-1 accent-white"
+                min={0}
+                max={SLIDER_STEPS}
+                step={1}
+                value={distanceToSlider(distance)}
+                onChange={(event) => adjust(sliderToDistance(Number(event.target.value)))}
+                aria-labelledby="wall-distance"
+                aria-valuetext={formatDistance(distance, locale)}
+                className="h-1 w-full accent-white"
               />
-              <span className="w-14 shrink-0 text-right tabular-nums">
-                {formatDistance(distance, locale)}
-              </span>
-            </label>
+            </div>
+
+            {reading === "failed" && (
+              <p className="text-center text-[0.6875rem] text-white/55">
+                {t.wall.measureFailed}
+              </p>
+            )}
 
             {/* The shutter is centred on the screen, not in what is left over
                 after the reset link — a camera control that sits off-centre
@@ -650,7 +873,7 @@ export function WallView({
                 type="button"
                 onClick={() => {
                   setPosition(INITIAL_POSITION);
-                  setDistance(INITIAL_DISTANCE);
+                  adjust(INITIAL_DISTANCE);
                 }}
                 className="absolute left-0 text-[0.75rem] text-white/70 underline transition hover:text-white"
               >
@@ -818,6 +1041,11 @@ function clampPosition(x: number, y: number) {
 
 function clampDistance(value: number) {
   return Math.min(MAX_DISTANCE, Math.max(MIN_DISTANCE, value));
+}
+
+/** One nudge along the slider's own scale — `1` away from the wall, `-1` towards. */
+function stepDistance(current: number, direction: 1 | -1) {
+  return clampDistance(sliderToDistance(distanceToSlider(current) + direction * 60));
 }
 
 /* ============================================================= photography */
