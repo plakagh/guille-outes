@@ -211,9 +211,8 @@
   the difference between travel and a flicker.
 
   `--travel` is the distance, set per layer: the piece gets the most, the copy
-  less, the ghost word behind them least. Same direction, three depths, so the
-  fold reads as one panel with a front and a back rather than three elements
-  that happen to animate together.
+  less. Same direction, two depths, so the fold reads as one panel with a front
+  and a back rather than two elements that happen to animate together.
 */
 @keyframes hero-enter {
   from {

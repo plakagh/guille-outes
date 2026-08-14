@@ -21,8 +21,6 @@ export type HeroSlide = {
   blurb: string;
   primary: { label: string; href: string };
   secondary?: { label: string; href: string };
-  /** Oversized outlined word sitting behind the product art. */
-  ghost: string;
   background: string;
   ink: "light" | "dark";
   art: { shape: ArtShape; colorway: Colorway; print: ArtPrint };
@@ -226,34 +224,8 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
 
         {/* Art panel */}
         <div className="relative flex min-h-[19rem] items-center justify-center lg:min-h-[32rem]">
-          {/* Centring is the wrapper's job and travel is the inner span's: both
-              are `transform`, and an entrance that animated the same property
-              that holds the word on the centre line would drop it half its own
-              height for the length of the animation. */}
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 select-none"
-          >
-            {/* Furthest back, so it moves least — the word is the wall the piece
-                hangs against, and a backdrop keeping pace with the foreground
-                flattens the two into one sheet. */}
-            <span
-              key={`ghost-${index}`}
-              className={cn(
-                "block text-center font-display text-[clamp(6rem,20vw,15rem)] font-bold uppercase leading-none",
-                "animate-[hero-enter_620ms_var(--ease-out-quint)]",
-                light ? "text-white/10" : "text-ink/[0.07]",
-              )}
-              style={{ "--travel": "0.75rem" } as React.CSSProperties}
-            >
-              {slide.ghost}
-            </span>
-          </span>
-          {/* The piece is what the slide is selling, so it takes most of the panel:
-              the ghost word behind it is a backdrop, not a competing element. */}
-          {/* Nearest the front, so it covers the most ground and takes the
-              longest doing it — this is the one thing on the fold worth
-              watching arrive. */}
+          {/* The piece is the only thing in this panel. It gets the whole of it,
+              and the striped field is the backdrop. */}
           <div
             key={`art-${index}`}
             className="relative w-[82%] animate-[hero-enter_700ms_var(--ease-out-quint)]"
