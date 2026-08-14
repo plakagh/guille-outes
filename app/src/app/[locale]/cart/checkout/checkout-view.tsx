@@ -218,7 +218,7 @@ export function CheckoutView() {
                         <span className="block truncate text-mute">
                           {t.gallery.printedWith} «{line.artwork.title}»
                         </span>
-                        <span className="mt-1 inline-block border-l-2 border-flame bg-shell px-1.5 py-0.5 text-[0.6875rem] font-semibold text-ink">
+                        <span className="mt-1 inline-block border-l-2 border-rust bg-shell px-1.5 py-0.5 text-[0.6875rem] font-semibold text-ink">
                           {t.gallery.tee.cartNote}
                         </span>
                       </>
@@ -264,7 +264,14 @@ export function CheckoutView() {
 
             <DiscountForm className="mt-5" />
 
-            <Button type="submit" block size="lg" disabled={submitting} className="mt-5">
+            <Button
+              type="submit"
+              variant="primary"
+              block
+              size="lg"
+              disabled={submitting}
+              className="mt-5"
+            >
               {submitting ? t.admin.saving : `${t.checkout.pay} ${formatPrice(total)}`}
             </Button>
 

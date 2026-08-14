@@ -100,7 +100,7 @@ export function AddressBook({ addresses }: { addresses: CustomerAddress[] }) {
                   {t.account.defaultAddress}
                 </span>
               )}
-              {address.label && <p className="eyebrow mb-2 text-flame">{address.label}</p>}
+              {address.label && <p className="eyebrow mb-2 text-ink-soft">{address.label}</p>}
               <p className="text-[0.9375rem] font-semibold">{address.fullName}</p>
               <p className="mt-1 text-[0.875rem] leading-relaxed text-mute">
                 {address.line1}
@@ -128,7 +128,7 @@ export function AddressBook({ addresses }: { addresses: CustomerAddress[] }) {
                   })
                 }
                 aria-label={t.common.remove}
-                className="mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] text-mute underline hover:text-flame"
+                className="mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] text-mute underline hover:text-ink"
               >
                 <CloseIcon className="size-3.5" />
                 {t.common.remove}

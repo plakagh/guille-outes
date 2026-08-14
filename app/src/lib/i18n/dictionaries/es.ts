@@ -36,6 +36,22 @@ const es = {
     language: "Idioma",
   },
 
+  // The pre-launch gate. It says what is true today — mira lo que quieras, aún
+  // no se puede comprar — and nothing more. The consent wording it shows is
+  // `footer.newsletter`'s, because that is the text the Server Action files as
+  // the consent record; see `components/layout/coming-soon-gate.tsx`.
+  comingSoon: {
+    eyebrow: "Estamos en obras",
+    title: "Aún estamos terminando la web",
+    body: "Puedes mirar todo lo que quieras, pero todavía no se puede comprar. Déjanos tu correo y te avisamos en cuanto abramos, con un 10 % para tu primer pedido.",
+    submit: "Avísame",
+    dismiss: "Seguir mirando",
+    // Shown where the "ir a pagar" button is, while `CHECKOUT_OPEN` is false.
+    cartCta: "Todavía no se puede comprar",
+    cartNote:
+      "Puedes ir dejando el carrito preparado: se guarda en este navegador y seguirá aquí cuando abramos. Apúntate al boletín y te avisamos ese día.",
+  },
+
   // The rotating messages moved to the `promo_messages` table so a campaign line
   // can change without a deploy; what is left here is the fixed furniture.
   promo: {
@@ -692,9 +708,9 @@ const es = {
       noFinishes: "Sin ningún acabado marcado la vista no se mostrará.",
       mount: "Ancho del paspartú",
       mountHint: "Porcentaje del ancho del marco. Entre 8 y 14 % es lo habitual.",
-      surcharge: "Precio del marco",
+      surcharge: "Precio del marco de cada tamaño",
       surchargeHint:
-        "Lo que se suma al precio de la lámina cuando el cliente elige un acabado. En blanco o a 0 € el marco va incluido, y en la ficha se podrá comprar la obra con marco o sin él.",
+        "Solo si esta obra lleva un precio de marco distinto al general. Déjalo en blanco y se cobra el precio de la tienda (el que aparece en gris, y se cambia en Ajustes › Precio del marco). A 0 € el marco de esta obra va incluido.",
       size: "Medidas de cada tamaño",
       defaultSize: "Por defecto",
       height: "Alto",
@@ -718,6 +734,12 @@ const es = {
       freeAlways: "Con 0 € el envío estándar será gratis en todos los pedidos.",
       methodsOffered: "Modalidades que se ofrecen",
       standardAlways: "El envío estándar siempre está disponible: sin él no habría forma de comprar.",
+      framingTitle: "Precio del marco",
+      framingBlurb:
+        "Lo que se suma al precio de la lÃ¡mina cuando el cliente elige un acabado, para todos los cuadros de la tienda. Enmarcar un grande cuesta mÃ¡s que un pequeÃ±o, asÃ­ que cada tamaÃ±o lleva su importe. Un cuadro concreto puede llevar otro precio: se pone en su ficha, en «Vista enmarcada».",
+      framingGeneral: "Otros tamaÃ±os",
+      framingGeneralHint:
+        "Se aplica a cualquier tamaÃ±o que no tenga importe propio arriba. Si lo pones a 0 â¬, esos marcos van incluidos en el precio.",
       noticeTitle: "Avisos de pedido",
       noticeBlurb:
         "A esta dirección llegan dos correos por pedido: uno en cuanto se hace y otro cuando el banco confirma el cobro. Ahí se indica, entre otras cosas, con qué marco se ha comprado cada cuadro.",
@@ -878,6 +900,8 @@ const es = {
     size: "Talla",
     sku: "SKU",
     units: "Unidades",
+    variantPriceHint:
+      "El precio al que se vende cada tamaño. Ninguno puede ser menor que el precio del producto ({{amount}}), que es el del formato más barato: para bajar de ahí, baja antes el precio de arriba.",
     adjust: "Ajustar",
     credits: "Autoría",
     addAuthor: "Añadir autor",
@@ -1264,6 +1288,62 @@ const es = {
       delete: "Borrar",
       deleteConfirm: "Sí, bórralo",
     },
+  },
+
+  /**
+   * El proyecto: «A familia pintora que vaga polo mundo».
+   *
+   * El nombre no se traduce: es el que lleva escrito el cartel, en galego, y es
+   * como se llama el proyecto en las tres versiones de la tienda. Lo que sí se
+   * traduce es todo lo que lo explica —`nameLocal` da la frase en el idioma de
+   * quien lee, debajo del nombre— porque el nombre identifica y el resto cuenta.
+   * La cita de Chaplin va en cada idioma, que es como la cita todo el mundo.
+   *
+   * `line1`/`line2` parten el nombre en dos como el resto de diapositivas: el
+   * carrusel dibuja el titular en tipografía condensada y «A familia pintora»
+   * en una sola línea no cabe. `subhead` es la segunda mitad de la frase, y va
+   * en cuerpo de texto justo debajo, no como parte del titular.
+   */
+  family: {
+    eyebrow: "El proyecto",
+    line1: "A familia",
+    line2: "pintora",
+    subhead: "que vaga polo mundo",
+    fullName: "A familia pintora que vaga polo mundo",
+    nameLocal: "La familia pintora que vaga por el mundo",
+    // Describe el cartel, no lo repite: el nombre y la cita ya están escritos al
+    // lado, en texto que un lector de pantalla lee de todas formas.
+    imageAlt:
+      "Cartel de A familia pintora: una vaca pintada con los cuernos de colores y la lengua fuera, la firma de Guille Outes y tres cuadros pequeños sobre un fondo azul noche.",
+    slideBlurb:
+      "La obra de Guille Outes no espera colgada a que alguien vaya a verla: se monta y se desmonta allá donde haya una feria. Y donde para, se levanta un muro para que pinten los peques.",
+    slidePrimary: "Conocer el proyecto",
+    slideSecondary: "Ser parte de la familia",
+    lead: "Un puesto que se monta, se desmonta y se vuelve a montar, con los cuadros a cuestas y un muro para quien quiera pintar.",
+    body: [
+      "«A familia pintora que vaga polo mundo» es lo que pone en el cartel que abre el puesto, y es bastante literal. La obra de Guille Outes no espera colgada en una pared a que alguien vaya a verla: viaja, se monta donde hay feria y se desmonta al cerrar.",
+      "Lo que viaja son cuadros —pintura llevada al papel, impresa en series cortas y firmada— y las camisetas que salen de esos mismos dibujos. Ninguno le hace demasiado caso al mundo tal y como es: vacas con los cuernos de colores, casas apiñadas en una ladera que no existe, barcas que se saltan la perspectiva entera. Buena parte de lo que hay en un cuadro no estuvo nunca delante de nadie. La fantasía no es el adorno: es el material.",
+      "Por eso no hay nada que saber para entenderlos. No hacen falta lecturas previas ni vocabulario de museo, y funcionan igual de bien con seis años que con sesenta. Ésa es la única prueba que nos importa: este arte es para todo el mundo, en el sentido más literal y menos solemne de la frase.",
+      "Familia es la palabra exacta, y no sólo por quien monta el puesto. Quien se acerca acaba dentro: quien se lleva un cuadro a casa, quien se queda un rato mirando sin llevarse nada, y sobre todo el niño que se sienta a pintar. Si le preguntas a Guille por un buen día de feria, no te va a contar lo que vendió. Te va a contar que tuvo el puesto rodeado de críos pintando.",
+    ],
+    quote: "Un día sin reír es un día perdido",
+    quoteAuthor: "Charles Chaplin",
+    muralTitle: "El muro de los peques",
+    muralBody:
+      "En cada parada hay un muro para los más pequeños: se pinta allí mismo, se firma con el nombre y el dibujo se queda colgado en la galería de la web. Es la parte del proyecto que no se vende.",
+    joinTitle: "Ser parte de la familia",
+    joinBlurb:
+      "No hace falta esperar a la próxima feria. El muro está abierto: pinta un dibujo con el dedo, fírmalo y lo publicamos en la galería.",
+    shopCta: "Ver la obra",
+    keywords: [
+      "familia pintora",
+      "proyecto guille outes",
+      "arte que viaja",
+      "pintura gallega",
+      "muro infantil",
+    ],
+    metaDescription:
+      "A familia pintora que vaga polo mundo: el proyecto de Guille Outes, la obra que viaja de feria en feria y el muro donde pintan los peques.",
   },
 
   notFound: {

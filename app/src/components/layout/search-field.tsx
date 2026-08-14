@@ -97,7 +97,17 @@ export function SearchField({
           event.preventDefault();
           submit(query);
         }}
-        className="flex h-11 items-center gap-2 bg-shell px-3 ring-1 ring-inset ring-transparent transition focus-within:bg-white focus-within:ring-ink"
+        /*
+          The field is white on the black masthead.
+
+          It was a grey well on white, which on black would be a grey well on
+          black — the same trick, but now the lighter of the two surfaces, so it
+          would read as the primary thing in the header rather than as an input.
+          White states plainly that this is where you type, and taking focus is
+          then a ring rather than a change of fill, since the fill has nowhere
+          lighter to go.
+        */
+        className="flex h-11 items-center gap-2 bg-white px-3 ring-2 ring-inset ring-transparent transition focus-within:ring-white/70"
       >
         <SearchIcon className="size-[1.15rem] shrink-0 text-mute" />
         <input
@@ -107,7 +117,7 @@ export function SearchField({
           onFocus={() => setFocused(true)}
           placeholder={t.header.searchPlaceholder}
           aria-label={t.header.searchAria}
-          className="min-w-0 flex-1 bg-transparent text-[0.875rem] outline-none placeholder:text-mute"
+          className="min-w-0 flex-1 bg-transparent text-[0.875rem] text-ink outline-none placeholder:text-mute"
         />
         {query && (
           <button
@@ -122,7 +132,10 @@ export function SearchField({
       </form>
 
       {focused && (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-[70vh] overflow-y-auto border border-line bg-white shadow-[0_18px_40px_rgba(0,0,0,0.16)]">
+        // `text-ink` is not redundant: this panel is a child of the black chrome,
+        // which sets `text-white` for its own labels, and a white sheet of results
+        // inheriting that renders nothing at all.
+        <div className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-[70vh] overflow-y-auto border border-line bg-white text-ink shadow-[0_18px_40px_rgba(0,0,0,0.16)]">
           {query.length === 0 ? (
             <div className="p-4">
               <p className="eyebrow mb-3 text-mute">{t.header.frequentSearches}</p>

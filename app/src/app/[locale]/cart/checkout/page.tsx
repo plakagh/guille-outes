@@ -4,6 +4,7 @@ import { CheckoutView } from "@/app/[locale]/cart/checkout/checkout-view";
 import { isLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { href } from "@/lib/i18n/routes";
+import { CHECKOUT_OPEN } from "@/lib/shop-status";
 import { getViewer } from "@/lib/supabase/server";
 
 export async function generateMetadata(
@@ -18,6 +19,12 @@ export async function generateMetadata(
 export default async function CheckoutPage(props: PageProps<"/[locale]/cart/checkout">) {
   const { locale } = await props.params;
   if (!isLocale(locale)) notFound();
+
+  // Closed shop: this page is a card form, and there is nothing here to do until
+  // the till is on. Back to the basket, which explains the wait — and before the
+  // sign-in redirect, so nobody is sent to log in for a checkout that will not
+  // let them check out.
+  if (!CHECKOUT_OPEN) redirect(href(locale, "cart"));
 
   // An order belongs to an account: `orders` has an own-rows-only insert policy,
   // so there is no anonymous path to create one. Guests sign in first and come

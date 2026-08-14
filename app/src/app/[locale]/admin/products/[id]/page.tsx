@@ -32,7 +32,7 @@ export default async function AdminProductPage(
     <>
       <div className="border-b border-line bg-white">
         <div className="shell py-6">
-          <p className="eyebrow text-flame">
+          <p className="eyebrow text-ink-soft">
             {creating ? t.admin.newProduct : t.admin.editProduct}
           </p>
           <h1 className="mt-1 text-3xl">{draft.name.es || t.admin.newProduct}</h1>

@@ -104,7 +104,7 @@ export default async function ArtworkPage(props: PageProps<"/[locale]/gallery/[s
               </p>
             )}
 
-            <p className="eyebrow mb-2 text-flame">{t.gallery.eyebrow}</p>
+            <p className="eyebrow mb-2 text-ink-soft">{t.gallery.eyebrow}</p>
             <h1 className="text-[clamp(1.75rem,4.5vw,3rem)] leading-[0.95]">{artwork.title}</h1>
             <p className="mt-3 text-[1.0625rem] text-mute">
               {t.gallery.by} <span className="font-semibold text-ink">{credit}</span>

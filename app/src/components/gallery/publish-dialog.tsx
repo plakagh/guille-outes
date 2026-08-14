@@ -247,7 +247,7 @@ export function PublishDialog({
             drawing: pointing at today's privacy notice would show what it says
             now, not what this person agreed to today.
           */}
-          <label className="flex items-start gap-3 border-l-2 border-flame bg-shell p-4 text-[0.875rem] leading-relaxed">
+          <label className="flex items-start gap-3 border-l-2 border-ink bg-shell p-4 text-[0.875rem] leading-relaxed">
             <input
               type="checkbox"
               name="consent"
@@ -256,7 +256,7 @@ export function PublishDialog({
             />
             <span>
               {g.consentLabel}{" "}
-              <Link href={privacyHref} className="underline hover:text-flame">
+              <Link href={privacyHref} className="underline hover:decoration-2">
                 {t.footer.legal.privacy}
               </Link>
               <span className="mt-1.5 block text-[0.8125rem] text-mute">{g.consentDetail}</span>

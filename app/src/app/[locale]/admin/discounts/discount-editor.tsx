@@ -142,7 +142,7 @@ export function DiscountEditor({
                       {draft.enabled ? null : <input type="hidden" name="enabled" value="on" />}
                       <button
                         type="submit"
-                        className="text-[0.8125rem] underline hover:text-flame"
+                        className="text-[0.8125rem] underline hover:decoration-2"
                       >
                         {draft.enabled ? label.pause : label.resume}
                       </button>
@@ -151,7 +151,7 @@ export function DiscountEditor({
                 </div>
 
                 <details className="border-t border-line-soft">
-                  <summary className="cursor-pointer px-4 py-2.5 text-[0.8125rem] font-semibold hover:text-flame">
+                  <summary className="cursor-pointer px-4 py-2.5 text-[0.8125rem] font-semibold hover:underline">
                     {label.edit}
                   </summary>
                   <div className="border-t border-line-soft p-4">
@@ -407,7 +407,7 @@ function CodeForm({
           <input type="hidden" name="id" value={draft.id} />
           <button
             type="submit"
-            className="inline-flex items-center gap-1.5 text-[0.8125rem] text-mute hover:text-flame"
+            className="inline-flex items-center gap-1.5 text-[0.8125rem] text-mute hover:text-ink"
           >
             <CloseIcon className="size-3.5" />
             {t.admin.delete}

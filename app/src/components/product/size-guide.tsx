@@ -68,7 +68,7 @@ export function SizeGuideDialog({
           type="button"
           onClick={onClose}
           aria-label={t.common.close}
-          className="grid size-9 shrink-0 place-items-center hover:text-flame"
+          className="grid size-9 shrink-0 place-items-center hover:text-mute"
         >
           <CloseIcon className="size-5" />
         </button>
@@ -119,7 +119,7 @@ export function SizeGuideDialog({
 
         <Link
           href={helpHref}
-          className="mt-4 inline-block text-[0.8125rem] font-semibold underline hover:text-flame"
+          className="mt-4 inline-block text-[0.8125rem] font-semibold underline hover:decoration-2"
         >
           {t.pdp.sizeGuideHowTo}
         </Link>

@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import type { ActionResult } from "@/lib/admin/actions";
 import {
   deletePromoMessage,
+  saveFramingSettings,
   saveNotificationSettings,
   savePromoMessage,
   saveShippingSettings,
 } from "@/lib/admin/settings-actions";
+import { compareSizes, PRINT_SIZES, type FramingSettings } from "@/lib/catalog";
 import type { PromoMessageDraft } from "@/lib/db/settings";
 import { LOCALE_META, LOCALES, type Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
@@ -21,11 +23,13 @@ const euros = (value: number) => (value / 100).toFixed(2);
 
 export function SettingsEditor({
   shipping,
+  framing,
   promos,
   notifications,
   t,
 }: {
   shipping: ShippingSettings;
+  framing: FramingSettings;
   promos: PromoMessageDraft[];
   notifications: { orderEmail: string };
   t: Dictionary;
@@ -58,6 +62,13 @@ export function SettingsEditor({
       )}
 
       <ShippingForm shipping={shipping} t={t} run={run} />
+
+      {/*
+        What a frame costs. Beside the shipping rates because it is the same kind
+        of number: charged by the server on every order, the same for the whole
+        catalogue, and changed here rather than obra by obra.
+      */}
+      <FramingForm framing={framing} t={t} run={run} />
 
       {/*
         Where the shop hears about an order. First, because it is the one setting
@@ -190,6 +201,68 @@ function ShippingForm({
   );
 }
 
+/* -------------------------------------------------------------- framing */
+
+/**
+ * The shop's frame prices, one per print format.
+ *
+ * The rows are the formats prints are sold in, plus any other size the shop has
+ * already priced — a format that was priced once must stay editable even if it is
+ * no longer one of the standard two.
+ */
+function FramingForm({
+  framing,
+  t,
+  run,
+}: {
+  framing: FramingSettings;
+  t: Dictionary;
+  run: (action: (form: FormData) => Promise<ActionResult>, form: FormData) => Promise<void>;
+}) {
+  const label = t.admin.shop;
+  const formats = [...new Set([...PRINT_SIZES, ...Object.keys(framing.surcharges)])].sort(
+    compareSizes,
+  );
+
+  return (
+    <section className="border border-line bg-white p-6">
+      <h2 className="mb-1 text-2xl">{label.framingTitle}</h2>
+      <p className="mb-5 max-w-2xl text-[0.875rem] text-mute">{label.framingBlurb}</p>
+
+      <form action={(form) => run(saveFramingSettings, form)} className="space-y-6">
+        <ul className="grid gap-5 sm:grid-cols-3">
+          {formats.map((format) => (
+            <li key={format}>
+              {/* The format travels with its amount, so the action never has to
+                  guess which size a number belongs to. */}
+              <input type="hidden" name="framing_format" value={format} />
+              <Money
+                name={`framing_surcharge_${format}`}
+                label={format}
+                defaultValue={
+                  framing.surcharges[format] === undefined ? "" : euros(framing.surcharges[format])
+                }
+                placeholder={euros(framing.surcharge)}
+              />
+            </li>
+          ))}
+        </ul>
+
+        <div className="max-w-xs">
+          <Money
+            name="framing_surcharge"
+            label={label.framingGeneral}
+            hint={label.framingGeneralHint}
+            defaultValue={euros(framing.surcharge)}
+          />
+        </div>
+
+        <Button type="submit">{t.admin.save}</Button>
+      </form>
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------ promo bar */
 
 function PromoForm({
@@ -295,7 +368,7 @@ function PromoForm({
           <input type="hidden" name="id" value={promo.id} />
           <button
             type="submit"
-            className="inline-flex items-center gap-1.5 text-[0.8125rem] text-mute hover:text-flame"
+            className="inline-flex items-center gap-1.5 text-[0.8125rem] text-mute hover:text-ink"
           >
             <CloseIcon className="size-3.5" />
             {t.admin.delete}
@@ -313,12 +386,15 @@ function Money({
   label,
   hint,
   defaultValue,
+  placeholder,
   onChange,
 }: {
   name: string;
   label: string;
   hint?: string;
   defaultValue: string;
+  /** Shown greyed out when the box is empty: what the value falls back to. */
+  placeholder?: string;
   onChange?: (value: string) => void;
 }) {
   return (
@@ -330,6 +406,7 @@ function Money({
           type="text"
           inputMode="decimal"
           defaultValue={defaultValue}
+          placeholder={placeholder}
           onChange={(event) => onChange?.(event.target.value)}
           className="h-full min-w-0 flex-1 px-3 text-right text-[0.9375rem] outline-none"
         />

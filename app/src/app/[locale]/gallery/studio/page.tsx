@@ -58,7 +58,7 @@ export default async function StudioPage(props: PageProps<"/[locale]/gallery/stu
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow mb-2 text-flame">{t.gallery.eyebrow}</p>
+          <p className="eyebrow mb-2 text-ink-soft">{t.gallery.eyebrow}</p>
           <h1 className="text-[clamp(1.75rem,4vw,2.75rem)] leading-[0.95]">
             {t.gallery.studio.title}
           </h1>

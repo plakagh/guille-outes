@@ -157,7 +157,7 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
       </div>
 
       {gatewayMissing && (
-        <div className="mt-6 border-l-2 border-gold bg-shell p-4">
+        <div className="mt-6 border-l-2 border-rust bg-shell p-4">
           <p className="font-semibold">{t.order.gatewayNotReady}</p>
           <p className="mt-1 text-[0.875rem] text-mute">{t.order.gatewayNotReadyBody}</p>
         </div>
@@ -179,7 +179,7 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
           <p className="font-semibold">{t.order.noAttemptsLeftHelp}</p>
           <Link
             href={href(locale, "help", helpSlug("contacto", locale))}
-            className="mt-3 inline-block text-[0.875rem] font-semibold underline hover:text-flame"
+            className="mt-3 inline-block text-[0.875rem] font-semibold underline hover:decoration-2"
           >
             {t.order.contactUs}
           </Link>

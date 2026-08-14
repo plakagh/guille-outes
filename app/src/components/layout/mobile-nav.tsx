@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Logo } from "@/components/brand/logo";
 import { ChevronDown, CloseIcon, MenuIcon, ShieldIcon, UserIcon } from "@/components/icons";
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
@@ -54,7 +55,23 @@ export function MobileNav({
         <MenuIcon className="size-6" />
       </button>
 
-      {open && (
+      {/*
+        The drawer is rendered into `document.body`, not where it is written.
+
+        The button belongs in the masthead, but the sheet it opens cannot stay
+        there: the masthead sits inside `<header class="sticky top-0 z-50">`, and a
+        positioned element with a z-index opens a stacking context. Every layer
+        inside it is then ordered *within* the header first, so the drawer's z-70
+        never got the chance to mean what the scale in `globals.css` says it means
+        — the announce bar (z-60) painted over the top of it, and the logo and the
+        account icons, which merely come later in the DOM, painted over the rest.
+
+        A portal is the same answer `CartDrawer` gets by being mounted in the
+        layout root: overlays are ordered against the page, so they have to be
+        children of it. The portal is only built when `open` is true, which cannot
+        happen before hydration, so there is nothing here for the server to render.
+      */}
+      {open && createPortal(
         <div className="fixed inset-0 z-[70] lg:hidden">
           <button
             type="button"
@@ -63,11 +80,20 @@ export function MobileNav({
             className="absolute inset-0 bg-black/50 animate-[scrim-in_200ms_ease-out]"
           />
 
+          {/*
+            Black, because this drawer *is* the mega-nav on a phone.
+
+            §2.2 puts the flyout on the same surface as the nav row it belongs to,
+            and the two are the same menu reached two ways — a white drawer would
+            make the phone a different shop from the desktop. `data-chrome="dark"`
+            carries the white focus ring in with it.
+          */}
           <div
-            className="absolute inset-y-0 left-0 flex w-[min(22rem,88vw)] flex-col bg-white animate-[drawer-in_300ms_var(--ease-out-quint)]"
+            data-chrome="dark"
+            className="absolute inset-y-0 left-0 flex w-[min(22rem,88vw)] flex-col bg-black text-white animate-[drawer-in_300ms_var(--ease-out-quint)]"
             style={{ "--from": "-100%" } as React.CSSProperties}
           >
-            <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <div className="flex items-center justify-between border-b border-white/15 px-4 py-3">
               <Link href={href(locale)} onClick={close}>
                 <Logo className="h-5" />
               </Link>
@@ -82,7 +108,7 @@ export function MobileNav({
             </div>
 
             <nav aria-label={t.header.mobileNav} className="flex-1 overflow-y-auto">
-              <ul className="divide-y divide-line-soft">
+              <ul className="divide-y divide-white/10">
                 {nav.map((item) => {
                   const isExpanded = expanded === item.label;
                   return (
@@ -93,7 +119,9 @@ export function MobileNav({
                           onClick={close}
                           className={cn(
                             "flex-1 px-4 py-3.5 font-display text-lg font-bold uppercase",
-                            item.accent && "text-flame",
+                            // The outlet keeps its red on the dark drawer too, in
+                            // the tint that survives black.
+                            item.accent && "text-flame-bright",
                           )}
                         >
                           {item.label}
@@ -104,7 +132,7 @@ export function MobileNav({
                             onClick={() => setExpanded(isExpanded ? null : item.label)}
                             aria-expanded={isExpanded}
                             aria-label={item.label}
-                            className="grid w-12 place-items-center border-l border-line-soft"
+                            className="grid w-12 place-items-center border-l border-white/10"
                           >
                             <ChevronDown
                               className={cn(
@@ -117,17 +145,21 @@ export function MobileNav({
                       </div>
 
                       {isExpanded && item.columns && (
-                        <div className="space-y-4 bg-shell px-4 py-4">
+                        // The expanded group is a shade up from the drawer rather
+                        // than a light well: `--surface-subtle` exists to separate
+                        // bands, and on a black surface the equivalent is a lift,
+                        // not an inversion.
+                        <div className="space-y-4 bg-white/[0.07] px-4 py-4">
                           {item.columns.map((column) => (
                             <div key={column.heading}>
-                              <p className="eyebrow mb-2 text-mute">{column.heading}</p>
+                              <p className="eyebrow mb-2 text-white/55">{column.heading}</p>
                               <ul className="space-y-1.5">
                                 {column.links.map((link) => (
                                   <li key={link.href + link.label}>
                                     <Link
                                       href={link.href}
                                       onClick={close}
-                                      className="text-[0.875rem]"
+                                      className="text-[0.875rem] text-white/85"
                                     >
                                       {link.label}
                                     </Link>
@@ -144,7 +176,7 @@ export function MobileNav({
               </ul>
             </nav>
 
-            <div className="space-y-3 border-t border-line px-4 py-4 text-[0.875rem]">
+            <div className="space-y-3 border-t border-white/15 px-4 py-4 text-[0.875rem]">
               <Link
                 href={viewer ? href(locale, "account") : href(locale, "login")}
                 onClick={close}
@@ -157,16 +189,18 @@ export function MobileNav({
                 <Link
                   href={href(locale, "admin")}
                   onClick={close}
-                  className="flex items-center gap-2 font-semibold text-flame"
+                  className="flex items-center gap-2 font-semibold text-flame-bright"
                 >
                   <ShieldIcon className="size-5" />
                   {t.header.adminPanel}
                 </Link>
               )}
-              <LocaleSwitcher locale={locale} t={t} tone="dark" />
+              {/* `tone="light"` is the on-dark tone — the drawer is black now. */}
+              <LocaleSwitcher locale={locale} t={t} tone="light" />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

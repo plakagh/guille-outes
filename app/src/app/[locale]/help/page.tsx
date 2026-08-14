@@ -38,7 +38,7 @@ export default async function HelpHub(props: PageProps<"/[locale]/help">) {
         className="mb-5"
       />
 
-      <p className="eyebrow mb-3 text-flame">{t.help.eyebrow}</p>
+      <p className="eyebrow mb-3 text-ink-soft">{t.help.eyebrow}</p>
       <h1 className="text-[clamp(2rem,5vw,3.5rem)] leading-[0.9]">{t.help.title}</h1>
       <p className="mt-3 max-w-2xl text-[1.0625rem] leading-relaxed text-mute">{t.help.blurb}</p>
 

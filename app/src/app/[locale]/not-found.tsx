@@ -24,7 +24,7 @@ export default async function NotFound() {
         <ButtonLink href={href(locale, "shop")}>{t.notFound.cta}</ButtonLink>
         <Link
           href={href(locale)}
-          className="inline-flex h-12 items-center px-2 text-[0.875rem] underline hover:text-flame"
+          className="inline-flex h-12 items-center px-2 text-[0.875rem] underline hover:decoration-2"
         >
           {t.notFound.home}
         </Link>

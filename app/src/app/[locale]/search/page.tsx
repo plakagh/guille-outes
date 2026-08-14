@@ -42,7 +42,7 @@ export default async function SearchPage(props: PageProps<"/[locale]/search">) {
     return (
       <>
         <div className="shell py-14">
-          <p className="eyebrow mb-3 text-flame">{t.search.nothingFor}</p>
+          <p className="eyebrow mb-3 text-ink-soft">{t.search.nothingFor}</p>
           <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[0.9]">
             {t.search.nothingFor} “{query}”
           </h1>

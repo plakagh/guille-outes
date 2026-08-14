@@ -76,7 +76,9 @@ export function CartSuggestions({
       className={cn(
         // Its own surface, and in the drawer a shaded one: this sits directly
         // below the lines of the order and must not read as one more of them.
-        layout === "list" ? "border-t-4 border-ink bg-shell px-5 py-5" : "border-2 border-ink p-5",
+        // On the page a single rule above says as much: a box drawn in ink on
+        // all four sides shouted louder than the order it hangs under.
+        layout === "list" ? "border-t-4 border-ink bg-shell px-5 py-5" : "border-t border-ink pt-6",
         className,
       )}
     >
@@ -89,7 +91,10 @@ export function CartSuggestions({
         className={cn(
           "mt-4",
           layout === "list"
-            ? "divide-y divide-line-soft border-y border-line-soft"
+            ? // Rules between the tiles and one above the first, but none under
+              // the last: it would only draw a second line a few pixels above
+              // the one the total already brings.
+              "divide-y divide-line-soft border-t border-line-soft"
             : "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-4",
         )}
       >
@@ -127,6 +132,20 @@ function SuggestionTile({ item, layout }: { item: CartSuggestion; layout: "list"
   const direct =
     item.choices.length === 1 || item.frameFinish !== undefined ? (item.choices[0] ?? null) : null;
 
+  /*
+    What the button would add, when it adds without asking: the format, and the
+    frame it goes in — the same two things the basket line says about it once it
+    is in there.
+  */
+  const meta = direct
+    ? [
+        direct.size === ONE_SIZE ? null : direct.size,
+        item.frameFinish ? frameLabel(item.frameFinish, t.pdp) : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
+
   const addChoice = (choice: SuggestionChoice) => {
     add({
       slug: item.slug,
@@ -153,14 +172,17 @@ function SuggestionTile({ item, layout }: { item: CartSuggestion; layout: "list"
     <Link
       href={href("product", item.slug)}
       onClick={close}
-      className={cn("group", layout === "list" ? "flex min-w-0 flex-1 items-center gap-3" : "block")}
+      className={cn(
+        "group",
+        layout === "list" ? "flex min-w-0 flex-1 items-center gap-3" : "flex flex-1 flex-col",
+      )}
     >
       {layout === "list" ? (
         <div className="size-16 shrink-0 bg-shell">
           <SuggestionShot item={item} />
         </div>
       ) : (
-        <div className="aspect-[5/6] overflow-hidden bg-shell">
+        <div className="aspect-[3/4] shrink-0 overflow-hidden bg-shell">
           <div className="h-full w-full transition-transform duration-500 ease-[var(--ease-out-quint)] group-hover:scale-[1.04]">
             <SuggestionShot item={item} />
           </div>
@@ -174,18 +196,12 @@ function SuggestionTile({ item, layout }: { item: CartSuggestion; layout: "list"
         <p className="mt-0.5 truncate text-[0.875rem] font-semibold leading-snug group-hover:underline">
           {item.name}
         </p>
-        {/* What the button would add, when it adds without asking: the format,
-            and the frame it goes in — the same two things the basket line says
-            about it once it is in there. */}
-        {direct && (
-          <p className="mt-0.5 truncate text-[0.6875rem] text-mute">
-            {[
-              direct.size === ONE_SIZE ? null : direct.size,
-              item.frameFinish ? frameLabel(item.frameFinish, t.pdp) : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
+        {/* In the row on the page the line is held open even when there is
+            nothing to put in it: a camiseta with no format to name sat beside
+            cuadros that had one, and its price and its button rode a line
+            higher than theirs. */}
+        {(meta || layout === "grid") && (
+          <p className="mt-0.5 truncate text-[0.6875rem] text-mute">{meta || "\u00a0"}</p>
         )}
         <Price
           price={item.price}
@@ -199,8 +215,13 @@ function SuggestionTile({ item, layout }: { item: CartSuggestion; layout: "list"
   );
 
   return (
-    <li className={cn(layout === "list" && "py-3")}>
-      <div className={cn(layout === "list" ? "flex items-center gap-3" : "block")}>
+    // A tile on the page is as tall as the tallest of its row, and hangs its
+    // parts off that: picture at the top, button at the foot. Four of them read
+    // as one shelf that way, rather than as four cards of their own heights.
+    <li className={cn(layout === "list" ? "py-3" : "flex h-full flex-col")}>
+      <div
+        className={cn(layout === "list" ? "flex items-center gap-3" : "flex flex-1 flex-col gap-3")}
+      >
         {link}
 
         {/* Sold out in every size is no button at all — the link stands, and the
@@ -212,7 +233,9 @@ function SuggestionTile({ item, layout }: { item: CartSuggestion; layout: "list"
             block={layout === "grid"}
             aria-label={`${t.cart.addSuggestion} · ${item.name}`}
             onClick={() => (direct ? addChoice(direct) : setChoosing(true))}
-            className={cn(layout === "list" ? "shrink-0" : "mt-3")}
+            // The gap above is the row's minimum; `mt-auto` takes whatever else
+            // is going, which is what lands every button of a row on one line.
+            className={cn(layout === "list" ? "shrink-0" : "mt-auto")}
           >
             {t.cart.addSuggestion}
           </Button>

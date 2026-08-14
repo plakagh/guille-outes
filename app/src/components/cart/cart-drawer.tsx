@@ -9,6 +9,7 @@ import { useI18n } from "@/components/i18n/provider";
 import { BagIcon, CloseIcon, MinusIcon, PlusIcon, TruckIcon } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { frameLabel } from "@/lib/catalog";
+import { CHECKOUT_OPEN } from "@/lib/shop-status";
 import { formatPrice } from "@/lib/utils";
 
 export function CartDrawer() {
@@ -44,7 +45,7 @@ export function CartDrawer() {
             type="button"
             onClick={close}
             aria-label={t.common.close}
-            className="grid size-9 place-items-center hover:text-flame"
+            className="grid size-9 place-items-center hover:text-mute"
           >
             <CloseIcon className="size-5" />
           </button>
@@ -82,9 +83,10 @@ export function CartDrawer() {
               </div>
             </div>
 
-            {/* The lines and what to look at next share one scroller, so the
-                shelf sits under the basket rather than pinned above the total,
-                and the total stays where it is. */}
+            {/* The lines, what to look at next and the arithmetic share one
+                scroller: on a short screen the shelf is then on the way to the
+                total, instead of hidden below a figure that is always visible.
+                Only the button stays pinned. */}
             <div className="flex-1 overflow-y-auto">
               <ul className="divide-y divide-line-soft">
                 {lines.map((line) => (
@@ -94,10 +96,8 @@ export function CartDrawer() {
               {/* The shelf brings its own rule and its own shading — it has to
                   stop looking like one more line of the order. */}
               <CartSuggestions limit={3} />
-            </div>
 
-            <div className="space-y-3 border-t border-line px-5 py-4">
-              <dl className="space-y-1.5 text-[0.875rem]">
+              <dl className="space-y-1.5 border-t border-line px-5 py-4 text-[0.875rem]">
                 <div className="flex justify-between">
                   <dt className="text-mute">{t.cart.subtotal}</dt>
                   <dd className="font-semibold">{formatPrice(subtotal)}</dd>
@@ -128,8 +128,18 @@ export function CartDrawer() {
                   <VatLines grossCents={total} t={t} />
                 </div>
               </dl>
+            </div>
 
-              <ButtonLink href={href("cart")} onClick={close} block size="lg">
+            <div className="space-y-3 border-t border-line px-5 py-4">
+              {/* The button below goes to the basket, not to a card form, so it
+                  is not lying — but it says "checkout", and letting someone read
+                  that and click it only to be told upstairs is a wasted trip. */}
+              {!CHECKOUT_OPEN && (
+                <p className="border-l-2 border-ink bg-shell p-3 text-[0.8125rem] leading-relaxed">
+                  {t.comingSoon.cartNote}
+                </p>
+              )}
+              <ButtonLink href={href("cart")} onClick={close} variant="primary" block size="lg">
                 {t.cart.checkout}
               </ButtonLink>
               <button
@@ -191,7 +201,7 @@ function CartRow({ line }: { line: CartLine }) {
             <p className="mt-0.5 truncate text-[0.75rem] text-mute">
               {t.gallery.printedWith} «{line.artwork.title}» · {line.artwork.author}
             </p>
-            <p className="mt-1 inline-block border-l-2 border-flame bg-shell px-1.5 py-0.5 text-[0.6875rem] font-semibold">
+            <p className="mt-1 inline-block border-l-2 border-rust bg-shell px-1.5 py-0.5 text-[0.6875rem] font-semibold">
               {t.gallery.tee.cartNote}
             </p>
           </>

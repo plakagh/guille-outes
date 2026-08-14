@@ -1,16 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
-import {
-  FacebookIcon,
-  InstagramIcon,
-  ReturnIcon,
-  ShieldIcon,
-  StoreIcon,
-  TiktokIcon,
-  TruckIcon,
-  XIcon,
-  YoutubeIcon,
-} from "@/components/icons";
+import { InstagramIcon, ReturnIcon, ShieldIcon, StoreIcon, TruckIcon } from "@/components/icons";
 import { Newsletter } from "@/components/layout/newsletter";
 import { hasOutlet } from "@/lib/catalog";
 import { getCatalog } from "@/lib/db/catalog";
@@ -20,13 +10,17 @@ import { href } from "@/lib/i18n/routes";
 import { legalSlug } from "@/lib/pages";
 import { buildFooterColumns, buildLegalLinks } from "@/lib/nav";
 
-const SOCIALS = [
-  { label: "Instagram", url: "https://instagram.com", Icon: InstagramIcon },
-  { label: "TikTok", url: "https://tiktok.com", Icon: TiktokIcon },
-  { label: "X", url: "https://x.com", Icon: XIcon },
-  { label: "YouTube", url: "https://youtube.com", Icon: YoutubeIcon },
-  { label: "Facebook", url: "https://facebook.com", Icon: FacebookIcon },
-];
+/*
+  Instagram, and nothing else — the row used to carry five icons pointing at
+  tiktok.com, x.com, youtube.com and facebook.com, which are the platforms'
+  front doors rather than accounts. A shopper who clicked one landed on a login
+  wall having been told the shop was there, and none of those accounts exist.
+
+  One link that goes somewhere beats five that do not, and it is now wide enough
+  to say where it goes: a single 40px square in an otherwise empty row reads as
+  four icons that failed to load.
+*/
+const INSTAGRAM = { handle: "@guilleoutes", url: "https://www.instagram.com/guilleoutes/" };
 
 export async function SiteFooter({ locale }: { locale: Locale }) {
   // The catalogue is only read to know whether there is an outlet to link to.
@@ -68,28 +62,33 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
       />
 
       {/* Link columns */}
-      <div className="bg-ink-soft text-white">
+      {/*
+        Pure black, matching the header.
+
+        This was #1C1C1C, which is the kind of nearly-black that reads as a choice
+        nobody made — and with the masthead now at #000 the two ends of the page
+        would have disagreed by a shade. `--color-ink-soft` has been repurposed as
+        the body-copy grey (`--text-secondary`) that `design.md` actually asks for,
+        which this was the only caller of.
+      */}
+      <div data-chrome="dark" className="bg-black text-white">
         <div className="shell grid gap-10 py-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-1">
             <Logo className="h-6 text-white" />
             <p className="mt-4 text-[0.8125rem] leading-relaxed text-white/60">
               {t.footer.about}
             </p>
-            <ul className="mt-5 flex flex-wrap gap-2">
-              {SOCIALS.map(({ label, url, Icon }) => (
-                <li key={label}>
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    aria-label={label}
-                    className="grid size-10 place-items-center border border-white/20 transition hover:border-white hover:bg-white hover:text-ink"
-                  >
-                    <Icon className="size-[1.15rem]" />
-                  </a>
-                </li>
-              ))}
-            </ul>
+            <a
+              href={INSTAGRAM.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-5 inline-flex items-center gap-2.5 border border-white/20 py-2 pl-2.5 pr-4 transition hover:border-white hover:bg-white hover:text-ink"
+            >
+              <InstagramIcon className="size-[1.15rem]" />
+              <span className="font-display text-[0.875rem] font-bold uppercase tracking-wide">
+                {INSTAGRAM.handle}
+              </span>
+            </a>
           </div>
 
           {columns.map((column) => (

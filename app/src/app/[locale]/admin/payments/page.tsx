@@ -55,7 +55,7 @@ export default async function AdminPaymentsPage(props: PageProps<"/[locale]/admi
     <>
       <div className="border-b border-line bg-white">
         <div className="shell py-6">
-          <p className="eyebrow text-flame">{t.payments.eyebrow}</p>
+          <p className="eyebrow text-ink-soft">{t.payments.eyebrow}</p>
           <h1 className="mt-1 text-3xl">{t.payments.title}</h1>
         </div>
       </div>

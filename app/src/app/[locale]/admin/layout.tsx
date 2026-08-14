@@ -63,7 +63,7 @@ export default async function AdminLayout({ children, params }: LayoutProps<"/[l
         <div className="shell flex flex-wrap items-center gap-4 py-4">
           <Monogram className="size-8" inverted />
           <div className="mr-auto">
-            <p className="eyebrow text-flame">{t.admin.eyebrow}</p>
+            <p className="eyebrow text-ink-soft">{t.admin.eyebrow}</p>
             <p className="font-display text-xl font-bold uppercase leading-none">
               {t.admin.title}
             </p>

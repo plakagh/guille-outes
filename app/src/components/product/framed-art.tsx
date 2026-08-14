@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { FrameFinish, FrameSize } from "@/lib/catalog";
+import type { FrameFinish } from "@/lib/catalog";
 
 /**
  * A picture frame, drawn in CSS.
@@ -37,55 +37,22 @@ export type FinishStyle = {
   inner: string;
 };
 
-/**
- * The moulding, as a percentage of the frame's own width. Exported because the
- * wall view has to turn "50 cm of paper" into a number of pixels for the *whole*
- * frame, and that conversion is only right if it uses the same number the CSS
- * below paints with.
- */
-export const MOULDING_PCT = 3.2;
+/*
+  The frame's geometry lives in `@/lib/catalog` — see the note there.
 
-/** The wall margin around the frame in the standard rendering. */
-export const WALL_PCT = 7;
+  It used to be declared in this file, which is `"use client"`. `framedAspect` is
+  pure arithmetic, but the boundary does not care: importing it from a server
+  component yields a reference to a client export, and calling it throws
+  "Attempted to call framedAspect() from the server". The homepage was doing that
+  through `CategoryTiles`, so `/` returned a 500 while the listing pages — which
+  reach the same tile from inside a client component — were fine.
 
-/**
- * How much wider the frame is than the artwork inside it, as a multiplier.
- *
- * Both paddings are percentages resolved against the width of the box they sit
- * in, so each one shrinks what is left: the moulding takes its share of the
- * outer box, and the mount takes its share of what the moulding leaves. Reading
- * it backwards — from the art outwards — is what turns a printed size into the
- * size the frame must be drawn at.
- */
-export function framedWidthRatio(mount: number): number {
-  return 1 / ((1 - (2 * MOULDING_PCT) / 100) * (1 - (2 * mount) / 100));
-}
-
-/**
- * The proportions of the finished frame — moulding and mount included — around a
- * print of the given format, as width ÷ height.
- *
- * Wanted wherever the frame has to fit a box that is not its own shape. A basket
- * thumbnail is a square, and a 50 × 70 hung at the square's full width stands a
- * third of itself outside it; knowing the finished shape is what lets the caller
- * size by height instead.
- *
- * Both paddings are percentages, and CSS resolves percentage padding against the
- * containing block's *width* — the top and bottom ones included. So the whole
- * frame can be worked out from the printed proportions alone, in the same units
- * `framedWidthRatio` uses: the artwork one unit wide.
- */
-export function framedAspect(print: FrameSize, mount: number): number {
-  const width = framedWidthRatio(mount);
-  const art = print.height / print.width;
-  // The mount's own padding is a share of the moulding's content box, which is
-  // the artwork plus that same padding — hence the division rather than a share
-  // of the whole frame.
-  const mountPad = mount / 100 / (1 - (2 * mount) / 100);
-  const mouldingPad = (MOULDING_PCT / 100) * width;
-
-  return width / (art + 2 * mountPad + 2 * mouldingPad);
-}
+  Not re-exported from here either, tempting as that is to spare the callers a
+  changed import: a `"use client"` module re-exporting something makes it a client
+  export again, so the server-side call fails exactly as before. Callers that need
+  the arithmetic import it from `@/lib/catalog`; this module only paints.
+*/
+import { MOULDING_PCT, WALL_PCT } from "@/lib/catalog";
 
 export const FRAME_PAINT: Record<FrameFinish, FinishStyle> = {
   black: {

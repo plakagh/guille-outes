@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { FRAME_MAX_SURCHARGE } from "@/lib/catalog";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { createClient, getViewer } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/admin/actions";
@@ -77,6 +78,53 @@ export async function saveShippingSettings(form: FormData): Promise<ActionResult
 
   if (error) return { ok: false, error: error.message };
 
+  revalidateStore();
+  return { ok: true };
+}
+
+/* ----------------------------------------------------------- framing */
+
+/**
+ * What a frame costs, for the whole shop.
+ *
+ * The price a cuadro is framed at is a fact about the framer's invoice rather than
+ * about one artwork, so it lives here and every piece inherits it. A piece that is
+ * genuinely different overrides it on its own ficha — see `saveFramePreview` — and
+ * that is the exception, not the rule.
+ *
+ * Per format, because framing a 50 × 70 is more moulding, more glass and more
+ * mount than framing a 30 × 40. A format left blank is charged the general figure
+ * beside them, which is why that one is required: a blank there would make every
+ * unpriced format free without anybody saying so.
+ */
+export async function saveFramingSettings(form: FormData): Promise<ActionResult> {
+  if (!(await requireAdmin())) return { ok: false, error: FORBIDDEN };
+
+  // The form sends the formats it drew rows for, so a size the shop stops selling
+  // drops out on the next save instead of lingering in the JSON for ever.
+  const formats = form.getAll("framing_format").map(String).filter(Boolean);
+
+  const surcharges: Record<string, number> = {};
+  for (const format of formats) {
+    const typed = cents(form, `framing_surcharge_${format}`);
+    if (typed !== null) surcharges[format] = Math.min(typed, FRAME_MAX_SURCHARGE);
+  }
+
+  const general = cents(form, "framing_surcharge");
+  if (general === null) return { ok: false, error: INVALID };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("framing_settings")
+    .update({
+      surcharges,
+      surcharge_cents: Math.min(general, FRAME_MAX_SURCHARGE),
+    })
+    .eq("singleton", true);
+
+  if (error) return { ok: false, error: error.message };
+
+  // Every ficha and every listing card of a cuadro quotes this.
   revalidateStore();
   return { ok: true };
 }

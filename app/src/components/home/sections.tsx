@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ProductShot } from "@/components/product/product-shot";
-import { FramedArt, framedAspect } from "@/components/product/framed-art";
+import { FramedArt } from "@/components/product/framed-art";
 import { ArrowRight } from "@/components/icons";
 import { ProductCard } from "@/components/product/product-card";
 import { SectionHead } from "@/components/ui/bits";
@@ -8,6 +8,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Rail } from "@/components/ui/rail";
 import { mediaUrl } from "@/lib/supabase/env";
 import {
+  framedAspect,
   frameAspect,
   frameOrientation,
   frameSizeOptions,
@@ -52,7 +53,7 @@ export function CategoryTiles({ locale, t, catalog }: Common) {
                     </div>
                   )}
                 </div>
-                <p className="mt-2 text-center font-display text-[0.9375rem] font-bold uppercase leading-tight group-hover:text-flame">
+                <p className="mt-2 text-center font-display text-[0.9375rem] font-bold uppercase leading-tight group-hover:underline">
                   {category.name}
                 </p>
               </Link>
@@ -223,10 +224,10 @@ export function AuthorsBand({ locale, t, catalog }: Common) {
                   )}
                 </span>
                 <span>
-                  <span className="block font-display text-lg font-bold uppercase leading-tight group-hover:text-flame">
+                  <span className="block font-display text-lg font-bold uppercase leading-tight group-hover:underline">
                     {author.name}
                   </span>
-                  <span className="eyebrow mt-1 block text-flame">{author.role}</span>
+                  <span className="eyebrow mt-1 block text-ink-soft">{author.role}</span>
                 </span>
                 <span className="line-clamp-3 text-[0.8125rem] leading-snug text-mute">
                   {author.bio}
@@ -254,12 +255,22 @@ export function AuthorsBand({ locale, t, catalog }: Common) {
 export function EditorialSplit({ locale, t }: Omit<Common, "catalog">) {
   return (
     <section className="shell py-10 lg:py-14">
-      <article className="relative overflow-hidden bg-[#e5dfd2] p-8 text-ink lg:p-12">
-        <p className="eyebrow mb-3 text-flame">{t.home.giftEyebrow}</p>
+      {/*
+        `--surface-subtle`, not the sand it was.
+
+        Rule 4 of the colour system: sections are flat, and their colour comes
+        from the photography rather than from CSS. #E5DFD2 was a tint nothing else
+        on the site refers to, so the band read as belonging to a different shop —
+        and §2.2 gives an editorial band exactly two grounds, white or #F5F5F5.
+        The band still separates from the white above and below it, which is the
+        whole job `--surface-subtle` exists for.
+      */}
+      <article className="relative overflow-hidden bg-shell p-8 text-ink lg:p-12">
+        <p className="eyebrow mb-3 text-ink-soft">{t.home.giftEyebrow}</p>
         <h3 className="text-[clamp(1.75rem,4vw,2.75rem)] leading-none">
           {t.home.giftTitle}
         </h3>
-        <p className="mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink/65">
+        <p className="mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-soft">
           {t.home.giftBlurb}
         </p>
         <ButtonLink
@@ -296,9 +307,18 @@ export function KidsGalleryBand({
 }: Omit<Common, "catalog"> & { artworks: Artwork[] }) {
   return (
     <section className="shell py-10 lg:py-14">
-      <div className="grid gap-8 bg-[#0b3d5c] p-8 text-white lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-center lg:gap-12 lg:p-12">
+      {/*
+        Light, like the other editorial band — it was navy with a yellow eyebrow.
+
+        Those two values were a third and fourth hue in a three-colour system, and
+        #FFD400 in particular had no relative anywhere else in the shop. The band
+        keeps every bit of its warmth where the warmth actually comes from: five
+        real children's drawings, which is the one thing on this page that is
+        supposed to supply the colour (rule 4).
+      */}
+      <div className="grid gap-8 bg-shell p-8 text-ink lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-center lg:gap-12 lg:p-12">
         <div>
-          <p className="eyebrow mb-3 text-[#ffd400]">{t.home.kidsArtEyebrow}</p>
+          <p className="eyebrow mb-3 text-ink-soft">{t.home.kidsArtEyebrow}</p>
           {/*
             Looser than the other headings on purpose: the condensed face sets
             its tilde high above the cap, and at 0.95 the Ñ of "NIÑOS" loses it
@@ -307,18 +327,15 @@ export function KidsGalleryBand({
           <h2 className="text-[clamp(1.875rem,4.5vw,3rem)] leading-[1.08]">
             {t.home.kidsArtTitle}
           </h2>
-          <p className="mt-4 text-[0.9375rem] leading-relaxed text-white/70">
+          <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-soft">
             {t.home.kidsArtBlurb}
           </p>
+          {/* Black CTA plus a black outline — §2.2's pair for an editorial band. */}
           <div className="mt-6 flex flex-wrap gap-3">
-            <ButtonLink href={href(locale, "studio")} variant="inverse">
+            <ButtonLink href={href(locale, "studio")} variant="solid">
               {t.gallery.paintCta}
             </ButtonLink>
-            <ButtonLink
-              href={href(locale, "gallery")}
-              variant="ghost"
-              className="bg-white/10 text-white hover:bg-white/20"
-            >
+            <ButtonLink href={href(locale, "gallery")} variant="outline">
               {t.home.kidsArtSecondary}
             </ButtonLink>
           </div>
@@ -343,7 +360,7 @@ export function KidsGalleryBand({
                   className="group block focus-visible:outline-offset-4"
                   title={artwork.title}
                 >
-                  <span className="flex aspect-square items-center justify-center overflow-hidden bg-white/10 p-1">
+                  <span className="flex aspect-square items-center justify-center overflow-hidden bg-white p-1">
                     {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL, sized by CSS */}
                     <img
                       src={artwork.imageUrl}
@@ -352,7 +369,7 @@ export function KidsGalleryBand({
                       className="max-h-full max-w-full object-contain transition-transform duration-500 ease-[var(--ease-out-quint)] group-hover:scale-105"
                     />
                   </span>
-                  <span className="mt-1.5 block truncate text-[0.75rem] text-white/60">
+                  <span className="mt-1.5 block truncate text-[0.75rem] text-mute">
                     {artwork.authorName}
                   </span>
                 </Link>
@@ -377,11 +394,25 @@ export function OutletBand({
   const names = new Map(catalog.collections.map((c) => [c.id, c.name]));
 
   return (
-    <section className="bg-flame text-white">
+    /*
+      Black band, red label — it was a full-bleed red band.
+
+      §2.1 puts "fondos de sección grandes" in red's NO column, and this was the
+      largest red surface on the site by a wide margin. It also defeated its own
+      purpose: the cards inside it carry red SALE badges and red reduced prices,
+      and those are the marks a shopper actually reads a discount from. On red
+      they had nothing to be red *against*.
+
+      So the band states what it is in the eyebrow and gives the red back to the
+      prices. Black also keeps the promise of the colour rule intact one level up:
+      the homepage now has exactly one red region, and it is the one full of
+      reduced prices.
+    */
+    <section data-chrome="dark" className="bg-black text-white">
       <div className="shell py-10 lg:py-14">
         <div className="mb-5 flex items-end justify-between gap-6">
           <div>
-            <p className="eyebrow mb-2 text-white/75">{t.home.outletEyebrow}</p>
+            <p className="eyebrow mb-2 text-flame-bright">{t.home.outletEyebrow}</p>
             <h2 className="section-title">{t.home.outletTitle}</h2>
           </div>
           <Link
@@ -419,7 +450,7 @@ export function BrandNote({ t }: { t: Dictionary }) {
     <section className="border-t border-line">
       <div className="shell grid gap-8 py-12 lg:grid-cols-[1fr_1.2fr] lg:py-16">
         <div>
-          <p className="eyebrow mb-3 text-flame">{t.home.projectEyebrow}</p>
+          <p className="eyebrow mb-3 text-ink-soft">{t.home.projectEyebrow}</p>
           <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] leading-[0.92]">
             {t.home.projectTitle}
           </h2>

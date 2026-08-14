@@ -326,20 +326,82 @@ export function isFrameChoice(value: string): value is FrameChoice {
  */
 export type FrameSize = { width: number; height: number };
 
+/**
+ * What the shop charges to frame a print, for the pieces that do not say.
+ *
+ * The price of a frame is a fact about a framer's invoice rather than about one
+ * artwork, so it is a shop setting: thirty cuadros in two formats would otherwise
+ * be sixty amounts to type and sixty to revisit when the framer puts his prices
+ * up. A piece that is genuinely different overrides it — see {@link FramePreview}.
+ */
+export type FramingSettings = {
+  /** Size name → cents, keyed like `product_variants.size`. */
+  surcharges: Record<string, number>;
+  /** What a format the map says nothing about costs to frame. */
+  surcharge: number;
+};
+
+/**
+ * Used when the settings row cannot be read — a cold cache, a database blip — and
+ * by every caller that parses a preview outside a catalogue read.
+ *
+ * Free rather than a guess, in both cases. The server re-prices every order from
+ * the database, so this can never be what a customer is charged; a made-up figure
+ * shown in a browser could be.
+ */
+export const DEFAULT_FRAMING: FramingSettings = { surcharges: {}, surcharge: 0 };
+
+/** Reads a `framing_settings` row, falling back rather than throwing. */
+export function parseFramingSettings(row: unknown): FramingSettings {
+  if (typeof row !== "object" || row === null) return DEFAULT_FRAMING;
+
+  const raw = row as { surcharges?: unknown; surcharge_cents?: unknown };
+  return {
+    surcharges: parseFrameSurcharges(raw.surcharges),
+    surcharge: frameCents(raw.surcharge_cents) ?? DEFAULT_FRAMING.surcharge,
+  };
+}
+
 export type FramePreview = {
   /** Ordered; the first is what the preview opens with. */
   finishes: FrameFinish[];
   /** Mount width as a percentage of the artwork's shorter side. */
   mount: number;
   /**
-   * What the frame adds to the price of the print, in cents.
+   * What the frame adds to the price of the print, in cents, per format — keyed
+   * by the product's own size names, exactly like {@link FramePreview.sizes}.
    *
    * The catalogue price is the paper: "el precio indicado es solo de la lámina"
    * is what the product page has always said, and this is the number that makes
    * it true when somebody wants it framed. One amount for the three finishes,
-   * because that is what framing costs the shop; zero is a frame given away.
+   * because that is what framing costs the shop — but *not* one amount for every
+   * format: a 50 × 70 is more moulding, more glass and more mount than a 30 × 40,
+   * and charging the same for both loses money on one of them.
+   *
+   * Only the formats the shop typed an amount for are in here. A format that is
+   * missing is not a free frame: it is this piece having nothing to say about it,
+   * and it falls through to {@link FramePreview.inherited}.
    */
-  surcharge: number;
+  surcharges: Record<string, number>;
+  /**
+   * What this piece's frame costs in a format that has no amount of its own, or
+   * null when the shop has said nothing about this piece at all.
+   *
+   * Null and zero are different answers and the difference is money: zero is
+   * "this one is framed for free", typed on purpose and honoured; null is "ask the
+   * shop's price". Beside `surcharges` for the same reason `width`/`height` sit
+   * beside `sizes` — a product can be sold framed before its formats exist.
+   */
+  surcharge: number | null;
+  /**
+   * The shop's own prices, filled in by the catalogue read, for everything this
+   * piece leaves unsaid.
+   *
+   * Carried inside the preview rather than passed to each caller: a listing card,
+   * a cross-sell tile and the buybox all price a frame, all of them from a
+   * `Product` and none of them anywhere near a settings query.
+   */
+  inherited: FramingSettings;
   /**
    * What each format is printed at, keyed by the product's own size names — the
    * same names the size buttons and the stock rows use ("Pequeño", "Grande").
@@ -363,9 +425,11 @@ export type FramePreview = {
 export const DEFAULT_FRAME_PREVIEW: FramePreview = {
   finishes: [...FRAME_FINISHES],
   mount: 10,
-  // Nothing, until the shop says what a frame costs. A surcharge invented here
-  // would be money charged to a customer that nobody decided to charge.
-  surcharge: 0,
+  // Nothing of its own: a piece nobody has priced is framed at the shop's price,
+  // and an amount invented here would be money charged that nobody decided on.
+  surcharges: {},
+  surcharge: null,
+  inherited: DEFAULT_FRAMING,
   sizes: {},
   // 50 × 70 is the standard European poster size.
   width: 50,
@@ -385,6 +449,45 @@ const PRINT_SIZE_CM: Record<string, FrameSize> = {
   Pequeño: { width: 30, height: 40 },
   Grande: { width: 50, height: 70 },
 };
+
+/**
+ * The category whose products are sold framed.
+ *
+ * Framing is per product and not per category — a poster may be sold unframed,
+ * and the shop can turn any piece's preview off — but "cuadro" is what the shop
+ * picks when it means a piece of paper meant for a wall, and it is the only
+ * signal available at the moment a product is created.
+ */
+export const FRAMED_CATEGORY = "cuadros";
+
+/**
+ * The stored `frame_preview` a cuadro is born with.
+ *
+ * A product created in the cuadros category arrives framed and priced: the three
+ * finishes, a white mount, the two standard paper sizes, and the shop's own frame
+ * price by saying nothing about its own. Otherwise the ficha of a brand-new cuadro
+ * offers no frame at all — not the colour, not "sin marco" — until somebody
+ * remembers to tick a box in a section that is not even on screen while it is
+ * being created.
+ *
+ * No `surcharge` and no `surcharges` here, and that is the point: an amount
+ * written now would be an exception to a shop price nobody asked for. A new cuadro
+ * costs what every other cuadro costs to frame until somebody says otherwise.
+ *
+ * Every number here is a default the shop can correct afterwards. The one that
+ * matters is `enabled`: it is what puts the choice in front of the shopper.
+ */
+export function initialFramePreview() {
+  return {
+    enabled: true,
+    finishes: [...FRAME_FINISHES],
+    mount: DEFAULT_FRAME_PREVIEW.mount,
+    sizes: { ...PRINT_SIZE_CM },
+    // The fallback pair is the smaller format: it is what a listing card and an
+    // unchosen product page draw, and it is the first size button.
+    ...PRINT_SIZE_CM["Pequeño"],
+  };
+}
 
 /** Below a postcard or above a doorway, it is a typo rather than a measurement. */
 export const FRAME_MIN_CM = 5;
@@ -408,14 +511,23 @@ export const PRODUCT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 /**
  * Reads a stored `frame_preview`, returning null when the product is not sold
  * framed — which is the case for everything that is not a cuadro.
+ *
+ * `framing` is the shop's own frame prices, which the piece falls back to for
+ * every format it does not price itself. The catalogue read passes them in; a
+ * caller with no settings to hand gets a preview that charges nothing it was not
+ * explicitly told to charge.
  */
-export function parseFramePreview(value: unknown): FramePreview | null {
+export function parseFramePreview(
+  value: unknown,
+  framing: FramingSettings = DEFAULT_FRAMING,
+): FramePreview | null {
   if (typeof value !== "object" || value === null) return null;
 
   const raw = value as {
     enabled?: unknown;
     finishes?: unknown;
     mount?: unknown;
+    surcharges?: unknown;
     surcharge?: unknown;
     sizes?: unknown;
     width?: unknown;
@@ -432,17 +544,16 @@ export function parseFramePreview(value: unknown): FramePreview | null {
   if (finishes.length === 0) return null;
 
   const mount = typeof raw.mount === "number" ? raw.mount : Number(raw.mount);
-  const surcharge = typeof raw.surcharge === "number" ? raw.surcharge : Number(raw.surcharge);
 
   return {
     finishes,
     mount: Number.isFinite(mount) && mount >= 0 && mount <= 30 ? mount : DEFAULT_FRAME_PREVIEW.mount,
-    // Unreadable falls back to free rather than to a guess: the server prices
-    // every order from this number, and inventing one charges somebody for it.
-    surcharge:
-      Number.isFinite(surcharge) && surcharge >= 0 && surcharge <= FRAME_MAX_SURCHARGE
-        ? Math.round(surcharge)
-        : 0,
+    surcharges: parseFrameSurcharges(raw.surcharges),
+    // Absent is the shape of every piece that has never been priced by hand, and
+    // an unreadable amount is treated the same way: falling back to the shop's
+    // price is a likelier answer to a typo than giving the frame away.
+    surcharge: frameCents(raw.surcharge),
+    inherited: framing,
     sizes: parseFrameSizes(raw.sizes),
     // Rows written before the wall view existed have no measurements. Falling
     // back to the standard size keeps the feature available on them rather than
@@ -450,6 +561,41 @@ export function parseFramePreview(value: unknown): FramePreview | null {
     width: frameCm(raw.width, DEFAULT_FRAME_PREVIEW.width),
     height: frameCm(raw.height, DEFAULT_FRAME_PREVIEW.height),
   };
+}
+
+/**
+ * A stored amount of money for a frame, in cents, or null for anything that is
+ * not one — absent, blank, negative, beyond the cap, or not a number at all.
+ *
+ * Null rather than zero because the two mean opposite things here: zero is a frame
+ * given away on purpose, and null is nothing said, which the price above resolves.
+ * Neither is invented, which matters because the server charges by these numbers.
+ */
+function frameCents(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const cents = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(cents) && cents >= 0 && cents <= FRAME_MAX_SURCHARGE
+    ? Math.round(cents)
+    : null;
+}
+
+/**
+ * The `surcharges` map: what the frame costs for each format.
+ *
+ * A format whose amount is unusable is dropped rather than kept as free, so it
+ * falls through to the piece's own figure and then to the shop's — both likelier
+ * answers to a bad value than a frame nobody meant to give away.
+ */
+function parseFrameSurcharges(value: unknown): Record<string, number> {
+  if (typeof value !== "object" || value === null) return {};
+
+  const surcharges: Record<string, number> = {};
+  for (const [size, amount] of Object.entries(value as Record<string, unknown>)) {
+    const cents = typeof amount === "number" ? amount : Number(amount);
+    if (!Number.isFinite(cents) || cents < 0 || cents > FRAME_MAX_SURCHARGE) continue;
+    surcharges[size] = Math.round(cents);
+  }
+  return surcharges;
 }
 
 /** The `sizes` map, keeping only entries with two usable measurements. */
@@ -531,6 +677,67 @@ export function frameOrientation(frame: FrameSize): ArtOrientation {
 /** The printed proportions, for the CSS box that holds the artwork. */
 export function frameAspect(frame: FrameSize): string {
   return `${frame.width} / ${frame.height}`;
+}
+
+/* ------------------------------------------------------------ frame geometry
+   These three describe the moulding and mount that `FramedArt` paints, and they
+   live here rather than beside that component because both a server component
+   (the homepage's category tiles) and client ones (the product shot, the wall
+   view) need them. Declared inside a `"use client"` module they were unreachable
+   from the server, which is what made `/` a 500 — see the note in
+   `framed-art.tsx`, which deliberately does *not* re-export them: a client module
+   re-exporting them would make them client exports again and the server-side call
+   would fail exactly as before. Callers import the arithmetic from here.
+   -------------------------------------------------------------------------- */
+
+/**
+ * The moulding, as a percentage of the frame's own width. Shared with the wall
+ * view, which has to turn "50 cm of paper" into a number of pixels for the
+ * *whole* frame — a conversion that is only right if it uses the same number the
+ * CSS paints with.
+ */
+export const MOULDING_PCT = 3.2;
+
+/** The wall margin around the frame in the standard rendering. */
+export const WALL_PCT = 7;
+
+/**
+ * How much wider the frame is than the artwork inside it, as a multiplier.
+ *
+ * Both paddings are percentages resolved against the width of the box they sit
+ * in, so each one shrinks what is left: the moulding takes its share of the
+ * outer box, and the mount takes its share of what the moulding leaves. Reading
+ * it backwards — from the art outwards — is what turns a printed size into the
+ * size the frame must be drawn at.
+ */
+export function framedWidthRatio(mount: number): number {
+  return 1 / ((1 - (2 * MOULDING_PCT) / 100) * (1 - (2 * mount) / 100));
+}
+
+/**
+ * The proportions of the finished frame — moulding and mount included — around a
+ * print of the given format, as width ÷ height.
+ *
+ * Wanted wherever the frame has to fit a box that is not its own shape. A basket
+ * thumbnail is a square, and a 50 × 70 hung at the square's full width stands a
+ * third of itself outside it; knowing the finished shape is what lets the caller
+ * size by height instead.
+ *
+ * Both paddings are percentages, and CSS resolves percentage padding against the
+ * containing block's *width* — the top and bottom ones included. So the whole
+ * frame can be worked out from the printed proportions alone, in the same units
+ * `framedWidthRatio` uses: the artwork one unit wide.
+ */
+export function framedAspect(print: FrameSize, mount: number): number {
+  const width = framedWidthRatio(mount);
+  const art = print.height / print.width;
+  // The mount's own padding is a share of the moulding's content box, which is
+  // the artwork plus that same padding — hence the division rather than a share
+  // of the whole frame.
+  const mountPad = mount / 100 / (1 - (2 * mount) / 100);
+  const mouldingPad = (MOULDING_PCT / 100) * width;
+
+  return width / (art + 2 * mountPad + 2 * mouldingPad);
 }
 
 /** The measurements as the shopper reads them, e.g. `50 × 70 cm`. */
@@ -827,16 +1034,46 @@ export function priceFor(product: Product, size?: string | null): number {
 }
 
 /**
- * What the frame adds to one unit.
+ * What a frame costs for one format, whether or not anybody has asked for one.
+ *
+ * Four answers, from the most specific thing anybody said to the least:
+ *
+ *   1. what this piece costs in this format — an exception typed on its ficha;
+ *   2. what this piece costs in any format — the same, from before the price was
+ *      per format, and what a piece sold in no named format uses;
+ *   3. what the shop charges for this format — the usual answer, and the only one
+ *      most of the catalogue ever needs;
+ *   4. what the shop charges for anything else, for a format nobody has priced.
+ *
+ * Zero at any step ends the search: a frame given away is a decision, not a gap.
+ *
+ * Separate from {@link frameSurcharge} because the product page has to say what
+ * the frame *would* cost while "sin marco" is the current answer.
+ */
+export function frameSurchargeFor(frame: FramePreview, size?: string | null): number {
+  const own = size ? frame.surcharges[size] : undefined;
+  const shop = size ? frame.inherited.surcharges[size] : undefined;
+  return own ?? frame.surcharge ?? shop ?? frame.inherited.surcharge;
+}
+
+/**
+ * What the frame adds to one unit of a given format.
  *
  * Zero for a print bought on its own, for a product that is not sold framed, and
  * for a finish this piece does not offer — the last one being a defensive zero
  * for display only. An order asking for a finish that is not on sale is refused
  * outright by `placeOrder` rather than quietly given a free frame.
+ *
+ * The size matters as much as the finish: framing the grande is dearer work than
+ * framing the pequeño, so this is not a property of the product alone.
  */
-export function frameSurcharge(frame: FramePreview | null, choice?: FrameChoice | null): number {
+export function frameSurcharge(
+  frame: FramePreview | null,
+  choice?: FrameChoice | null,
+  size?: string | null,
+): number {
   if (!frame || !choice || choice === "none") return 0;
-  return frame.finishes.includes(choice) ? frame.surcharge : 0;
+  return frame.finishes.includes(choice) ? frameSurchargeFor(frame, size) : 0;
 }
 
 /**
@@ -864,7 +1101,7 @@ export function unitPriceFor(
   size?: string | null,
   choice?: FrameChoice | null,
 ): number {
-  return priceFor(product, size) + frameSurcharge(product.framePreview, choice);
+  return priceFor(product, size) + frameSurcharge(product.framePreview, choice, size);
 }
 
 /**
@@ -874,12 +1111,25 @@ export function unitPriceFor(
  * is the paper on its own, and a card that says "40 €" flat for a piece that is
  * 55 € framed — which is how the product page opens — has told a half-truth. It
  * says "desde 40 €" instead.
+ *
+ * The top is the dearest *combination* rather than the dearest format plus the
+ * dearest frame: each format has a frame price of its own, and adding the large
+ * print to the small frame's surcharge would quote a cuadro nobody can buy.
  */
 export function priceRange(product: Product): { from: number; to: number } {
   const deltas = product.variants.map((v) => v.priceDeltaCents);
+  const frame = product.framePreview;
+
+  const framed = product.variants.map(
+    (v) => v.priceDeltaCents + (frame ? frameSurchargeFor(frame, v.size) : 0),
+  );
+  // A product with no variants still has a frame to offer, and its fallback
+  // figure is what that frame costs.
+  if (framed.length === 0 && frame) framed.push(frameSurchargeFor(frame, null));
+
   return {
     from: product.price + Math.min(0, ...deltas),
-    to: product.price + Math.max(0, ...deltas) + (product.framePreview?.surcharge ?? 0),
+    to: product.price + Math.max(0, ...framed),
   };
 }
 

@@ -11,6 +11,7 @@ import { discountLines, parseLines, type CheckoutLineInput } from "@/lib/orders/
 import { createClient, getUser } from "@/lib/supabase/server";
 import { frameSurcharge, stockFor, type FrameChoice } from "@/lib/catalog";
 import { isShippingMethod, shippingCost } from "@/lib/shipping";
+import { CHECKOUT_OPEN } from "@/lib/shop-status";
 import { VAT_RATE } from "@/lib/tax";
 
 /**
@@ -49,6 +50,12 @@ export async function placeOrder(
 ): Promise<CheckoutState> {
   const rawLocale = text(form, "locale");
   const locale: Locale = isLocale(rawLocale) ? rawLocale : "es";
+
+  // The till is off. The button is disabled and the checkout page redirects, so
+  // anything reaching this far is a tab left open since before the shop closed
+  // its doors, or a hand-made POST. Refused before a price is read, because this
+  // is the only one of the three checks that could actually charge somebody.
+  if (!CHECKOUT_OPEN) redirect(href(locale, "cart"));
 
   const user = await getUser();
   // Guest checkout would need its own RLS path; for now an account is required.
@@ -176,7 +183,9 @@ export async function placeOrder(
       frameChoice = asked;
     }
 
-    const frameCents = frameSurcharge(frame, frameChoice);
+    // Per format as well as per finish: a frame for the grande is dearer work
+    // than one for the pequeño, and the size charged is the one on the line.
+    const frameCents = frameSurcharge(frame, frameChoice, line.size);
 
     // The product price is a "from" figure once a variant can carry a surcharge
     // — a large framed print is not the price shown in the listing. Taken from

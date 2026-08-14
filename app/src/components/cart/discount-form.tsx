@@ -46,7 +46,7 @@ export function DiscountForm({ className }: { className?: string }) {
           <button
             type="button"
             onClick={clearCode}
-            className="inline-flex shrink-0 items-center gap-1 text-[0.75rem] text-mute underline hover:text-flame"
+            className="inline-flex shrink-0 items-center gap-1 text-[0.75rem] text-mute underline hover:text-ink"
           >
             <CloseIcon className="size-3" />
             {label.remove}

@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   crossSell,
+  frameSurchargeFor,
   parseFramePreview,
+  parseFramingSettings,
   parseProductVideo,
   parseVideoUrl,
+  priceRange,
   unitPriceFor,
   type Product,
 } from "./catalog.ts";
@@ -197,16 +200,117 @@ test("the same basket always produces the same shelf", () => {
  * request would ask for.
  */
 
-test("a frame surcharge is read as stored, and nonsense means free", () => {
+test("a frame surcharge is read as stored, and nonsense says nothing at all", () => {
   const stored = (surcharge: unknown) =>
     parseFramePreview({ enabled: true, finishes: ["black"], mount: 10, surcharge });
 
   assert.equal(stored(1500)?.surcharge, 1500);
-  // Absent is the shape every row written before framing was buyable has.
-  assert.equal(parseFramePreview({ enabled: true, finishes: ["black"] })?.surcharge, 0);
-  assert.equal(stored(-100)?.surcharge, 0);
-  assert.equal(stored("mucho")?.surcharge, 0);
-  assert.equal(stored(999_999)?.surcharge, 0);
+  // Zero is a decision the shop typed: this piece is framed for free.
+  assert.equal(stored(0)?.surcharge, 0);
+  /*
+    Null, not zero, for everything else — absent (the shape of every piece nobody
+    has priced by hand) and unusable alike. The difference is money: zero charges
+    nothing for the frame, null charges what the shop charges.
+  */
+  assert.equal(parseFramePreview({ enabled: true, finishes: ["black"] })?.surcharge, null);
+  assert.equal(stored(-100)?.surcharge, null);
+  assert.equal(stored("mucho")?.surcharge, null);
+  assert.equal(stored(999_999)?.surcharge, null);
+});
+
+/**
+ * The shop prices a frame once and every cuadro is framed at that price; a piece
+ * that is genuinely dearer says so on its own ficha. What has to hold is that the
+ * exception wins where there is one, the shop's price applies where there is not,
+ * and a frame given away for nothing is never confused with one nobody priced.
+ */
+test("what the shop charges to frame, and what one piece charges instead", () => {
+  const shop = parseFramingSettings({
+    surcharges: { Pequeño: 1500, Grande: 2500 },
+    surcharge_cents: 1500,
+  });
+
+  // A piece that says nothing: the shop's price, per format.
+  const usual = parseFramePreview({ enabled: true, finishes: ["black"], mount: 10 }, shop);
+  assert.ok(usual);
+  assert.equal(frameSurchargeFor(usual, "Pequeño"), 1500);
+  assert.equal(frameSurchargeFor(usual, "Grande"), 2500);
+  // A format the shop has not priced falls to its general figure.
+  assert.equal(frameSurchargeFor(usual, "Mediano"), 1500);
+
+  // An exception, on one format only: the other one still follows the shop.
+  const dearer = parseFramePreview(
+    { enabled: true, finishes: ["black"], surcharges: { Grande: 4000 } },
+    shop,
+  );
+  assert.equal(frameSurchargeFor(dearer!, "Grande"), 4000);
+  assert.equal(frameSurchargeFor(dearer!, "Pequeño"), 1500);
+
+  // Framed for free, said out loud. Zero has to beat the shop's price, or a piece
+  // the shop gives a frame away on would quietly start charging for it.
+  const free = parseFramePreview({ enabled: true, finishes: ["black"], surcharge: 0 }, shop);
+  assert.equal(frameSurchargeFor(free!, "Pequeño"), 0);
+  assert.equal(frameSurchargeFor(free!, "Grande"), 0);
+
+  // A piece priced before the surcharge was per format: its one figure covers
+  // every format, ahead of the shop's, because it is the more specific thing said.
+  const legacy = parseFramePreview({ enabled: true, finishes: ["black"], surcharge: 1000 }, shop);
+  assert.equal(frameSurchargeFor(legacy!, "Grande"), 1000);
+
+  // And with no settings row to read, nothing is charged that nobody typed.
+  const alone = parseFramePreview({ enabled: true, finishes: ["black"], mount: 10 });
+  assert.equal(frameSurchargeFor(alone!, "Grande"), 0);
+});
+
+test("a framing settings row is read as stored, and a broken one charges nothing", () => {
+  assert.deepEqual(parseFramingSettings({ surcharges: { Grande: 2500 }, surcharge_cents: 1500 }), {
+    surcharges: { Grande: 2500 },
+    surcharge: 1500,
+  });
+  // Amounts that cannot be charged are dropped rather than guessed at.
+  assert.deepEqual(
+    parseFramingSettings({ surcharges: { Grande: -1, Pequeño: "mucho" }, surcharge_cents: null }),
+    { surcharges: {}, surcharge: 0 },
+  );
+  assert.deepEqual(parseFramingSettings(null), { surcharges: {}, surcharge: 0 });
+});
+
+test("the frame is priced per format, falling back to the product's own figure", () => {
+  const frame = parseFramePreview({
+    enabled: true,
+    finishes: ["black"],
+    mount: 10,
+    surcharges: { Pequeño: 1500, Grande: 2500, Mediano: -1, Enorme: "mucho" },
+    surcharge: 1500,
+  });
+  assert.ok(frame);
+
+  assert.equal(frameSurchargeFor(frame, "Pequeño"), 1500);
+  assert.equal(frameSurchargeFor(frame, "Grande"), 2500);
+  // A format with an unusable amount is not a free frame: it falls through to
+  // the product's figure, which is what the shop was charging for all of them.
+  assert.equal(frameSurchargeFor(frame, "Mediano"), 1500);
+  assert.equal(frameSurchargeFor(frame, "Enorme"), 1500);
+  // Unpriced, unknown, and not chosen yet all mean the same thing here.
+  assert.equal(frameSurchargeFor(frame, "Colosal"), 1500);
+  assert.equal(frameSurchargeFor(frame, null), 1500);
+
+  // A row written before the surcharge was per format charges its one figure for
+  // every format, which is exactly what it charged yesterday.
+  const flat = parseFramePreview({ enabled: true, finishes: ["black"], mount: 10, surcharge: 1500 });
+  assert.ok(flat);
+  assert.deepEqual(flat.surcharges, {});
+  assert.equal(frameSurchargeFor(flat, "Grande"), 1500);
+
+  // Zero is a decision — the frame is thrown in on the large — and not an absence
+  // to be filled in from the figure beside it.
+  const free = parseFramePreview({
+    enabled: true,
+    finishes: ["black"],
+    surcharges: { Grande: 0 },
+    surcharge: 1500,
+  });
+  assert.equal(frameSurchargeFor(free!, "Grande"), 0);
 });
 
 test("the price of a unit is the format plus the frame that was chosen", () => {
@@ -232,4 +336,35 @@ test("the price of a unit is the format plus the frame that was chosen", () => {
   assert.equal(unitPriceFor(cuadro, "Pequeño", "white"), 4000);
   // And a product with no framing has nothing to add whatever it is asked for.
   assert.equal(unitPriceFor(product("camiseta-a"), "Única", "black"), 4000);
+});
+
+test("two surcharges, the format's and its frame's, and neither pays for the other", () => {
+  // 40 € the print; the grande adds 20 €. A frame is 15 € on the small and 25 €
+  // on the large, which is the whole point: the frame is not one price.
+  const cuadro = product("obra-1", {
+    sizes: ["Pequeño", "Grande"],
+    variants: [
+      { id: "s", size: "Pequeño", colorwayId: "blanco", sku: null, stock: 3, priceDeltaCents: 0 },
+      { id: "l", size: "Grande", colorwayId: "blanco", sku: null, stock: 3, priceDeltaCents: 2000 },
+    ],
+    framePreview: parseFramePreview({
+      enabled: true,
+      finishes: ["black", "wood"],
+      mount: 10,
+      surcharges: { Pequeño: 1500, Grande: 2500 },
+      surcharge: 1500,
+    }),
+  });
+
+  assert.equal(unitPriceFor(cuadro, "Pequeño", "black"), 5500);
+  // Not 7500: the large frame, not the small one repeated.
+  assert.equal(unitPriceFor(cuadro, "Grande", "black"), 8500);
+  // Unframed is the paper alone in both formats, whatever the frames cost.
+  assert.equal(unitPriceFor(cuadro, "Pequeño", "none"), 4000);
+  assert.equal(unitPriceFor(cuadro, "Grande", "none"), 6000);
+
+  // The listing quotes a buyable pair of extremes: the paper on its own at the
+  // bottom, the large in its own frame at the top — never the large print with
+  // the small print's frame.
+  assert.deepEqual(priceRange(cuadro), { from: 4000, to: 8500 });
 });

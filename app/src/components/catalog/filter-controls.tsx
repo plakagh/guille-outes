@@ -88,7 +88,7 @@ export function CatalogToolbar({
             <FilterIcon className="size-4" />
             {t.plp.filter}
             {chips.length > 0 && (
-              <span className="grid size-5 place-items-center rounded-full bg-flame font-sans text-[0.625rem] text-white">
+              <span className="grid size-5 place-items-center rounded-full bg-ink font-sans text-[0.625rem] text-white">
                 {chips.length}
               </span>
             )}
@@ -141,7 +141,7 @@ export function CatalogToolbar({
             <button
               type="button"
               onClick={clearAll}
-              className="text-[0.8125rem] text-mute underline hover:text-flame"
+              className="text-[0.8125rem] text-mute underline hover:text-ink"
             >
               {t.plp.clearAll}
             </button>
@@ -422,7 +422,7 @@ function FilterDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="h-12 w-full bg-ink font-display text-[0.9375rem] font-bold uppercase tracking-wide text-white"
+            className="h-12 w-full bg-court font-display text-[0.9375rem] font-bold uppercase tracking-wide text-white transition-colors hover:bg-court-deep"
           >
             {t.plp.show} {total} {total === 1 ? t.plp.item : t.plp.items}
           </button>

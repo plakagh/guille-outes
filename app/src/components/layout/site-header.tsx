@@ -6,6 +6,7 @@ import { ShieldIcon, UserIcon } from "@/components/icons";
 import { MegaNav } from "@/components/layout/mega-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { PromoBar } from "@/components/layout/promo-bar";
+import { StickyChrome } from "@/components/layout/sticky-chrome";
 import { getPromoMessages } from "@/lib/db/settings";
 import { SearchField, type SearchIndexEntry } from "@/components/layout/search-field";
 import { photosFor } from "@/components/product/product-shot";
@@ -76,13 +77,45 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
   }));
 
   return (
-    <header className="relative z-50">
+    /*
+      The whole chrome is what sticks, not a row inside it.
+
+      `position: sticky` only travels within its own parent's box, so a sticky
+      row *inside* this header had nowhere to go: the header is exactly as tall
+      as its contents, and the row reached the bottom of it the moment it left
+      the top of the page. Pinning the header itself gives it the length of the
+      document to stick against.
+
+      `StickyChrome` is that header, and it is a client component only because
+      the black bands fold away on the way down the page and come back on the
+      way up. Everything inside it is still rendered here, on the server.
+    */
+    <StickyChrome>
       <PromoBar locale={locale} t={t} messages={messages} />
 
-      <div className="sticky top-0 z-50 bg-white shadow-[0_1px_0_var(--color-line)]">
-        {/* Opaque and raised: the nav row below slides up behind this one on the
-            way down the page, and must disappear under it rather than through it. */}
-        <div className="relative z-10 shell flex h-masthead items-center gap-3 bg-white md:gap-6">
+      {/*
+        The navigation is dark and the content is white, with nothing in between.
+
+        That division is what `design.md` leads with (§6.2) and it is doing more
+        than decoration: the masthead, the nav row and the panel that drops out of
+        it are *navigation*, and painting them dark states where the shop's
+        furniture ends and the merchandise begins. A white masthead over white
+        content has to draw a hairline to say the same thing, and then every band
+        below it is competing with the product photography for which white is the
+        page.
+
+        Above it the announce bar is white, so the chrome reads as three bands
+        stepping down — white, black, then the institutional blue under the
+        navigation. All three were dark for a while, and the blue read as too much
+        colour for the top of a page when nothing lighter preceded it. The bar
+        carries the lightest-weight content of the three, which is why it is the
+        one that can go light without blurring where the furniture ends.
+
+        `data-chrome="dark"` is what turns the focus ring white in here — the
+        institutional blue it uses on white is invisible against this.
+      */}
+      <div data-chrome="dark" className="relative z-50 bg-black text-white">
+        <div className="relative z-10 shell flex h-masthead items-center gap-3 bg-black md:gap-6">
           <MobileNav locale={locale} t={t} nav={nav} viewer={viewer} />
 
           <Link href={href(locale)} aria-label={t.header.home} className="shrink-0">
@@ -98,9 +131,14 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
           />
 
           <div className="ml-auto flex items-center gap-1 md:ml-0">
+            {/*
+              Hovering to white rather than to red. Red on this site is the
+              action or the discount, and "help" is neither — it was reaching for
+              the CTA colour just to acknowledge the pointer.
+            */}
             <Link
               href={href(locale, "help", helpSlug("contacto", locale))}
-              className="hidden items-center gap-2 px-3 text-[0.8125rem] font-medium transition hover:text-flame xl:flex"
+              className="hidden items-center gap-2 px-3 text-[0.8125rem] font-medium text-white/80 transition hover:text-white xl:flex"
             >
               <ShieldIcon className="size-5" />
               {t.header.help}
@@ -108,7 +146,7 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
 
             <Link
               href={viewer ? href(locale, "account") : href(locale, "login")}
-              className="flex items-center gap-2 px-2 text-[0.8125rem] font-medium transition hover:text-flame md:px-3"
+              className="flex items-center gap-2 px-2 text-[0.8125rem] font-medium text-white/80 transition hover:text-white md:px-3"
             >
               <UserIcon className="size-[1.35rem]" />
               <span className="hidden xl:inline">
@@ -132,6 +170,6 @@ export async function SiteHeader({ locale }: { locale: Locale }) {
 
         <MegaNav t={t} nav={nav} catalog={catalog} />
       </div>
-    </header>
+    </StickyChrome>
   );
 }

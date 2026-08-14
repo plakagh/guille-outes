@@ -31,6 +31,7 @@ import {
   frameOrientation,
   frameSizeFor,
   frameSurcharge,
+  frameSurchargeFor,
   isNew,
   onSale,
   resolveSizeGuide,
@@ -93,11 +94,21 @@ export function ProductDetail({
   // because the framed *view* stays available as a preview after choosing it.
   const activeFinish: FrameFinish =
     choice && choice !== "none" ? choice : (frame?.finishes[0] ?? "black");
-  const surcharge = frameSurcharge(frame, choice);
   const [size, setSize] = useState<string | null>(
     product.sizes.length === 1 ? product.sizes[0] : null,
   );
   const [qty, setQty] = useState(1);
+  /*
+    The frame, priced. Both figures depend on the chosen format — framing a 50 × 70
+    costs more than framing a 30 × 40 — so both move when a size button is pressed:
+
+      `surcharge` is what is being charged right now, zero while "sin marco" is
+      the answer, and it is what the old price is compared against.
+      `frameCost`  is what a frame costs for this format either way, which is what
+      the line under the acabados says.
+  */
+  const surcharge = frameSurcharge(frame, choice, size);
+  const frameCost = frame ? frameSurchargeFor(frame, size) : 0;
   /*
     What the chosen format is printed at. A cuadro is sold in more than one, and
     they are not the same shape — so the framed view and the camera both follow
@@ -233,7 +244,7 @@ export function ProductDetail({
           </div>
 
           {frame && printSize && framed ? (
-            <FramedArt finish={activeFinish} mount={frame.mount} className="aspect-[5/6]">
+            <FramedArt finish={activeFinish} mount={frame.mount} className="aspect-[3/4]">
               {/* The art alone, at its own proportions: the mount supplies the
                   white and the bevel supplies the edge. */}
               <div style={{ aspectRatio: frameAspect(printSize) }}>
@@ -249,7 +260,7 @@ export function ProductDetail({
             </FramedArt>
           ) : (
             <div
-              className="aspect-[5/6] transition-transform duration-500 ease-[var(--ease-out-quint)]"
+              className="aspect-[3/4] transition-transform duration-500 ease-[var(--ease-out-quint)]"
               style={{ transform: `scale(${activeView.zoom})` }}
             >
               <ProductShot
@@ -266,94 +277,9 @@ export function ProductDetail({
       </div>
 
         {/*
-          Framing sits under the image rather than in the buybox, where the piece
-          it applies to is. It is a buying decision now, not a way of looking:
-          picking an acabado orders the frame and adds what it costs, and "sin
-          marco" orders the paper on its own.
-
-          The eye button beside it is the leftover *view* toggle, for coming back
-          to the framed picture after a thumbnail dropped out of it.
-        */}
-        {frame && choice && (
-          <div className="space-y-3 border border-line p-3">
-            <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <legend className="sr-only">{t.pdp.frameFinish}</legend>
-              <span className="eyebrow text-mute">{t.pdp.frameChoice}</span>
-
-              <ul className="flex flex-wrap items-center gap-2">
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFrameChoice("none");
-                      // Buying the paper: show the paper.
-                      setFramed(false);
-                    }}
-                    aria-pressed={choice === "none"}
-                    className={cn(
-                      "inline-flex h-10 items-center border px-3 text-[0.8125rem] font-semibold transition",
-                      choice === "none" ? "border-ink bg-ink text-white" : "border-line hover:border-ink",
-                    )}
-                  >
-                    {t.pdp.frameNone}
-                  </button>
-                </li>
-                {frame.finishes.map((option) => (
-                  <li key={option}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFrameChoice(option);
-                        setFramed(true);
-                      }}
-                      aria-pressed={option === choice}
-                      aria-label={t.pdp.frameFinishes[option]}
-                      title={t.pdp.frameFinishes[option]}
-                      className={cn(
-                        "grid size-10 place-items-center border-2 transition",
-                        option === choice ? "border-ink" : "border-transparent hover:border-line",
-                      )}
-                    >
-                      <FrameSwatch finish={option} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-
-              {/* What the frame adds, said where it is chosen rather than only in
-                  the total: the price above already includes it. */}
-              {frame.surcharge > 0 && (
-                <span className="text-[0.8125rem] font-semibold">
-                  {choice === "none"
-                    ? t.pdp.framePlus.replace("{{amount}}", formatPrice(frame.surcharge))
-                    : t.pdp.frameIncluded.replace("{{amount}}", formatPrice(frame.surcharge))}
-                </span>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setFramed((current) => !current)}
-                aria-pressed={framed}
-                className={cn(
-                  "ms-auto inline-flex h-10 items-center gap-2 border px-3 text-[0.8125rem] font-semibold transition",
-                  framed ? "border-ink" : "border-line hover:border-ink",
-                )}
-              >
-                <FrameIcon className="size-4" />
-                {framed ? t.pdp.frameHide : t.pdp.frameShow}
-              </button>
-            </fieldset>
-
-            <p className="text-[0.75rem] text-mute">
-              {choice === "none" ? t.pdp.frameNoteUnframed : t.pdp.frameNote}
-            </p>
-          </div>
-        )}
-
-        {/*
-          The camera. Full width and under the framing controls, because it
-          answers the question the shopper asks *after* deciding they like it:
-          not "what does it look like" but "does it fit that wall".
+          The camera. Full width under the gallery, because it answers the
+          question the shopper asks *after* deciding they like it: not "what does
+          it look like" but "does it fit that wall".
         */}
         {frame && (
           <Button
@@ -386,7 +312,9 @@ export function ProductDetail({
         {collection && (
           <Link
             href={href("collection", collection.slug)}
-            className="eyebrow text-flame hover:underline"
+            // The buybox spends its red on add-to-cart, and on the sale price if
+            // there is one. A collection name above the title is neither.
+            className="eyebrow text-ink-soft hover:underline"
           >
             {collection.name}
           </Link>
@@ -417,14 +345,14 @@ export function ProductDetail({
 
         {/* Credits — links through to each author's bibliography */}
         {product.credits.length > 0 && (
-          <div className="mt-5 border-l-2 border-flame pl-4">
+          <div className="mt-5 border-l-2 border-ink pl-4">
             <p className="eyebrow mb-2 text-mute">{t.pdp.creditsHeading}</p>
             <ul className="space-y-1">
               {product.credits.map((credit) => (
                 <li key={credit.authorId} className="text-[0.875rem]">
                   <Link
                     href={href("authors", credit.slug)}
-                    className="font-semibold hover:text-flame hover:underline"
+                    className="font-semibold hover:underline"
                   >
                     {credit.name}
                   </Link>
@@ -435,31 +363,39 @@ export function ProductDetail({
           </div>
         )}
 
-        {/* Colour */}
-        <fieldset className="mt-6">
-          <legend className="eyebrow mb-2.5">
-            {t.common.color}:{" "}
-            <span className="font-normal normal-case tracking-normal">{colorway.name}</span>
-          </legend>
-          <ul className="flex flex-wrap gap-2">
-            {product.colorways.map((option, i) => (
-              <li key={option.id}>
-                <button
-                  type="button"
-                  onClick={() => setColorIndex(i)}
-                  aria-label={option.name}
-                  aria-pressed={i === colorIndex}
-                  className={cn(
-                    "grid size-11 place-items-center border-2 transition",
-                    i === colorIndex ? "border-ink" : "border-transparent hover:border-line",
-                  )}
-                >
-                  <Swatch base={option.base} trim={option.trim} className="size-7" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </fieldset>
+        {/* Colour — only when there is one to make.
+
+            A piece that comes in a single colour used to state it anyway, which
+            on a cuadro read as a decision the shopper had to take: "Color:
+            Blanco" above the size buttons, with nothing to press. The colour of
+            the paper is in the description and in the photograph; a row that
+            offers one option is furniture. */}
+        {product.colorways.length > 1 && (
+          <fieldset className="mt-6">
+            <legend className="eyebrow mb-2.5">
+              {t.common.color}:{" "}
+              <span className="font-normal normal-case tracking-normal">{colorway.name}</span>
+            </legend>
+            <ul className="flex flex-wrap gap-2">
+              {product.colorways.map((option, i) => (
+                <li key={option.id}>
+                  <button
+                    type="button"
+                    onClick={() => setColorIndex(i)}
+                    aria-label={option.name}
+                    aria-pressed={i === colorIndex}
+                    className={cn(
+                      "grid size-11 place-items-center border-2 transition",
+                      i === colorIndex ? "border-ink" : "border-transparent hover:border-line",
+                    )}
+                  >
+                    <Swatch base={option.base} trim={option.trim} className="size-7" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </fieldset>
+        )}
 
         {/* Size */}
         <fieldset className="mt-6">
@@ -535,6 +471,92 @@ export function ProductDetail({
           )}
         </fieldset>
 
+        {/*
+          The frame, between the size and the basket.
+
+          It belongs here and not under the image because it is the last thing
+          bought rather than another way of looking: it costs money, the amount
+          depends on the format chosen just above, and the total it lands in is
+          the button below. Under the picture it read as part of the gallery, and
+          the price it changes was a column away.
+
+          The "ver la lámina" link is the leftover *view* toggle, for going back
+          to the framed picture after a thumbnail dropped out of it.
+        */}
+        {frame && choice && (
+          <fieldset className="mt-6">
+            <legend className="mb-2.5 flex w-full items-center justify-between gap-4">
+              <span className="eyebrow">{t.pdp.frameChoice}</span>
+              <button
+                type="button"
+                onClick={() => setFramed((current) => !current)}
+                aria-pressed={framed}
+                className="inline-flex items-center gap-1.5 text-[0.75rem] text-mute underline hover:text-ink"
+              >
+                <FrameIcon className="size-3.5" />
+                {framed ? t.pdp.frameHide : t.pdp.frameShow}
+              </button>
+            </legend>
+
+            {/* The same heights as the size buttons above: this is one more row
+                of the same decision, not a different kind of control. */}
+            <ul className="flex flex-wrap items-center gap-2">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFrameChoice("none");
+                    // Buying the paper: show the paper.
+                    setFramed(false);
+                  }}
+                  aria-pressed={choice === "none"}
+                  className={cn(
+                    "inline-flex h-12 items-center border px-3 text-[0.875rem] font-semibold transition",
+                    choice === "none" ? "border-ink bg-ink text-white" : "border-line hover:border-ink",
+                  )}
+                >
+                  {t.pdp.frameNone}
+                </button>
+              </li>
+              {frame.finishes.map((option) => (
+                <li key={option}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFrameChoice(option);
+                      setFramed(true);
+                    }}
+                    aria-pressed={option === choice}
+                    aria-label={t.pdp.frameFinishes[option]}
+                    title={t.pdp.frameFinishes[option]}
+                    className={cn(
+                      "grid size-12 place-items-center border-2 transition",
+                      option === choice ? "border-ink" : "border-transparent hover:border-line",
+                    )}
+                  >
+                    <FrameSwatch finish={option} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {/* What the frame adds, said where it is chosen rather than only in
+                the total: the price above already includes it. The amount is
+                this format's, so choosing the grande changes it. */}
+            {frameCost > 0 && (
+              <p className="mt-2 text-[0.8125rem] font-semibold">
+                {choice === "none"
+                  ? t.pdp.framePlus.replace("{{amount}}", formatPrice(frameCost))
+                  : t.pdp.frameIncluded.replace("{{amount}}", formatPrice(frameCost))}
+              </p>
+            )}
+
+            <p className="mt-2 text-[0.75rem] text-mute">
+              {choice === "none" ? t.pdp.frameNoteUnframed : t.pdp.frameNote}
+            </p>
+          </fieldset>
+        )}
+
         {/* Quantity + add */}
         <div className="mt-6 flex gap-3">
           <div className="flex h-14 items-center border border-line">
@@ -559,7 +581,12 @@ export function ProductDetail({
             </button>
           </div>
 
-          <Button size="lg" onClick={submit} disabled={soldOut} className="flex-1">
+          {/*
+            Red, and the only red on the page: §2.2 gives the PDP its add-to-cart
+            in `--brand-red` and the wishlist beside it a black outline. This is
+            the one control the whole page exists to deliver you to.
+          */}
+          <Button variant="primary" size="lg" onClick={submit} disabled={soldOut} className="flex-1">
             <BagIcon className="size-5" />
             {soldOut ? t.pdp.soldOut : t.pdp.addToCart}
           </Button>

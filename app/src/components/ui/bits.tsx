@@ -6,10 +6,23 @@ import { cn, discountPercent, formatPrice } from "@/lib/utils";
 
 type BadgeTone = "sale" | "new" | "limited" | "soldout" | "neutral";
 
+/*
+  Four badges, three colours, and gold is not one of them.
+
+  `limited` was solid gold, which put a fourth hue into a system whose whole
+  claim is black / white / red — and #D9A419 is 2.26:1 on white, so the label sat
+  on it illegibly besides. It is now the strong-outline badge: `soldout` already
+  owns the subtle ring, so a heavy black rule is free and reads as "unusual" the
+  way the gold was meant to.
+
+  Only `sale` is red, and white caps on #C8102E are 5.88:1 — fine at 11px, the
+  spec's own warning about small white text on red notwithstanding (its numbers
+  for that pair are crossed; see `--color-flame-bright` in globals.css).
+*/
 const BADGE_TONES: Record<BadgeTone, string> = {
   sale: "bg-flame text-white",
   new: "bg-ink text-white",
-  limited: "bg-gold text-ink",
+  limited: "bg-white text-ink ring-2 ring-inset ring-ink",
   soldout: "bg-white text-ink ring-1 ring-inset ring-line",
   neutral: "bg-shell text-ink",
 };
@@ -174,13 +187,24 @@ export function SectionHead({
   return (
     <div className={cn("mb-5 flex items-end justify-between gap-6", className)}>
       <div>
-        {eyebrow && <p className="eyebrow mb-2 text-flame">{eyebrow}</p>}
+        {/*
+          The eyebrow is grey, not red.
+
+          It was red on every band on the site, which broke the rule that matters
+          most here — at most one red thing visible per block. A product shelf
+          already spends its red on what red is for: the sale badges and the
+          reduced prices in the cards below. A red label sitting above them is
+          decoration, and it was competing with them for the same signal.
+        */}
+        {eyebrow && <p className="eyebrow mb-2 text-ink-soft">{eyebrow}</p>}
         <h2 className="section-title">{title}</h2>
       </div>
       {href && (
+        // Hover fills to black rather than turning red — this is §5.4's outline
+        // hover, borrowed by the one link that is shaped like an outline button.
         <Link
           href={href}
-          className="eyebrow shrink-0 border-b-2 border-ink pb-1 hover:border-flame hover:text-flame"
+          className="eyebrow shrink-0 border-b-2 border-ink px-1 pb-1 transition-colors hover:bg-ink hover:text-white"
         >
           {linkLabel}
         </Link>

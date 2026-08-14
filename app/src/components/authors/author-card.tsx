@@ -59,10 +59,10 @@ export function AuthorCard({
       <AuthorAvatar author={author} className="size-16 text-xl" />
 
       <div>
-        <h2 className="font-display text-2xl font-bold uppercase leading-tight group-hover:text-flame">
+        <h2 className="font-display text-2xl font-bold uppercase leading-tight group-hover:underline">
           {author.name}
         </h2>
-        <p className="eyebrow mt-1 text-flame">{author.role}</p>
+        <p className="eyebrow mt-1 text-ink-soft">{author.role}</p>
       </div>
 
       <p className="text-[0.875rem] leading-relaxed text-mute">{author.bio}</p>

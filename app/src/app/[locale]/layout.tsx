@@ -5,6 +5,7 @@ import { WishlistProvider } from "@/components/account/wishlist-provider";
 import { CartProvider } from "@/components/cart/cart-context";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { I18nProvider } from "@/components/i18n/provider";
+import { ComingSoonGate } from "@/components/layout/coming-soon-gate";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { getWishlistIds } from "@/lib/db/account";
@@ -12,6 +13,7 @@ import { getShippingSettings } from "@/lib/db/settings";
 import { isLocale, LOCALE_META, LOCALES } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { href } from "@/lib/i18n/routes";
+import { legalSlug } from "@/lib/pages";
 import { SITE_URL } from "@/lib/supabase/env";
 import { getViewer } from "@/lib/supabase/server";
 import "../globals.css";
@@ -66,7 +68,8 @@ export async function generateMetadata(props: LayoutProps<"/[locale]">): Promise
 }
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  // The browser chrome should agree with ours, and ours is pure black now.
+  themeColor: "#000000",
 };
 
 export default async function LocaleLayout({ children, params }: LayoutProps<"/[locale]">) {
@@ -106,6 +109,15 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
               </main>
               <SiteFooter locale={locale} />
               <CartDrawer />
+              {/*
+                Last in the tree on purpose: it opens over whatever page this is,
+                and the slug is resolved here because `lib/pages` is the whole
+                legal corpus — a thousand lines of article text nobody needs in
+                the browser to link one privacy notice.
+              */}
+              <ComingSoonGate
+                privacyHref={href(locale, "legal", legalSlug("privacidad", locale))}
+              />
             </CartProvider>
           </WishlistProvider>
         </I18nProvider>

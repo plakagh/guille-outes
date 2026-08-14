@@ -63,6 +63,12 @@ RUN addgroup --system --gid 1001 nodejs \
 # and have to be copied separately.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# `public/` is the other half of "not part of the trace", and it is served from
+# the working directory at runtime rather than resolved as a module. It holds the
+# handful of assets that belong to the app rather than to the catalogue — the
+# catalogue's own images live in the `media` bucket — and without this line they
+# are a 404 in production and nowhere else.
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs
 EXPOSE 3000

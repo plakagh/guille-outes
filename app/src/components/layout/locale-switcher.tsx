@@ -77,7 +77,7 @@ export function LocaleSwitcher({
                 className="flex items-center justify-between gap-3 px-3 py-2 text-[0.8125rem] hover:bg-shell"
               >
                 {LOCALE_META[option].endonym}
-                {option === locale && <CheckIcon className="size-4 text-flame" />}
+                {option === locale && <CheckIcon className="size-4 text-ink" />}
               </Link>
             </li>
           ))}

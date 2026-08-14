@@ -40,6 +40,60 @@ import { audienceSlug, curatedSlug } from "@/lib/i18n/sections";
 function buildSlides(locale: Locale, t: Dictionary, catalog: Catalog): HeroSlide[] {
   const slugOf = (id: string) => catalog.collections.find((c) => c.id === id)?.slug;
 
+  /*
+    «A familia pintora que vaga polo mundo» — the project itself, and the one
+    slide that is not anchored to anything in the database.
+
+    That is why it is built apart from `candidates` and prepended to whichever
+    list wins below. Dropped into `candidates` it would be a slide that is never
+    null, which would make `slides.length > 0` always true and quietly retire the
+    category fallback underneath it: a shop with no collections would go from
+    three category slides to this one alone.
+
+    It leads because it is what the stand leads with. Everything else in the fold
+    sells a line; this one says who is selling it.
+  */
+  const family: HeroSlide = {
+    eyebrow: t.family.eyebrow,
+    headline: [t.family.line1, t.family.line2],
+    subhead: t.family.subhead,
+    blurb: t.family.slideBlurb,
+    primary: { label: t.family.slidePrimary, href: href(locale, "family") },
+    // Painting, not the gallery: "being part of the family" is something you do,
+    // and the studio is one tap from a drawing. The gallery is a click further
+    // in, from the page the primary CTA lands on.
+    secondary: { label: t.family.slideSecondary, href: href(locale, "studio") },
+    /*
+      Sand. One colour per slide is the rule the fold is now built on — white for
+      the cuadros, navy for the garments, this for the project — so that the
+      crossfade between them has something to cross and the deck reads as several
+      places rather than one that keeps re-lettering itself.
+
+      Warm and light under a board that is almost black: the poster is a dark
+      rectangle with its own painted edge, so it needs a ground it can sit on
+      rather than one it dissolves into.
+    */
+    background: "#e5dfd2",
+    ink: "dark",
+    /*
+      The board itself, which is the whole point of the slide — the thing people
+      have already read at the stand.
+
+      It lives in `public/` rather than the `media` bucket because it belongs to
+      the app and not to the catalogue: nothing about it is a product, no admin
+      screen edits it, and it should be versioned with the markup that positions
+      it. `app/Dockerfile` copies that folder for the same reason.
+
+      `art` stays filled in because the field is required, but note that it is now
+      unreachable: `SlideArt` chooses the drawing only when `imageUrl` is absent,
+      not when it 404s. If this file is ever renamed the fold shows a broken
+      image, so the name is part of the deploy, not a detail.
+    */
+    imageUrl: "/familia-pintora.webp",
+    imageAlt: t.family.imageAlt,
+    art: { shape: "poster", colorway: colorway("marino", locale), print: "monogram" },
+  };
+
   const court = slugOf("court-series");
   const origen = slugOf("origen");
   const hardwood = slugOf("hardwood-94");
@@ -116,7 +170,7 @@ function buildSlides(locale: Locale, t: Dictionary, catalog: Catalog): HeroSlide
   ];
 
   const slides = candidates.filter((slide): slide is HeroSlide => slide !== null);
-  if (slides.length > 0) return slides;
+  if (slides.length > 0) return [family, ...slides];
 
   /*
     Every slide above is anchored to a collection, so a shop that sells by
@@ -127,9 +181,14 @@ function buildSlides(locale: Locale, t: Dictionary, catalog: Catalog): HeroSlide
     already written in all three languages by whoever created it, whereas a
     dictionary entry here would name a collection that does not exist.
   */
+  /*
+    One colour per slide, and none of them the sand the project slide above
+    already holds: the fold crossfades its background rather than cutting it, so
+    two neighbours in the same value would fade into nothing.
+  */
   const palette = [
-    { background: "#132a5a", ink: "light" as const, colorway: "marino" },
-    { background: "#e5dfd2", ink: "dark" as const, colorway: "arena" },
+    { background: "#ffffff", ink: "dark" as const, colorway: "gris" },
+    { background: "#132a5a", ink: "light" as const, colorway: "arena" },
     { background: "#141414", ink: "light" as const, colorway: "negro" },
   ];
 
@@ -145,7 +204,7 @@ function buildSlides(locale: Locale, t: Dictionary, catalog: Catalog): HeroSlide
   */
   const newest = listProducts(catalog.products, { sort: "novedades" }).filter(isNew);
 
-  return catalog.categories.slice(0, palette.length).map((category, i) => {
+  const categorySlides = catalog.categories.slice(0, palette.length).map((category, i) => {
     const inCategory = newest.filter((product) => product.categoryId === category.id);
     const pool = inCategory.length > 0 ? inCategory : newest;
     const pick = pool.length > 0 ? pool[i % pool.length] : undefined;
@@ -188,6 +247,8 @@ function buildSlides(locale: Locale, t: Dictionary, catalog: Catalog): HeroSlide
       },
     };
   });
+
+  return [family, ...categorySlides];
 }
 
 export default async function HomePage(props: PageProps<"/[locale]">) {

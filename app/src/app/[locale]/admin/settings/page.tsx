@@ -1,12 +1,17 @@
 import { notFound } from "next/navigation";
 import { SettingsEditor } from "@/app/[locale]/admin/settings/settings-editor";
-import { getNotificationSettings, getPromoDrafts, getShippingSettings } from "@/lib/db/settings";
+import {
+  getFramingSettings,
+  getNotificationSettings,
+  getPromoDrafts,
+  getShippingSettings,
+} from "@/lib/db/settings";
 import { isLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 
 /**
- * Shop settings: what delivery costs, what the promo bar says, and where the shop
- * is told about an order.
+ * Shop settings: what delivery costs, what a frame costs, what the promo bar says,
+ * and where the shop is told about an order.
  *
  * Both were constants in the code, which meant a rate change or a campaign line
  * needed a deploy. Reads and writes run under the administrator's own session, so
@@ -18,9 +23,10 @@ export default async function AdminSettingsPage(props: PageProps<"/[locale]/admi
   const { locale } = await props.params;
   if (!isLocale(locale)) notFound();
 
-  const [t, shipping, promos, notifications] = await Promise.all([
+  const [t, shipping, framing, promos, notifications] = await Promise.all([
     getDictionary(locale),
     getShippingSettings(),
+    getFramingSettings(),
     getPromoDrafts(),
     getNotificationSettings(),
   ]);
@@ -34,6 +40,7 @@ export default async function AdminSettingsPage(props: PageProps<"/[locale]/admi
 
       <SettingsEditor
         shipping={shipping}
+        framing={framing}
         promos={promos}
         notifications={notifications}
         t={t}

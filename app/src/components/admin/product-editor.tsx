@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { ProductArt } from "@/components/brand/product-art";
 import { CheckIcon, CloseIcon, PlusIcon } from "@/components/icons";
@@ -16,7 +17,7 @@ import {
   saveFramePreview,
   saveProduct,
   saveSizeGuide,
-  setStock,
+  saveVariant,
   uploadProductImage,
   type ActionResult,
 } from "@/lib/admin/actions";
@@ -45,7 +46,7 @@ import {
 import { LOCALE_META, LOCALES, type Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 import { mediaUrl } from "@/lib/supabase/env";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 
 const SHAPES = [
   "tee",
@@ -110,6 +111,7 @@ export function ProductEditor({
   t: Dictionary;
   onSavedHref: string;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Locale>("es");
   const [colors, setColors] = useState<string[]>(draft.colorways);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -120,7 +122,10 @@ export function ProductEditor({
     ? frameOrientation(product.framePreview)
     : "portrait";
 
-  const run = async (action: (form: FormData) => Promise<ActionResult>, form: FormData) => {
+  const run = async (
+    action: (form: FormData) => Promise<ActionResult>,
+    form: FormData,
+  ): Promise<ActionResult> => {
     setStatus("saving");
     try {
       const result = await action(form);
@@ -131,6 +136,7 @@ export function ProductEditor({
         setStatus("error");
         setMessage(result.error);
       }
+      return result;
     } catch (cause) {
       /*
         An action that rejects instead of answering — a request body the
@@ -139,8 +145,10 @@ export function ProductEditor({
         own error page. Every unsaved field in a long form goes with it. Failing
         into the status line keeps the work on screen and says what happened.
       */
+      const error = cause instanceof Error ? cause.message : String(cause);
       setStatus("error");
-      setMessage(cause instanceof Error ? cause.message : String(cause));
+      setMessage(error);
+      return { ok: false, error };
     }
   };
 
@@ -150,7 +158,21 @@ export function ProductEditor({
       <form
         action={async (form) => {
           for (const color of colors) form.append("colorways", color);
-          await run(saveProduct, form);
+          const result = await run(saveProduct, form);
+
+          /*
+            A product that has just been created has no marco, no tallas, no stock
+            and no fotos on screen: every one of those sections needs a saved row,
+            and this page was opened without one. So the editor moves to the
+            product's own page as soon as the row exists — where they all are, and
+            where a cuadro's framing is already switched on waiting to be adjusted.
+
+            Replace rather than push: going back to a form that has already been
+            submitted would offer to create the product a second time.
+          */
+          if (!draft.id && result.ok && result.id) {
+            router.replace(`${onSavedHref}/${result.id}`);
+          }
         }}
         className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]"
       >
@@ -413,7 +435,7 @@ export function ProductEditor({
 
           {/* Live preview of the generated artwork */}
           {colors[0] && (
-            <div className="mt-4 aspect-[5/6] bg-shell">
+            <div className="mt-4 aspect-[3/4] bg-shell">
               <ProductArt
                 shape={draft.shape as (typeof SHAPES)[number]}
                 colorway={swatches.find((s) => s.id === colors[0]) ?? swatches[0]}
@@ -449,7 +471,7 @@ export function ProductEditor({
 type Runner = (
   action: (form: FormData) => Promise<ActionResult>,
   form: FormData,
-) => Promise<void>;
+) => Promise<ActionResult>;
 
 /**
  * Measurements for this product's own sizes.
@@ -499,6 +521,24 @@ function FrameEditor({
   const rows = formats.length > 0 ? formats : [""];
 
   /*
+    The frame's price has two answers per format and the form has to show both: an
+    exception typed for this piece, and the shop-wide price it is charged at while
+    there is no exception. So the box holds the first and shows the second greyed
+    out — a shop looking at a ficha can see what it will be charged without that
+    figure being copied onto the product the moment anybody saves.
+  */
+
+  /** What the shop typed for this piece in this format, or null if nothing. */
+  const own = (format: string): number | null =>
+    (format ? stored?.surcharges[format] : undefined) ?? stored?.surcharge ?? null;
+
+  /** What this format is charged at while the box is empty. */
+  const inherited = (format: string): number =>
+    (format ? stored?.inherited.surcharges[format] : undefined) ??
+    stored?.inherited.surcharge ??
+    0;
+
+  /*
     Only what has been typed is held, not a row per format: adding a size in the
     stock table below re-renders this form with one more format, and a state
     object built once at mount would leave that row blank — a blank measurement
@@ -533,7 +573,11 @@ function FrameEditor({
   const preview: FramePreview = {
     finishes,
     mount: stored?.mount ?? DEFAULT_FRAME_PREVIEW.mount,
-    surcharge: stored?.surcharge ?? DEFAULT_FRAME_PREVIEW.surcharge,
+    // The drawing does not price anything; only its proportions and its mount
+    // matter here.
+    surcharges: {},
+    surcharge: null,
+    inherited: DEFAULT_FRAME_PREVIEW.inherited,
     sizes: {},
     ...measurements(rows[0]),
   };
@@ -597,7 +641,7 @@ function FrameEditor({
                 })}
               </ul>
               {finishes.length === 0 && (
-                <p className="mt-2 border-l-2 border-gold bg-shell p-3 text-[0.8125rem]">
+                <p className="mt-2 border-l-2 border-rust bg-shell p-3 text-[0.8125rem]">
                   {t.admin.frame.noFinishes}
                 </p>
               )}
@@ -623,26 +667,57 @@ function FrameEditor({
             </label>
 
             {/*
-              What the frame costs. Not decoration: this is the difference the
-              shopper pays for choosing an acabado over "sin marco", and the
-              server adds it to every line that asks for one.
+              What the frame costs, per format. Not decoration: this is the
+              difference the shopper pays for choosing an acabado over "sin
+              marco", and the server adds it to every line that asks for one.
+
+              Per format because framing a grande is dearer work than framing a
+              pequeño — the same reason the measurements are per format — so one
+              box for the whole listing would charge the wrong price for at least
+              one of the two.
             */}
-            <label className="block max-w-xs">
-              <span className="eyebrow mb-1.5 block text-mute">{t.admin.frame.surcharge}</span>
-              <span className="flex h-11 items-center border border-line focus-within:border-ink">
-                <input
-                  name="frame_surcharge"
-                  type="text"
-                  inputMode="decimal"
-                  defaultValue={((stored?.surcharge ?? 0) / 100).toFixed(2)}
-                  className="h-full min-w-0 flex-1 px-3 text-right text-[0.9375rem] outline-none"
-                />
-                <span className="px-3 text-[0.875rem] text-mute">€</span>
-              </span>
-              <span className="mt-1 block text-[0.75rem] text-mute">
+            <fieldset className="max-w-lg">
+              <legend className="eyebrow mb-1.5 text-mute">{t.admin.frame.surcharge}</legend>
+              <ul className="space-y-2">
+                {rows.map((format) => (
+                  <li key={format} className="flex flex-wrap items-center gap-3">
+                    <span className="w-24 shrink-0 text-[0.875rem] font-semibold">
+                      {format || t.admin.frame.defaultSize}
+                    </span>
+                    <label className="min-w-28 max-w-40 flex-1">
+                      <span className="sr-only">
+                        {format ? `${format} · ${t.admin.frame.surcharge}` : t.admin.frame.surcharge}
+                      </span>
+                      <span className="flex h-11 items-center border border-line focus-within:border-ink">
+                        <input
+                          // The format travels in the field name, as the
+                          // measurements do; a product with no sizes yet keeps
+                          // the plain name, which is this piece's one figure.
+                          name={format ? `frame_surcharge_${format}` : "frame_surcharge"}
+                          type="text"
+                          inputMode="decimal"
+                          // Only what the shop typed *for this piece*, blank
+                          // otherwise: an empty box means the shop's general
+                          // price, and pre-filling it would turn every product
+                          // anybody opens into a permanent exception to it.
+                          defaultValue={own(format) === null ? "" : euros(own(format)!)}
+                          // What that blank box will charge, greyed out.
+                          placeholder={euros(inherited(format))}
+                          aria-label={
+                            format ? `${format} · ${t.admin.frame.surcharge}` : t.admin.frame.surcharge
+                          }
+                          className="h-full min-w-0 flex-1 px-3 text-right text-[0.9375rem] outline-none"
+                        />
+                        <span className="px-3 text-[0.875rem] text-mute">€</span>
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <span className="mt-1.5 block text-[0.75rem] text-mute">
                 {t.admin.frame.surchargeHint}
               </span>
-            </label>
+            </fieldset>
 
             {/*
               The printed size, per format. Everything else on this form is
@@ -709,7 +784,7 @@ function FrameEditor({
               <FramedArt
                 finish={finishes[0] ?? "black"}
                 mount={preview.mount}
-                className="aspect-[5/6]"
+                className="aspect-[3/4]"
               >
                 <div style={{ aspectRatio: frameAspect(preview) }}>
                   <ProductArt
@@ -797,7 +872,7 @@ function SizeGuideEditor({
         </fieldset>
 
         {dimensions.length === 0 ? (
-          <p className="border-l-2 border-gold bg-shell p-4 text-[0.875rem]">
+          <p className="border-l-2 border-rust bg-shell p-4 text-[0.875rem]">
             {t.admin.sizeGuideNone}
           </p>
         ) : (
@@ -878,6 +953,7 @@ function StockGrid({
               <th className="p-2.5 text-left font-display uppercase">{t.common.color}</th>
               <th className="p-2.5 text-left font-display uppercase">{t.admin.size}</th>
               <th className="p-2.5 text-left font-display uppercase">{t.admin.sku}</th>
+              <th className="p-2.5 text-right font-display uppercase">{t.admin.price}</th>
               <th className="p-2.5 text-right font-display uppercase">{t.admin.units}</th>
               <th className="p-2.5" />
             </tr>
@@ -896,14 +972,39 @@ function StockGrid({
                   <td className="p-2.5 font-semibold">{variant.size}</td>
                   <td className="p-2.5 text-mute">{variant.sku ?? "—"}</td>
                   <td className="p-2.5">
+                    {/*
+                      The row is one form, and it lives in this cell: a <form>
+                      cannot wrap two cells of a table, so the fields in the next
+                      one join it by id. Price and stock save together, which is
+                      what pressing "guardar" on a row means to whoever typed it.
+                    */}
                     <form
+                      id={`variant-${variant.id}`}
                       action={async (form) => {
                         form.set("variant_id", variant.id);
-                        await run(setStock, form);
+                        await run(saveVariant, form);
                       }}
-                      className="flex items-center justify-end gap-2"
+                      className="flex items-center justify-end gap-1.5"
                     >
+                      {/* What this format sells for, not what it adds to the
+                          base: the shop prices the grande at sixty euros, not at
+                          twenty more than the pequeño. */}
                       <input
+                        name="price"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        defaultValue={((product.price + variant.priceDeltaCents) / 100).toFixed(2)}
+                        aria-label={`${t.admin.price} ${variant.size}`}
+                        className="h-9 w-24 border border-line px-2 text-right text-[0.875rem] outline-none focus:border-ink"
+                      />
+                      <span className="text-[0.875rem] text-mute">€</span>
+                    </form>
+                  </td>
+                  <td className="p-2.5">
+                    <div className="flex items-center justify-end gap-2">
+                      <input
+                        form={`variant-${variant.id}`}
                         name="stock"
                         type="number"
                         min={0}
@@ -914,10 +1015,16 @@ function StockGrid({
                           variant.stock === 0 ? "border-flame text-flame" : "border-line",
                         )}
                       />
-                      <Button type="submit" variant="outline" size="sm" className="h-9">
+                      <Button
+                        form={`variant-${variant.id}`}
+                        type="submit"
+                        variant="outline"
+                        size="sm"
+                        className="h-9"
+                      >
                         {t.admin.save}
                       </Button>
-                    </form>
+                    </div>
                   </td>
                   <td className="p-2.5 text-right">
                     <button
@@ -965,12 +1072,25 @@ function StockGrid({
             </option>
           ))}
         </Select>
+        {/* Blank is the catalogue price, which is what a product sold in one
+            format has always charged. */}
+        <Field
+          label={t.admin.price}
+          name="price"
+          type="number"
+          step="0.01"
+          defaultValue={(product.price / 100).toFixed(2)}
+        />
         <Field label={t.admin.units} name="stock" type="number" defaultValue="0" />
         <Button type="submit" variant="outline" className="h-12">
           <PlusIcon className="size-4" />
           {t.admin.addVariant}
         </Button>
       </form>
+
+      <p className="mt-3 max-w-2xl text-[0.8125rem] text-mute">
+        {t.admin.variantPriceHint.replace("{{amount}}", formatPrice(product.price))}
+      </p>
     </section>
   );
 }
@@ -1017,7 +1137,7 @@ function CreditsEditor({
                     await run(removeCredit, form);
                   })
                 }
-                className="inline-flex h-9 items-center gap-1.5 border border-line px-3 text-[0.8125rem] transition hover:border-flame hover:text-flame"
+                className="inline-flex h-9 items-center gap-1.5 border border-line px-3 text-[0.8125rem] transition hover:border-ink"
               >
                 <CloseIcon className="size-3.5" />
                 {t.admin.removeAuthor}
@@ -1228,6 +1348,9 @@ function cmOr(typed: string, fallback: number): number {
     ? value
     : fallback;
 }
+
+/** Cents in the database, euros in the form. */
+const euros = (cents: number) => (cents / 100).toFixed(2);
 
 /* ----------------------------------------------------------------- atoms */
 

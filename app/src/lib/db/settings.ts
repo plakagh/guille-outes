@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { DEFAULT_FRAMING, parseFramingSettings, type FramingSettings } from "@/lib/catalog";
 import type { Locale } from "@/lib/i18n/config";
 import { DEFAULT_SHIPPING, parseShippingSettings, type ShippingSettings } from "@/lib/shipping";
 import { createClient } from "@/lib/supabase/server";
@@ -32,6 +33,32 @@ export const getShippingSettings = cache(async (): Promise<ShippingSettings> => 
   }
 
   return parseShippingSettings(data);
+});
+
+/**
+ * What the shop charges to frame a print.
+ *
+ * Public, like the shipping rates and for the same reason: it is quoted on every
+ * ficha of a cuadro before anybody signs in. Read once per request and folded into
+ * each product by the catalogue query, so a listing card can price a frame without
+ * knowing this row exists.
+ */
+export const getFramingSettings = cache(async (): Promise<FramingSettings> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("framing_settings")
+    .select("surcharges, surcharge_cents")
+    .maybeSingle();
+
+  // A missing row means no frame price rather than the shop down. Every piece
+  // then costs what it says on its own ficha, and the ones that say nothing are
+  // framed for free — a degraded read that undercharges, never overcharges.
+  if (error || !data) {
+    if (error) console.error("[settings] framing read failed", error);
+    return DEFAULT_FRAMING;
+  }
+
+  return parseFramingSettings(data);
 });
 
 /**

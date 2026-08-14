@@ -85,7 +85,7 @@ export default async function AuthorPage(props: PageProps<"/[locale]/authors/[sl
             <div className="flex flex-wrap items-center gap-5">
               <AuthorAvatar author={author} className="size-24 text-3xl" />
               <div>
-                <p className="eyebrow text-flame">{author.role}</p>
+                <p className="eyebrow text-ink-soft">{author.role}</p>
                 <h1 className="mt-1 text-[clamp(2rem,5vw,3.5rem)] leading-[0.9]">
                   {author.name}
                 </h1>
@@ -97,7 +97,7 @@ export default async function AuthorPage(props: PageProps<"/[locale]/authors/[sl
             </p>
 
             {author.statement && (
-              <blockquote className="mt-6 max-w-2xl border-l-2 border-flame pl-5">
+              <blockquote className="mt-6 max-w-2xl border-l-2 border-ink pl-5">
                 <p className="eyebrow mb-2 text-mute">{t.authors.statement}</p>
                 <p className="font-display text-[clamp(1.25rem,2.5vw,1.75rem)] font-medium uppercase leading-tight">
                   “{author.statement}”
@@ -144,7 +144,7 @@ export default async function AuthorPage(props: PageProps<"/[locale]/authors/[sl
                           href={link.url}
                           target="_blank"
                           rel="noreferrer noopener"
-                          className="text-[0.875rem] underline hover:text-flame"
+                          className="text-[0.875rem] underline hover:decoration-2"
                         >
                           {link.label}
                         </a>

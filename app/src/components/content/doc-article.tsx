@@ -98,7 +98,7 @@ function BlockView({ block }: { block: Block }) {
   */
   if (block.type === "note") {
     return (
-      <p className="border border-line border-l-2 border-l-flame bg-shell p-4 text-[0.9375rem] font-semibold leading-relaxed text-ink">
+      <p className="border border-line border-l-2 border-l-rust bg-shell p-4 text-[0.9375rem] font-semibold leading-relaxed text-ink">
         {block.text}
       </p>
     );
@@ -110,7 +110,7 @@ function BlockView({ block }: { block: Block }) {
         {block.items.map((item) => (
           <li
             key={item}
-            className="relative pl-5 text-[0.9375rem] leading-relaxed text-ink/80 before:absolute before:left-0 before:top-[0.6em] before:size-1.5 before:bg-flame"
+            className="relative pl-5 text-[0.9375rem] leading-relaxed text-ink/80 before:absolute before:left-0 before:top-[0.6em] before:size-1.5 before:bg-ink"
           >
             {item}
           </li>

@@ -18,6 +18,16 @@ import { cn } from "@/lib/utils";
 export type HeroSlide = {
   eyebrow: string;
   headline: [string, string];
+  /**
+   * A line that belongs to the headline rather than to the copy — the second
+   * half of a name the display face cannot fit on one line.
+   *
+   * It is drawn between the headline and the blurb, in the body face, so it
+   * reads as the continuation of the title and not as the first sentence of the
+   * paragraph. Most slides do not have one: a headline that is a claim rather
+   * than a name has nothing to continue.
+   */
+  subhead?: string;
   blurb: string;
   primary: { label: string; href: string };
   secondary?: { label: string; href: string };
@@ -178,14 +188,49 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           className="animate-[hero-enter_460ms_var(--ease-out-quint)]"
           style={{ "--travel": "1.5rem" } as React.CSSProperties}
         >
-          <p className={cn("eyebrow mb-4", light ? "text-white/70" : "text-flame")}>
+          <p className={cn("eyebrow mb-4", light ? "text-white/70" : "text-ink-soft")}>
             {slide.eyebrow}
           </p>
-          <h1 className="text-[clamp(2.75rem,8vw,6rem)] leading-[0.86]">
+          {/*
+            The second line of the headline is no longer red.
+
+            §2.1 puts headlines in red's NO column, and it was landing on the
+            largest text on the site — the fold read as a discount announcement
+            whatever the slide was about, and on the light slides #C8102E over
+            photography is thin at that weight anyway. The three levels §5.6 asks
+            for are still all here (eyebrow → headline → one line of copy); the
+            emphasis now comes from the size break, which is what a condensed face
+            at 6rem is for.
+
+            The `light ? "text-flame" : "text-flame"` it replaces had identical
+            branches, so the slide's own ink was never consulted.
+          */}
+          {/*
+            0.86 was set for one- and two-word headlines in caps, where the
+            ascenders and descenders the leading is meant to clear simply are not
+            there. It stopped being true the moment a headline arrived with two
+            full words stacked on top of each other: "A FAMILIA / PINTORA" closed
+            up until the two lines read as one block of letters.
+
+            0.94 still overlaps what a normal face would need — the point of a
+            condensed display line is that it stacks tight — but the two lines
+            are now legibly two.
+          */}
+          <h1 className="text-[clamp(2.75rem,8vw,6rem)] leading-[0.94]">
             {slide.headline[0]}
             <br />
-            <span className={light ? "text-flame" : "text-flame"}>{slide.headline[1]}</span>
+            {slide.headline[1]}
           </h1>
+          {slide.subhead && (
+            <p
+              className={cn(
+                "mt-3 font-sans text-[clamp(1rem,1.8vw,1.375rem)] leading-snug",
+                light ? "text-white/85" : "text-ink/80",
+              )}
+            >
+              {slide.subhead}
+            </p>
+          )}
           <p
             className={cn(
               "mt-5 text-[0.9375rem] leading-relaxed",
@@ -195,12 +240,39 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
             {slide.blurb}
           </p>
 
+          {/*
+            Filled plus an outline, which is the campaign pattern from §5.4/§5.6 —
+            and it no longer depends on how light the slide is.
+
+            Before, the pair was white-or-black filled, both hovering to red. That
+            put the CTA colour on whichever button the pointer happened to be over,
+            including the secondary one, and left the fold with no fixed primary:
+            on a light slide the filled button was white, on a dark one black, so
+            "shop now" changed weight from slide to slide. The fill is now the
+            site's one action colour on every slide, and the outline reads as the
+            second choice on any of them.
+
+            The outline follows the slide's ink because it is a border on
+            photography and has nothing else to key off.
+          */}
           <div className="mt-7 flex flex-wrap gap-3">
+            {/*
+              The white edge is what lets the blue survive a dark field, and on
+              the navy slide it is the only thing doing that job.
+
+              #1D428A is 1.44:1 against #132A5A and 1.62:1 against the maroon —
+              the white label stays perfectly readable at 9.6:1, but the button
+              stops being a *shape*, which is the half of a CTA that gets it
+              noticed. §5.4 gives every button a 2px border reserved for exactly
+              this; here it is simply made visible. Transparent rather than absent
+              on the sand slide, where the blue already separates at 6.5:1, so the
+              box measures the same on every slide.
+            */}
             <Link
               href={slide.primary.href}
               className={cn(
-                "inline-flex h-14 items-center gap-2 px-8 font-display text-base font-bold uppercase tracking-wide transition-colors",
-                light ? "bg-white text-ink hover:bg-flame hover:text-white" : "bg-ink text-white hover:bg-flame",
+                "inline-flex h-14 items-center gap-2 border-2 bg-court px-8 font-sans text-base font-bold uppercase tracking-cta text-white transition-colors hover:bg-court-deep",
+                light ? "border-white" : "border-transparent",
               )}
             >
               {slide.primary.label}
@@ -210,10 +282,10 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
               <Link
                 href={slide.secondary.href}
                 className={cn(
-                  "inline-flex h-14 items-center px-8 font-display text-base font-bold uppercase tracking-wide transition-colors",
+                  "inline-flex h-14 items-center border-2 px-8 font-sans text-base font-bold uppercase tracking-cta transition-colors",
                   light
-                    ? "border-2 border-white/60 hover:border-white hover:bg-white hover:text-ink"
-                    : "border-2 border-ink hover:bg-ink hover:text-white",
+                    ? "border-white/70 text-white hover:bg-white hover:text-ink"
+                    : "border-ink text-ink hover:bg-ink hover:text-white",
                 )}
               >
                 {slide.secondary.label}
@@ -222,8 +294,20 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           </div>
         </div>
 
-        {/* Art panel */}
-        <div className="relative flex min-h-[19rem] items-center justify-center lg:min-h-[32rem]">
+        {/*
+          Art panel — first on a phone, second on a desktop.
+
+          Stacked in source order the fold opened with three levels of words and
+          two buttons, and the piece the slide is *about* began below the crease:
+          the reader is asked to press "ver todo" before being shown the thing.
+          Hoisting it puts the picture first, which leaves the words in the middle
+          and the buttons at the bottom, right where the thumb is — and reading
+          order stays picture → what it is → what to do about it.
+
+          Only the phone: side by side there is no "above", and the words keep the
+          left-hand column they are laid out for.
+        */}
+        <div className="relative order-first flex min-h-[19rem] items-center justify-center lg:order-none lg:min-h-[32rem]">
           {/* The piece is the only thing in this panel. It gets the whole of it,
               and the striped field is the backdrop. */}
           <div

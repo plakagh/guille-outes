@@ -79,7 +79,7 @@ export function ArtworkTee({
 
   return (
     <section className="border border-line bg-white p-5 lg:p-6">
-      <p className="eyebrow mb-1 text-flame">{t.gallery.tee.eyebrow}</p>
+      <p className="eyebrow mb-1 text-ink-soft">{t.gallery.tee.eyebrow}</p>
       <h2 className="text-2xl">{t.gallery.tee.title}</h2>
       <p className="mt-2 text-[0.9375rem] leading-relaxed text-mute">{t.gallery.tee.blurb}</p>
 
@@ -126,24 +126,30 @@ export function ArtworkTee({
               {t.common.color}
               <span className="ml-2 normal-case tracking-normal text-ink">{colorway.name}</span>
             </p>
-            <ul className="flex flex-wrap gap-2">
-              {product.colorways.map((option, index) => (
-                <li key={option.id}>
-                  <button
-                    type="button"
-                    onClick={() => setColorIndex(index)}
-                    aria-label={option.name}
-                    aria-pressed={index === colorIndex}
-                    className={cn(
-                      "block border-2 p-0.5",
-                      index === colorIndex ? "border-ink" : "border-transparent",
-                    )}
-                  >
-                    <Swatch base={option.base} trim={option.trim} className="size-7" />
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {/* One colourway is the answer, not a question — show the swatch
+                without making it look pickable. */}
+            {product.colorways.length > 1 ? (
+              <ul className="flex flex-wrap gap-2">
+                {product.colorways.map((option, index) => (
+                  <li key={option.id}>
+                    <button
+                      type="button"
+                      onClick={() => setColorIndex(index)}
+                      aria-label={option.name}
+                      aria-pressed={index === colorIndex}
+                      className={cn(
+                        "block border-2 p-0.5",
+                        index === colorIndex ? "border-ink" : "border-transparent",
+                      )}
+                    >
+                      <Swatch base={option.base} trim={option.trim} className="size-7" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Swatch base={colorway.base} trim={colorway.trim} className="size-7" />
+            )}
           </div>
 
           <div>
@@ -197,7 +203,7 @@ export function ArtworkTee({
             so it sits next to the button that commits to it, framed like the
             same term in the conditions of sale.
           */}
-          <p className="border-l-2 border-flame bg-shell p-3 text-[0.8125rem] font-semibold leading-relaxed text-ink">
+          <p className="border-l-2 border-rust bg-shell p-3 text-[0.8125rem] font-semibold leading-relaxed text-ink">
             {t.gallery.tee.noReturns}
           </p>
 

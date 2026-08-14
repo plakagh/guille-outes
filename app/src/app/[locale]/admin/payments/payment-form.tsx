@@ -148,7 +148,7 @@ export function PaymentForm({
               </>
             ) : settings.secretUnreadable ? (
               <>
-                <ShieldIcon className="mt-0.5 size-4 shrink-0 text-gold" />
+                <ShieldIcon className="mt-0.5 size-4 shrink-0 text-rust" />
                 <span className="text-ink/80">{t.payments.secretUnreadable}</span>
               </>
             ) : (
@@ -189,7 +189,7 @@ export function PaymentForm({
         <div
           className={cn(
             "border p-5",
-            allPassed ? "border-pine bg-pine/5" : "border-gold bg-gold/10",
+            allPassed ? "border-pine bg-pine/5" : "border-rust bg-rust/5",
           )}
         >
           <p className="eyebrow text-mute">{t.payments.status}</p>
@@ -237,7 +237,7 @@ export function PaymentForm({
           </code>
 
           {!urls.reachable && (
-            <p className="mt-3 border-l-2 border-gold pl-3 text-[0.8125rem] leading-relaxed text-ink/80">
+            <p className="mt-3 border-l-2 border-rust pl-3 text-[0.8125rem] leading-relaxed text-ink/80">
               {t.payments.urlsLocalWarning}
             </p>
           )}

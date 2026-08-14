@@ -34,10 +34,10 @@ export function Newsletter({
   const n = t.footer.newsletter;
 
   return (
-    <section className="bg-ink text-white">
+    <section data-chrome="dark" className="bg-black text-white">
       <div className="shell grid gap-8 py-12 lg:grid-cols-2 lg:items-center lg:py-16">
         <div>
-          <p className="eyebrow mb-3 text-flame">{n.eyebrow}</p>
+          <p className="eyebrow mb-3 text-flame-bright">{n.eyebrow}</p>
           <h2 className="text-[clamp(2rem,5vw,3.5rem)] leading-[0.9]">
             {n.title1}
             <br />
@@ -49,7 +49,13 @@ export function Newsletter({
         <div>
           {state.status === "sent" ? (
             <div className="flex items-start gap-3 border border-white/20 bg-white/5 p-6">
-              <CheckIcon className="mt-0.5 size-6 shrink-0 text-flame" />
+              {/*
+                White, not red. This tick is a confirmation, and red on this site
+                means the action or a discount — neither of which a "we've sent
+                the email" panel is. Success green is the token for it, but #067647
+                on black is unreadable, and white says it plainly on this surface.
+              */}
+              <CheckIcon className="mt-0.5 size-6 shrink-0 text-white" />
               <div>
                 <p className="font-display text-xl font-bold uppercase">{n.checkInboxTitle}</p>
                 <p className="mt-1 text-[0.875rem] text-white/70">
@@ -80,10 +86,19 @@ export function Newsletter({
                   aria-describedby={state.status === "error" ? "newsletter-error" : undefined}
                   className="h-14 min-w-0 flex-1 border border-white/25 bg-transparent px-4 text-[0.9375rem] outline-none transition placeholder:text-white/40 focus:border-white"
                 />
+                {/*
+                  White with black text, per §2.2 — not the red it was.
+
+                  On a black band, white *is* the strongest thing available, so red
+                  buys no emphasis here and only spends the CTA colour on a
+                  secondary ask: signing up for a newsletter is not the action any
+                  page on this site exists for. Body face and .06em, like every
+                  other label.
+                */}
                 <button
                   type="submit"
                   disabled={pending}
-                  className="inline-flex h-14 items-center justify-center gap-2 bg-flame px-7 font-display text-base font-bold uppercase tracking-wide transition-colors hover:bg-white hover:text-ink disabled:opacity-60"
+                  className="inline-flex h-14 items-center justify-center gap-2 bg-white px-7 font-sans text-base font-bold uppercase tracking-cta text-ink transition-colors hover:bg-shell-deep disabled:opacity-60"
                 >
                   {pending ? n.submitting : n.submit}
                   <ArrowRight className="size-4" />
@@ -106,7 +121,7 @@ export function Newsletter({
                   <Link href={privacyHref} target="_blank" className="underline hover:text-white">
                     {n.privacy}
                   </Link>
-                  <span className="text-flame"> *</span>
+                  <span className="text-flame-bright"> *</span>
                 </span>
               </label>
 
@@ -116,7 +131,7 @@ export function Newsletter({
                 <p
                   id="newsletter-error"
                   role="alert"
-                  className="border-l-2 border-flame bg-white/5 p-3 text-[0.8125rem] text-white"
+                  className="border-l-2 border-flame-bright bg-white/5 p-3 text-[0.8125rem] text-white"
                 >
                   {n.errors[state.error]}
                 </p>

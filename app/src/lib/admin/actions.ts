@@ -7,6 +7,8 @@ import {
   FRAME_MAX_CM,
   FRAME_MAX_SURCHARGE,
   FRAME_MIN_CM,
+  FRAMED_CATEGORY,
+  initialFramePreview,
   isColorwayId,
   isFrameFinish,
   isSizeDimension,
@@ -30,7 +32,10 @@ import { slugify } from "@/lib/utils";
  *     removed or bypassed, the database would still refuse the write.
  */
 
-export type ActionResult = { ok: true } | { ok: false; error: string };
+export type ActionResult =
+  /** `id` is the row just created, for a caller that has to go to it. */
+  | { ok: true; id?: string }
+  | { ok: false; error: string };
 
 const FORBIDDEN = "forbidden";
 const INVALID = "invalid";
@@ -139,6 +144,42 @@ function slugBundle(form: FormData, name: Record<Locale, string>): Record<Locale
 
 /* -------------------------------------------------------------- products */
 
+type Client = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * The framing to save alongside a product, when nobody has said anything about
+ * framing yet.
+ *
+ * A cuadro is sold framed, so one created in — or moved into — the cuadros
+ * category arrives with the chooser already on its ficha instead of waiting for
+ * a tick in the framing section further down the page, which is not even on
+ * screen while the product is being created.
+ *
+ * Only where nothing has been decided. `{}` is a product nobody has configured;
+ * a preview the shop switched off is stored as `{"enabled": false}` precisely so
+ * that this can tell the two apart and leave the second alone.
+ */
+async function defaultFraming(
+  supabase: Client,
+  id: string | null,
+  categoryId: string,
+): Promise<{ frame_preview?: ReturnType<typeof initialFramePreview> }> {
+  if (categoryId !== FRAMED_CATEGORY) return {};
+  if (!id) return { frame_preview: initialFramePreview() };
+
+  const { data } = await supabase
+    .from("products")
+    .select("frame_preview")
+    .eq("id", id)
+    .single();
+
+  const stored: unknown = data?.frame_preview;
+  const untouched =
+    typeof stored === "object" && stored !== null && Object.keys(stored).length === 0;
+
+  return untouched ? { frame_preview: initialFramePreview() } : {};
+}
+
 export async function saveProduct(form: FormData): Promise<ActionResult> {
   if (!(await requireAdmin())) return { ok: false, error: FORBIDDEN };
 
@@ -196,19 +237,36 @@ export async function saveProduct(form: FormData): Promise<ActionResult> {
   };
 
   const supabase = await createClient();
+  const framing = await defaultFraming(supabase, id || null, categoryId);
 
   if (id) {
-    const { error } = await supabase.from("products").update(payload).eq("id", id);
+    const { error } = await supabase
+      .from("products")
+      .update({ ...payload, ...framing })
+      .eq("id", id);
     if (error) return { ok: false, error: error.message };
-  } else {
-    const ref = str(form, "ref");
-    if (!ref) return { ok: false, error: "ref_required" };
-    const { error } = await supabase.from("products").insert({ ...payload, ref });
-    if (error) return { ok: false, error: error.message };
+
+    revalidateStore();
+    return { ok: true, id };
   }
 
+  const ref = str(form, "ref");
+  if (!ref) return { ok: false, error: "ref_required" };
+
+  /*
+    The new id comes back with the insert: the editor has to go to the product's
+    own page from here, because framing, sizes, stock and images all need a saved
+    row and none of them are on screen while it is being created.
+  */
+  const { data, error } = await supabase
+    .from("products")
+    .insert({ ...payload, ...framing, ref })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+
   revalidateStore();
-  return { ok: true };
+  return { ok: true, id: data.id };
 }
 
 export async function setPublished(form: FormData): Promise<ActionResult> {
@@ -250,6 +308,11 @@ export async function deleteProduct(form: FormData): Promise<ActionResult> {
  * Enabling with no finish ticked is stored as *off* rather than as a frame with
  * no colour: the storefront would otherwise have to invent one, and a preview the
  * shop did not choose is worse than no preview.
+ *
+ * Off is written as `{"enabled": false}` and not as `{}`. Both read as unframed,
+ * but the empty object is what a product that nobody has been through looks like,
+ * and a cuadro saved with it gets framing filled in for it — see `defaultFraming`.
+ * Turning a preview off by hand is a decision, and it has to survive the next save.
  */
 export async function saveFramePreview(form: FormData): Promise<ActionResult> {
   if (!(await requireAdmin())) return { ok: false, error: FORBIDDEN };
@@ -268,13 +331,6 @@ export async function saveFramePreview(form: FormData): Promise<ActionResult> {
   const rawMount = str(form, "mount").replace(",", ".");
   const mount = Number(rawMount);
   const safeMount = Number.isFinite(mount) && mount >= 0 && mount <= 30 ? mount : 10;
-
-  /*
-    What a frame costs on top of the print. The shopper picks a finish or "sin
-    marco" on the product page, and this is the difference between the two — so
-    a blank box means the frame is thrown in, not that framing is unavailable.
-  */
-  const surcharge = Math.min(cents(form, "frame_surcharge") ?? 0, FRAME_MAX_SURCHARGE);
 
   /*
     The printed size of each format the piece is sold in. This one is not
@@ -297,6 +353,32 @@ export async function saveFramePreview(form: FormData): Promise<ActionResult> {
     };
   }
 
+  /*
+    What a frame costs on top of the print, per format — an *exception* to the
+    shop's own price, which is what almost every cuadro is framed at (see
+    `framing_settings` and `saveFramingSettings`).
+
+    A blank box is what most of them will be: it says nothing, so the format is
+    left out of the JSON and charged at the shop's price. Zero typed on purpose is
+    the other thing, and it is kept: this piece is framed for free.
+  */
+  const surcharges: Record<string, number> = {};
+  for (const format of formats) {
+    const typed = cents(form, `frame_surcharge_${format}`);
+    if (typed !== null) surcharges[format] = Math.min(typed, FRAME_MAX_SURCHARGE);
+  }
+
+  /*
+    The piece's own single figure, which only a product with no named formats can
+    set — its one row is the plain field.
+
+    Deliberately not "the first format's amount": that figure is the answer for
+    every format this piece does not price, so copying the pequeño's 15 € into it
+    would silently make the grande cost 15 € as well instead of the shop's price
+    for a grande.
+  */
+  const ownSurcharge = formats.length === 0 ? cents(form, "frame_surcharge") : null;
+
   // The fallback pair, for a product with no sizes and for anything reading the
   // row without knowing about formats. The first format, so a listing card and
   // an unchosen product page draw what the shopper will be offered first.
@@ -309,8 +391,21 @@ export async function saveFramePreview(form: FormData): Promise<ActionResult> {
     .from("products")
     .update({
       frame_preview: enabled
-        ? { enabled: true, finishes, mount: safeMount, surcharge, sizes, width, height }
-        : {},
+        ? {
+            enabled: true,
+            finishes,
+            mount: safeMount,
+            sizes,
+            width,
+            height,
+            // Both omitted when nothing was typed, because the absence of the key
+            // is what "charge the shop's price" is stored as.
+            ...(Object.keys(surcharges).length > 0 ? { surcharges } : {}),
+            ...(ownSurcharge === null
+              ? {}
+              : { surcharge: Math.min(ownSurcharge, FRAME_MAX_SURCHARGE) }),
+          }
+        : { enabled: false },
     })
     .eq("id", id);
 
@@ -320,10 +415,43 @@ export async function saveFramePreview(form: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
-/* ----------------------------------------------------------------- stock */
+/* ------------------------------------------------------------- variants */
 
-/** Absolute set, used by the editable stock grid. */
-export async function setStock(form: FormData): Promise<ActionResult> {
+/** What the catalogue price of a product is, for pricing one of its formats. */
+async function basePrice(supabase: Client, productId: string): Promise<number | null> {
+  const { data } = await supabase
+    .from("products")
+    .select("price_cents")
+    .eq("id", productId)
+    .single();
+
+  return data?.price_cents ?? null;
+}
+
+/**
+ * The price of one format, as the difference the variant stores.
+ *
+ * The panel asks for the price a shopper pays for that size, because that is the
+ * number the shop has in its head — "el grande son 60 €" — and not the twenty
+ * euros between it and the small one. The subtraction happens here.
+ *
+ * Below the product's own price there is nothing to store: the column cannot go
+ * negative, and a format cheaper than the catalogue price means the base price is
+ * the thing that needs lowering. Saying so beats silently selling it at the base.
+ */
+function priceDelta(price: number, base: number): number | null {
+  return price < base ? null : price - base;
+}
+
+/**
+ * One row of the variants table: what that size costs and how many are left.
+ *
+ * Both in one save because they are one row on screen and one decision to the
+ * shop, and because two buttons on a table row is two ways to leave half of it
+ * unsaved. A blank price is not a free variant: it is the catalogue price, which
+ * is what a product sold in a single format has always charged.
+ */
+export async function saveVariant(form: FormData): Promise<ActionResult> {
   if (!(await requireAdmin())) return { ok: false, error: FORBIDDEN };
 
   const variantId = str(form, "variant_id");
@@ -331,9 +459,24 @@ export async function setStock(form: FormData): Promise<ActionResult> {
   if (!variantId || stock === null || stock < 0) return { ok: false, error: INVALID };
 
   const supabase = await createClient();
+
+  const { data: variant } = await supabase
+    .from("product_variants")
+    .select("product_id")
+    .eq("id", variantId)
+    .single();
+  if (!variant) return { ok: false, error: INVALID };
+
+  const base = await basePrice(supabase, variant.product_id);
+  if (base === null) return { ok: false, error: INVALID };
+
+  const price = cents(form, "price");
+  const delta = price === null ? 0 : priceDelta(price, base);
+  if (delta === null) return { ok: false, error: "price_below_base" };
+
   const { error } = await supabase
     .from("product_variants")
-    .update({ stock })
+    .update({ stock, price_delta_cents: delta })
     .eq("id", variantId);
 
   if (error) return { ok: false, error: error.message };
@@ -441,11 +584,26 @@ export async function addVariant(form: FormData): Promise<ActionResult> {
   if (!productId || !size || !isColorwayId(colorwayId)) return { ok: false, error: INVALID };
 
   const supabase = await createClient();
+
+  // Priced from the first row rather than after it: a format that is on sale for
+  // a minute at the wrong price is a format somebody can buy at the wrong price.
+  const price = cents(form, "price");
+  let delta = 0;
+  if (price !== null) {
+    const base = await basePrice(supabase, productId);
+    if (base === null) return { ok: false, error: INVALID };
+
+    const priced = priceDelta(price, base);
+    if (priced === null) return { ok: false, error: "price_below_base" };
+    delta = priced;
+  }
+
   const { error } = await supabase.from("product_variants").insert({
     product_id: productId,
     size,
     colorway_id: colorwayId,
     stock: Math.max(0, stock),
+    price_delta_cents: delta,
   });
 
   if (error) return { ok: false, error: error.message };

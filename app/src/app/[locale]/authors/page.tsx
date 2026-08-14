@@ -40,7 +40,7 @@ export default async function AuthorsPage(props: PageProps<"/[locale]/authors">)
         className="mb-5"
       />
 
-      <p className="eyebrow mb-3 text-flame">{t.authors.eyebrow}</p>
+      <p className="eyebrow mb-3 text-ink-soft">{t.authors.eyebrow}</p>
       <h1 className="text-[clamp(2rem,5vw,3.5rem)] leading-[0.9]">{t.authors.title}</h1>
       <p className="mt-3 max-w-2xl text-[1.0625rem] leading-relaxed text-mute">
         {t.authors.blurb}

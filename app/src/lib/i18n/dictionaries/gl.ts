@@ -34,6 +34,17 @@ const gl: Dictionary = {
     language: "Idioma",
   },
 
+  comingSoon: {
+    eyebrow: "Estamos en obras",
+    title: "Aínda estamos rematando a web",
+    body: "Podes mirar todo o que queiras, pero aínda non se pode mercar. Déixanos o teu correo e avisámoste en canto abramos, cun 10 % para o teu primeiro pedido.",
+    submit: "Avísame",
+    dismiss: "Seguir mirando",
+    cartCta: "Aínda non se pode mercar",
+    cartNote:
+      "Podes ir deixando o carriño preparado: gárdase neste navegador e seguirá aquí cando abramos. Apúntate ao boletín e avisámoste ese día.",
+  },
+
   // The rotating messages moved to the `promo_messages` table so a campaign line
   // can change without a deploy; what is left here is the fixed furniture.
   promo: {
@@ -674,9 +685,9 @@ const gl: Dictionary = {
       noFinishes: "Sen ningún acabado marcado a vista non se mostrará.",
       mount: "Ancho do paspartú",
       mountHint: "Porcentaxe do ancho do marco. Entre 8 e 14 % é o habitual.",
-      surcharge: "Prezo do marco",
+      surcharge: "Prezo do marco de cada tamaño",
       surchargeHint:
-        "O que se suma ao prezo da lámina cando a clientela elixe un acabado. En branco ou a 0 € o marco vai incluído, e na ficha poderase mercar a obra con marco ou sen el.",
+        "Só se esta obra leva un prezo de marco distinto do xeral. Déixao en branco e cóbrase o prezo da tenda (o que aparece en gris, e cámbiase en Axustes › Prezo do marco). A 0 € o marco desta obra vai incluído.",
       size: "Medidas de cada tamaño",
       defaultSize: "Por defecto",
       height: "Alto",
@@ -700,6 +711,12 @@ const gl: Dictionary = {
       freeAlways: "Con 0 € o envío estándar será gratis en todos os pedidos.",
       methodsOffered: "Modalidades que se ofrecen",
       standardAlways: "O envío estándar sempre está dispoñible: sen el non habería forma de comprar.",
+      framingTitle: "Prezo do marco",
+      framingBlurb:
+        "O que se suma ao prezo da lÃ¡mina cando a clientela elixe un acabado, para todos os cadros da tenda. Enmarcar un grande custa mÃ¡is que un pequeno, asÃ­ que cada tamaÃ±o leva o seu importe. Un cadro concreto pode levar outro prezo: ponse na sÃºa ficha, en «Vista enmarcada».",
+      framingGeneral: "Outros tamaÃ±os",
+      framingGeneralHint:
+        "AplÃ­case a calquera tamaÃ±o que non teÃ±a importe propio arriba. Se o pos a 0 â¬, eses marcos van incluÃ­dos no prezo.",
       noticeTitle: "Avisos de pedido",
       noticeBlurb:
         "A esta dirección chegan dous correos por pedido: un en canto se fai e outro cando o banco confirma o cobro. Alí indícase, entre outras cousas, con que marco se mercou cada cadro.",
@@ -860,6 +877,8 @@ const gl: Dictionary = {
     size: "Talla",
     sku: "SKU",
     units: "Unidades",
+    variantPriceHint:
+      "O prezo ao que se vende cada tamaño. Ningún pode ser menor que o prezo do produto ({{amount}}), que é o do formato máis barato: para baixar de aí, baixa antes o prezo de arriba.",
     adjust: "Axustar",
     credits: "Autoría",
     addAuthor: "Engadir autor",
@@ -1245,6 +1264,48 @@ const gl: Dictionary = {
       delete: "Borrar",
       deleteConfirm: "Si, bórrao",
     },
+  },
+
+  family: {
+    eyebrow: "O proxecto",
+    line1: "A familia",
+    line2: "pintora",
+    subhead: "que vaga polo mundo",
+    fullName: "A familia pintora que vaga polo mundo",
+    // O nome xa está na lingua de quen le, así que non hai nada que traducir
+    // debaixo. A páxina agocha esta liña cando vén baleira.
+    nameLocal: "",
+    imageAlt:
+      "Cartel de A familia pintora: unha vaca pintada cos cornos de cores e a lingua fóra, a sinatura de Guille Outes e tres cadros pequenos sobre un fondo azul noite.",
+    slideBlurb:
+      "A obra de Guille Outes non agarda pendurada a que alguén vaia vela: móntase e desmóntase alá onde haxa feira. E onde para, levántase un muro para que pinten os cativos.",
+    slidePrimary: "Coñecer o proxecto",
+    slideSecondary: "Ser parte da familia",
+    lead: "Un posto que se monta, se desmonta e se volve montar, cos cadros ás costas e un muro para quen queira pintar.",
+    body: [
+      "«A familia pintora que vaga polo mundo» é o que pon no cartel que abre o posto, e é bastante literal. A obra de Guille Outes non agarda pendurada nunha parede a que alguén vaia vela: viaxa, móntase onde hai feira e desmóntase ao pechar.",
+      "O que viaxa son cadros —pintura levada ao papel, impresa en series curtas e asinada— e as camisetas que saen deses mesmos debuxos. Ningún lle fai moito caso ao mundo tal e como é: vacas cos cornos de cores, casas amoreadas nunha ladeira que non existe, barcas que se saltan a perspectiva enteira. Boa parte do que hai nun cadro non estivo nunca diante de ninguén. A fantasía non é o adorno: é o material.",
+      "Por iso non hai nada que saber para entendelos. Non fan falla lecturas previas nin vocabulario de museo, e funcionan igual de ben con seis anos que con sesenta. Esa é a única proba que nos importa: esta arte é para todo o mundo, no sentido máis literal e menos solemne da frase.",
+      "Familia é a palabra exacta, e non só por quen monta o posto. Quen se achega acaba dentro: quen leva un cadro para a casa, quen queda un anaco mirando sen levar nada, e sobre todo o neno que se senta a pintar. Se lle preguntas a Guille por un bo día de feira, non che vai contar o que vendeu. Vaiche contar que tivo o posto rodeado de cativos pintando.",
+    ],
+    quote: "Un día sen rir é un día perdido",
+    quoteAuthor: "Charles Chaplin",
+    muralTitle: "O muro dos cativos",
+    muralBody:
+      "En cada parada hai un muro para os máis pequenos: píntase alí mesmo, asínase co nome e o debuxo queda pendurado na galería da web. É a parte do proxecto que non se vende.",
+    joinTitle: "Ser parte da familia",
+    joinBlurb:
+      "Non fai falla agardar pola vindeira feira. O muro está aberto: pinta un debuxo co dedo, asínao e publicámolo na galería.",
+    shopCta: "Ver a obra",
+    keywords: [
+      "familia pintora",
+      "proxecto guille outes",
+      "arte que viaxa",
+      "pintura galega",
+      "muro infantil",
+    ],
+    metaDescription:
+      "A familia pintora que vaga polo mundo: o proxecto de Guille Outes, a obra que viaxa de feira en feira e o muro onde pintan os cativos.",
   },
 
   notFound: {

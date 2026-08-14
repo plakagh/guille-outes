@@ -5,8 +5,9 @@ import type {
   ArtShape,
   Colorway,
 } from "@/components/brand/product-art";
-import { FramedArt, framedAspect } from "@/components/product/framed-art";
+import { FramedArt } from "@/components/product/framed-art";
 import {
+  framedAspect,
   frameAspect,
   frameOrientation,
   type FrameChoice,

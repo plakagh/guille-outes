@@ -422,37 +422,11 @@ export function InstagramIcon(props: IconProps) {
   );
 }
 
-export function XIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M4 3.5h4.4l4 5.6 4.8-5.6h2.6l-6.1 7.1 6.7 9.9h-4.4l-4.3-6.1-5.2 6.1H4l6.5-7.6L4 3.5Zm2.7 1.6 9.1 13.2h1.6L8.3 5.1H6.7Z" />
-    </svg>
-  );
-}
-
-export function TiktokIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M13.4 3h2.4c.3 1.9 1.5 3.3 3.4 3.6v2.5c-1.3 0-2.5-.4-3.5-1.1v5.9a5.6 5.6 0 1 1-5.6-5.6c.3 0 .6 0 .9.1v2.6a3 3 0 1 0 2.2 2.9V3Z" />
-    </svg>
-  );
-}
-
-export function YoutubeIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M21.2 8.1a3 3 0 0 0-2.1-2.1C17.5 5.6 12 5.6 12 5.6s-5.5 0-7.1.4A3 3 0 0 0 2.8 8.1C2.4 9.7 2.4 12 2.4 12s0 2.3.4 3.9a3 3 0 0 0 2.1 2.1c1.6.4 7.1.4 7.1.4s5.5 0 7.1-.4a3 3 0 0 0 2.1-2.1c.4-1.6.4-3.9.4-3.9s0-2.3-.4-3.9ZM10.2 15.2V8.8l5.4 3.2-5.4 3.2Z" />
-    </svg>
-  );
-}
-
-export function FacebookIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M13.3 21v-7.6h2.6l.4-3h-3V8.5c0-.9.3-1.5 1.6-1.5h1.5V4.1A21 21 0 0 0 14.2 4c-2.3 0-3.9 1.4-3.9 4v2.4H7.7v3h2.6V21h3Z" />
-    </svg>
-  );
-}
+/*
+  The shop is on Instagram and nowhere else, so the X, TikTok, YouTube and
+  Facebook marks that used to sit here have gone with the footer links that were
+  their only caller. They are one `git show` away if an account ever opens.
+*/
 
 /* -------------------------------------------------------------- payments */
 

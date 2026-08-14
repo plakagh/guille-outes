@@ -10,16 +10,13 @@ import {
   ShareIcon,
   ShutterIcon,
 } from "@/components/icons";
-import {
-  FramedArt,
-  FrameSwatch,
-  framedWidthRatio,
-  MOULDING_PCT,
-} from "@/components/product/framed-art";
+import { FramedArt, FrameSwatch } from "@/components/product/framed-art";
 import { Swatch } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
 import type { Colorway } from "@/components/brand/product-art";
 import {
+  framedWidthRatio,
+  MOULDING_PCT,
   formatFrameSize,
   frameAspect,
   frameOrientation,

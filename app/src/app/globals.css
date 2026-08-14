@@ -2,35 +2,117 @@
 
 /* ==========================================================================
    Design tokens — Guille Outes store
-   Sports-retail system: monochrome chrome, red price/promo accent,
-   ultra-condensed display type, dense product grids.
+   ==========================================================================
+   Sports-retail system, as specified in `design.md`: black chrome, white
+   content, blue for *action* and red for *discount*, ultra-condensed display
+   type, dense product grids, zero radius, zero gradients.
+
+   The three rules the rest of the file exists to serve:
+
+     1. Black in the chrome, white in the content. No mid-grey ever becomes a
+        page background — `--color-shell` separates bands, it does not host them.
+     2. Blue is the call to action and red is the reduced price. `design.md` gave
+        red both jobs; the shop's own call is that the button people are meant to
+        press is the institutional blue, which leaves red meaning exactly one
+        thing — money off, and the destructive confirm that borrows its weight.
+        Either colour decorating anything else — a heading, an icon, a generic
+        hover — is a bug, and never more than one of them per block.
+     3. The colour of a section comes from the photography, not from the CSS.
+
+   Names are the shop's own; values are `design.md`'s. The mapping, so the two
+   documents can be read against each other:
+
+     --color-ink        →  --text-primary      #1A1A1A
+     --color-ink-soft   →  --text-secondary    #595959
+     --color-mute       →  --text-muted        #767676   (AA floor, 4.54:1)
+     --color-line       →  --border-subtle     #E5E5E5
+     --color-shell      →  --surface-subtle    #F5F5F5
+     --color-flame      →  --brand-red         #C8102E
+     --color-court      →  --brand-blue        #1D428A / --state-focus
+     --color-pine       →  --state-success     #067647
+     --color-rust       →  --state-warning     #B54708
+
+   Pure black is not a token: it is Tailwind's own `black`, so `bg-black` in the
+   chrome reads as the deliberate absence of a tint rather than as one more grey
+   to keep in step with the others.
    ========================================================================== */
 
 @theme {
   /* Neutrals */
-  --color-ink: #0a0a0a;
-  --color-ink-soft: #1c1c1c;
-  --color-mute: #6b6b6b;
-  --color-mute-soft: #8f8f8f;
-  --color-line: #dcdcdc;
+  --color-ink: #1a1a1a;
+  --color-ink-soft: #595959;
+  --color-mute: #767676;
+  /*
+    The AA floor is `--color-mute`, and this is the same value.
+
+    It used to be #8f8f8f, which is 3.0:1 on white — below AA for text of any
+    size, and it was carrying real copy (a product's author credits, a struck
+    size label). `design.md` §2.1 puts nothing below #767676 on white, so the
+    two tokens have converged. Kept as a distinct name rather than swept through
+    the callers: what it marks is "the faintest thing on this surface", which is
+    still a decision worth being able to see in the markup, and it is what would
+    change first if the scale ever gained a legitimate fourth step.
+  */
+  --color-mute-soft: #767676;
+  --color-line: #e5e5e5;
   --color-line-soft: #ececec;
-  --color-shell: #f4f4f4;
+  --color-shell: #f5f5f5;
   --color-shell-deep: #e8e8e8;
 
   /* Accents */
-  --color-flame: #e2001a;
-  --color-flame-deep: #b30015;
-  --color-court: #1d4ed8;
+  --color-flame: #c8102e;
+  --color-flame-deep: #a50d26;
+  /*
+    The same red, restated for black.
+
+    `design.md` §2 rule 5 has its contrast numbers crossed: it reports #C8102E on
+    white as 5.6:1 and white on #C8102E as 3.75:1, but that is one pair and
+    contrast is symmetric — both are 5.88:1. So the thing it warns about is not a
+    problem (white caps on a red button pass AA at 11px, badges included) and the
+    thing it does not mention is: #C8102E on **black** is 3.57:1, which fails for
+    anything short of 18.66px bold.
+
+    That only became live when the chrome went black, and it lands on exactly the
+    place the spec cares most about — "Sale" in the nav — plus every eyebrow on
+    the newsletter and footer. 6.39:1 here, and hue held at 354° against the
+    brand's 350°, so it still reads as the same red rather than as a second one.
+    Dark surfaces only; on white it would be the wrong red.
+  */
+  --color-flame-bright: #ff4a5c;
+  --color-court: #1d428a;
+  /*
+    The same blue, 15% down, for the pressed/hover state of a filled CTA.
+
+    Every variant hovers within its own register rather than across to another
+    colour (see `button.tsx`), so the action needs a second step of its own now
+    that it is blue. White on this is 12.1:1, so the label does not weaken as the
+    ground darkens under the pointer.
+  */
+  --color-court-deep: #16346e;
   --color-gold: #d9a419;
-  --color-pine: #0f7a4f;
+  --color-pine: #067647;
+  --color-rust: #b54708;
 
   /* Typography */
-  --font-display: var(--font-antonio), "Arial Narrow", sans-serif;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-antonio), "Archivo Narrow", "Roboto Condensed",
+    "Arial Narrow", sans-serif;
+  --font-sans: var(--font-inter), "Helvetica Neue", Arial, system-ui, sans-serif;
 
-  /* Chrome heights, used for sticky offsets */
-  --spacing-promo: 2.25rem;
-  --spacing-masthead: 4.5rem;
+  /* Tracking: the open letter-spacing that makes a caps label read as a label */
+  --tracking-cta: 0.06em;
+  --tracking-eyebrow: 0.1em;
+
+  /*
+    Chrome heights, used for sticky offsets.
+
+    The three bands are read as a set, not sized independently: the announce bar
+    is the lightest-weight of the three and is the one that gives up height, the
+    masthead holds the logo, the search field and the account controls and is the
+    one that takes it. 32/76/44 is that balance — the white band no longer reads
+    as a peer of the black one, and the blue keeps the height it had.
+  */
+  --spacing-promo: 2rem;
+  --spacing-masthead: 4.75rem;
   --spacing-navbar: 2.75rem;
 
   /* Motion */
@@ -78,9 +160,25 @@
     text-transform: uppercase;
   }
 
+  /*
+    The focus ring is the institutional blue's first job in the UI; painting the
+    nav row (see `mega-nav.tsx`) is its second.
+
+    `design.md` gives it to `--state-focus` precisely so it cannot be confused
+    with either of the two things red means — a ring that borrowed the CTA colour
+    would read as "this is the action" on whatever the keyboard happened to land
+    on. 3px because it has to survive being drawn against a product photograph.
+
+    On the black chrome that blue all but disappears, so the ring goes white
+    there. Same ring, restated for the surface it lands on — see `[data-chrome]`.
+  */
   :focus-visible {
-    outline: 2px solid var(--color-ink);
+    outline: 3px solid var(--color-court);
     outline-offset: 2px;
+  }
+
+  [data-chrome="dark"] :focus-visible {
+    outline-color: #fff;
   }
 
   /* Kill the UA search-input decorations so our field looks the same everywhere */
@@ -117,7 +215,7 @@
     font-family: var(--font-sans);
     font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--tracking-eyebrow);
     line-height: 1;
     text-transform: uppercase;
   }

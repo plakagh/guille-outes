@@ -16,8 +16,9 @@ import {
   TruckIcon,
 } from "@/components/icons";
 import { Breadcrumbs } from "@/components/ui/bits";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { frameLabel } from "@/lib/catalog";
+import { CHECKOUT_OPEN } from "@/lib/shop-status";
 import { curatedSlug } from "@/lib/i18n/sections";
 import { VatLines } from "@/components/cart/vat-lines";
 import { formatPrice } from "@/lib/utils";
@@ -129,7 +130,7 @@ export function CartView({ outlet }: { outlet: boolean }) {
                           {/* A line that is made to order carries different terms
                               from the one above it, so it has to be possible to
                               tell them apart at a glance. */}
-                          <p className="mt-1 inline-block border-l-2 border-flame bg-shell px-2 py-1 text-[0.75rem] font-semibold">
+                          <p className="mt-1 inline-block border-l-2 border-rust bg-shell px-2 py-1 text-[0.75rem] font-semibold">
                             {t.gallery.tee.cartNote}
                           </p>
                         </>
@@ -178,7 +179,7 @@ export function CartView({ outlet }: { outlet: boolean }) {
 
           <Link
             href={href("shop")}
-            className="mt-5 inline-block text-[0.875rem] underline hover:text-flame"
+            className="mt-5 inline-block text-[0.875rem] underline hover:decoration-2"
           >
             {t.cart.keepShopping}
           </Link>
@@ -240,14 +241,50 @@ export function CartView({ outlet }: { outlet: boolean }) {
 
             <DiscountForm className="mt-5" />
 
-            <ButtonLink href={href("checkout")} block size="lg" className="mt-5">
-              {t.cart.goToPay}
-            </ButtonLink>
+            {CHECKOUT_OPEN ? (
+              <>
+                {/* "Continuar" is red, "seguir comprando" is the outline below (§2.2). */}
+                <ButtonLink
+                  href={href("checkout")}
+                  variant="primary"
+                  block
+                  size="lg"
+                  className="mt-5"
+                >
+                  {t.cart.goToPay}
+                </ButtonLink>
 
-            <p className="mt-3 flex items-start gap-2 text-[0.75rem] leading-relaxed text-mute">
-              <ShieldIcon className="mt-0.5 size-4 shrink-0" />
-              {t.cart.securePayment}
-            </p>
+                <p className="mt-3 flex items-start gap-2 text-[0.75rem] leading-relaxed text-mute">
+                  <ShieldIcon className="mt-0.5 size-4 shrink-0" />
+                  {t.cart.securePayment}
+                </p>
+              </>
+            ) : (
+              /*
+                Disabled rather than absent.
+
+                The button is where a shopper looks for the answer to "can I buy
+                this yet", and a summary with nothing at the bottom of it reads
+                as a broken page rather than a shop that has not opened. So it
+                stays, greyed, with the reason underneath — and the note says the
+                basket is kept, because that is the argument for filling one now.
+              */
+              <>
+                <Button
+                  type="button"
+                  variant="primary"
+                  block
+                  size="lg"
+                  disabled
+                  className="mt-5"
+                >
+                  {t.comingSoon.cartCta}
+                </Button>
+                <p className="mt-3 border-l-2 border-ink bg-shell p-3 text-[0.8125rem] leading-relaxed">
+                  {t.comingSoon.cartNote}
+                </p>
+              </>
+            )}
 
             <ul className="mt-4 flex flex-wrap gap-1.5">
               {PAYMENTS.map((label) => (

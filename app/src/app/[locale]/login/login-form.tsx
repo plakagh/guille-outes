@@ -112,7 +112,7 @@ function ConfirmationPanel({
         : t.auth.unconfirmed;
 
   return (
-    <div className="mt-8 max-w-md border-l-2 border-gold bg-shell p-5">
+    <div className="mt-8 max-w-md border-l-2 border-rust bg-shell p-5">
       <p className="font-display text-lg font-bold uppercase leading-tight">{heading}</p>
       <p className="mt-2 text-[0.875rem] leading-relaxed text-mute">{t.auth.unconfirmedBody}</p>
 

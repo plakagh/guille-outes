@@ -24,6 +24,7 @@ export const ROUTE_IDS = [
   "legal",
   "authors",
   "bibliography",
+  "family",
   "gallery",
   "studio",
   "account",
@@ -50,6 +51,10 @@ export const ROUTE_SEGMENTS: Record<RouteId, Record<Locale, string>> = {
   legal: { es: "legal", gl: "legal", en: "legal" },
   authors: { es: "autores", gl: "autoras", en: "authors" },
   bibliography: { es: "bibliografia", gl: "bibliografia", en: "bibliography" },
+  // The project's own page. The segment carries the name rather than a generic
+  // "about": it is what the poster says and what people will have read at the
+  // stand before typing it in.
+  family: { es: "familia-pintora", gl: "familia-pintora", en: "painting-family" },
   gallery: { es: "galeria", gl: "galeria", en: "gallery" },
   // The painting tool. It sits under the gallery segment, so its public path is
   // /es/galeria/taller — one word away from a drawing's own /es/galeria/<slug>.

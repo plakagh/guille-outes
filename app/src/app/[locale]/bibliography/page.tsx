@@ -46,7 +46,7 @@ export default async function BibliographyPage(props: PageProps<"/[locale]/bibli
         className="mb-5"
       />
 
-      <p className="eyebrow mb-3 text-flame">{t.authors.bibliographyEyebrow}</p>
+      <p className="eyebrow mb-3 text-ink-soft">{t.authors.bibliographyEyebrow}</p>
       <h1 className="text-[clamp(2rem,5vw,3.5rem)] leading-[0.9]">
         {t.authors.bibliographyTitle}
       </h1>
@@ -66,7 +66,7 @@ export default async function BibliographyPage(props: PageProps<"/[locale]/bibli
                   <h2 className="text-2xl">
                     <Link
                       href={href(locale, "authors", author.slug)}
-                      className="hover:text-flame hover:underline"
+                      className="hover:underline"
                     >
                       {author.name}
                     </Link>

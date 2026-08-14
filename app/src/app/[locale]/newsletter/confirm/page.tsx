@@ -86,7 +86,7 @@ export default async function NewsletterConfirmPage(
 
   return (
     <div className="shell flex min-h-[60vh] flex-col items-center justify-center py-16 text-center">
-      <span className={`eyebrow mb-3 ${good ? "text-flame" : "text-mute"}`}>{n.eyebrow}</span>
+      <span className={`eyebrow mb-3 ${good ? "text-ink-soft" : "text-mute"}`}>{n.eyebrow}</span>
       <h1 className="max-w-2xl text-[clamp(2rem,5vw,3.5rem)] leading-[0.95]">{panel.title}</h1>
       <p className="mt-4 max-w-md text-[0.9375rem] leading-relaxed text-mute">{panel.body}</p>
 

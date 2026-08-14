@@ -34,6 +34,17 @@ const en: Dictionary = {
     language: "Language",
   },
 
+  comingSoon: {
+    eyebrow: "Still building",
+    title: "We're still finishing the site",
+    body: "Look around all you like — you just can't buy anything yet. Leave us your email and we'll tell you the moment we open, with 10% off your first order.",
+    submit: "Tell me",
+    dismiss: "Keep looking",
+    cartCta: "You can't buy this yet",
+    cartNote:
+      "Fill your basket anyway if you like: it is kept in this browser and it will still be here when we open. Join the newsletter and we'll tell you the day.",
+  },
+
   // The rotating messages moved to the `promo_messages` table so a campaign line
   // can change without a deploy; what is left here is the fixed furniture.
   promo: {
@@ -667,9 +678,9 @@ const en: Dictionary = {
       noFinishes: "With no finish ticked the view will not be shown.",
       mount: "Mount width",
       mountHint: "Percentage of the frame width. Between 8 and 14 % is usual.",
-      surcharge: "Price of the frame",
+      surcharge: "Price of the frame for each size",
       surchargeHint:
-        "What a chosen finish adds to the price of the print. Blank or 0 € throws the frame in, and either way the piece can be bought framed or unframed.",
+        "Only if this piece costs something other than the shop's price to frame. Leave it blank and the shop's price is charged — the greyed-out amount, changed under Settings › Price of the frame. At 0 € this piece's frame is included.",
       size: "Measurements of each size",
       defaultSize: "Default",
       height: "Height",
@@ -693,6 +704,12 @@ const en: Dictionary = {
       freeAlways: "At 0 €, standard delivery will be free on every order.",
       methodsOffered: "Services offered",
       standardAlways: "Standard delivery is always available: without it there would be no way to buy.",
+      framingTitle: "Price of the frame",
+      framingBlurb:
+        "What a chosen finish adds to the price of the print, for every framed piece in the shop. Framing a large costs more than framing a small, so each size carries its own amount. A particular piece can cost something else: that is set on its own page, under “Framed view”.",
+      framingGeneral: "Other sizes",
+      framingGeneralHint:
+        "Applies to any size with no amount of its own above. At 0 â¬ those frames are included in the price.",
       noticeTitle: "Order notices",
       noticeBlurb:
         "Two emails per order arrive at this address: one as soon as it is placed, and one when the bank confirms the payment. They say, among other things, which frame each piece was bought with.",
@@ -853,6 +870,8 @@ const en: Dictionary = {
     size: "Size",
     sku: "SKU",
     units: "Units",
+    variantPriceHint:
+      "What each size sells for. None may be lower than the product price ({{amount}}), which is the cheapest format's: to go below it, lower the price above first.",
     adjust: "Adjust",
     credits: "Credits",
     addAuthor: "Add author",
@@ -1237,6 +1256,48 @@ const en: Dictionary = {
       delete: "Delete",
       deleteConfirm: "Yes, delete it",
     },
+  },
+
+  family: {
+    eyebrow: "The project",
+    // The name stays in Galego in every language — it is the name, and it is
+    // what the board at the stand says. `nameLocal` carries the meaning.
+    line1: "A familia",
+    line2: "pintora",
+    subhead: "que vaga polo mundo",
+    fullName: "A familia pintora que vaga polo mundo",
+    nameLocal: "The painting family that wanders the world",
+    imageAlt:
+      "The A familia pintora board: a painted cow with brightly coloured horns and its tongue out, Guille Outes' signature, and three small paintings on a midnight blue ground.",
+    slideBlurb:
+      "Guille Outes' work does not hang around waiting to be visited: it goes up and comes down wherever there is a fair. And wherever it stops, a wall goes up for the children to paint on.",
+    slidePrimary: "About the project",
+    slideSecondary: "Join the family",
+    lead: "A stand that goes up, comes down and goes up again, with the paintings on its back and a wall for anyone who wants to paint.",
+    body: [
+      "«A familia pintora que vaga polo mundo» — the painting family that wanders the world — is what the board at the front of the stand says, and it is fairly literal. Guille Outes' work does not hang on a wall waiting to be visited: it travels, goes up wherever there is a fair, and comes down at closing time.",
+      "What travels are the paintings — brought to paper, printed in short runs and signed — and the t-shirts that come out of those same drawings. None of them pays much attention to the world as it actually is: cows with brightly coloured horns, houses piled up a hillside that does not exist, boats that skip perspective entirely. Much of what is in a painting was never in front of anyone. The fantasy is not the decoration — it is the material.",
+      "Which is why there is nothing you need to know in order to get them. No prior reading, no museum vocabulary, and they work just as well at six as at sixty. That is the only test we care about: this art is for everyone, in the most literal and least solemn sense of the phrase.",
+      "Family is the right word, and not only for the people who put the stand up. Anyone who comes over ends up inside it: whoever takes a painting home, whoever stands looking for a while and takes nothing, and above all the child who sits down to paint. Ask Guille about a good day at a fair and the answer will not be about what sold. It will be about the stand being surrounded by children painting.",
+    ],
+    quote: "A day without laughter is a day wasted",
+    quoteAuthor: "Charles Chaplin",
+    muralTitle: "The children's wall",
+    muralBody:
+      "Every stop has a wall for the little ones: they paint it right there, sign it with their name, and the drawing stays up in the gallery on this site. It is the part of the project that is not for sale.",
+    joinTitle: "Join the family",
+    joinBlurb:
+      "No need to wait for the next fair. The wall is open: paint a drawing with your finger, sign it, and we publish it in the gallery.",
+    shopCta: "See the work",
+    keywords: [
+      "painting family",
+      "guille outes project",
+      "travelling art",
+      "galician painting",
+      "children's art wall",
+    ],
+    metaDescription:
+      "A familia pintora que vaga polo mundo: the Guille Outes project, the work that travels from fair to fair, and the wall where children paint.",
   },
 
   notFound: {

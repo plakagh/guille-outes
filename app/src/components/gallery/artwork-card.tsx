@@ -52,7 +52,7 @@ export function ArtworkCard({
         )}
       </div>
 
-      <p className="mt-2 line-clamp-2 font-display text-[0.9375rem] font-bold uppercase leading-tight group-hover:text-flame">
+      <p className="mt-2 line-clamp-2 font-display text-[0.9375rem] font-bold uppercase leading-tight group-hover:underline">
         {artwork.title}
       </p>
       <p className="text-[0.8125rem] text-mute">

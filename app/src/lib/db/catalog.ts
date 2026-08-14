@@ -13,10 +13,12 @@ import {
   type Category,
   type Collection,
   type Credit,
+  type FramingSettings,
   type Product,
   type ProductImage,
   type Variant,
 } from "@/lib/catalog";
+import { getFramingSettings } from "@/lib/db/settings";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -204,7 +206,13 @@ function mapAuthor(row: AuthorRow, locale: Locale): Author {
   };
 }
 
-function mapProduct(row: ProductRow, locale: Locale): Product {
+/**
+ * `framing` is the shop's frame prices, folded into every product here so that
+ * anything holding a `Product` — a listing card, a cross-sell tile, the buybox,
+ * the server that prices an order — can price a frame without a settings query of
+ * its own. A piece that prices its own frames ignores them.
+ */
+function mapProduct(row: ProductRow, locale: Locale, framing: FramingSettings): Product {
   const variants: Variant[] = (row.product_variants ?? [])
     .slice()
     .sort((a, b) => a.position - b.position)
@@ -276,7 +284,7 @@ function mapProduct(row: ProductRow, locale: Locale): Product {
     sizes,
     soldOutSizes,
     sizeGuide: parseSizeGuide(row.size_guide),
-    framePreview: parseFramePreview(row.frame_preview),
+    framePreview: parseFramePreview(row.frame_preview, framing),
     video: parseProductVideo(row.video_url, text(row.video_caption, locale)),
     artworkPrintable: row.artwork_printable === true,
     variants,
@@ -322,11 +330,15 @@ const AUTHOR_SELECT = `
 export const getCatalog = cache(async (locale: Locale): Promise<Catalog> => {
   const supabase = await createClient();
 
-  const [categories, collections, products, authors] = await Promise.all([
+  // The shop's frame prices travel with the catalogue: they are part of what a
+  // cuadro costs, and reading them here is what keeps every card and every buybox
+  // out of the settings table.
+  const [categories, collections, products, authors, framing] = await Promise.all([
     supabase.from("categories").select("*").order("position"),
     supabase.from("collections").select("*").order("position"),
     supabase.from("products").select(PRODUCT_SELECT).order("arrived", { ascending: false }),
     supabase.from("authors").select(AUTHOR_SELECT).order("position"),
+    getFramingSettings(),
   ]);
 
   const failure = [categories, collections, products, authors].find((result) => result.error);
@@ -343,7 +355,7 @@ export const getCatalog = cache(async (locale: Locale): Promise<Catalog> => {
       mapCollection(row, locale),
     ),
     products: ((products.data ?? []) as unknown as ProductRow[]).map((row) =>
-      mapProduct(row, locale),
+      mapProduct(row, locale, framing),
     ),
     authors: ((authors.data ?? []) as unknown as AuthorRow[]).map((row) =>
       mapAuthor(row, locale),

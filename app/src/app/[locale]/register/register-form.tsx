@@ -113,7 +113,7 @@ export function RegisterForm({ next }: { next?: string }) {
             <Link
               href={href("legal", "condiciones")}
               target="_blank"
-              className="underline hover:text-flame"
+              className="underline hover:decoration-2"
             >
               {t.checkout.termsLink}
             </Link>{" "}
@@ -121,7 +121,7 @@ export function RegisterForm({ next }: { next?: string }) {
             <Link
               href={href("legal", "privacidad")}
               target="_blank"
-              className="underline hover:text-flame"
+              className="underline hover:decoration-2"
             >
               {t.footer.newsletter.privacy}
             </Link>
