@@ -888,8 +888,14 @@ const es = {
     uploading: "Subiendo…",
     imageAlt: "Texto alternativo",
     deleteImage: "Borrar imagen",
+    deleteImageConfirm:
+      "Se borra también el archivo del almacenamiento y no se puede recuperar. Si la imagen sale en la ficha del producto, dejará de salir.",
     noImages: "Sin imágenes. Se usará la ilustración vectorial generada.",
     imageHint: "JPG, PNG, WebP, AVIF o SVG. Máximo 8 MB.",
+    imageColorway: "Color de la prenda",
+    imageColorwayAll: "Todos los colores",
+    imageColorwayHint:
+      "En cuanto un color tenga fotos propias, la ficha le muestra solo esas al elegirlo. Los colores sin fotos propias siguen con las de «todos los colores».",
     localeTab: "Idioma",
     requiredEs: "El castellano es obligatorio; el resto se rellena con él si lo dejas vacío.",
     error: "No se pudo guardar. Revisa los campos e inténtalo de nuevo.",

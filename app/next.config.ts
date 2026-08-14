@@ -6,6 +6,23 @@ const nextConfig: NextConfig = {
   // enough to be worth pulling on every deploy.
   output: "standalone",
 
+  experimental: {
+    // Both image uploads — admin product photos and gallery drawings — hand the
+    // file to a Server Action inside a FormData, and Next caps an action's
+    // request body at 1 MB. That cap is enforced while the body is still being
+    // read, so it fires *before* the action runs: the `too_large` message the
+    // actions carefully return was unreachable, and any real photograph got
+    // ApiError(413) / E394 and Next's own error page instead.
+    //
+    // Set above the 8 MB that uploadProductImage, publishArtwork and the storage
+    // bucket all enforce, so that the app's own check is the one a too-big file
+    // meets. The extra megabyte is headroom for what multipart adds on top of
+    // the file: boundaries, part headers, and the other form fields.
+    serverActions: {
+      bodySizeLimit: "9mb",
+    },
+  },
+
   async headers() {
     return [
       {

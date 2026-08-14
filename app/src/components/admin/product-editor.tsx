@@ -6,6 +6,7 @@ import { CheckIcon, CloseIcon, PlusIcon } from "@/components/icons";
 import { FramedArt, FrameSwatch } from "@/components/product/framed-art";
 import { Swatch } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   addCredit,
   addVariant,
@@ -31,6 +32,7 @@ import {
   FRAME_MAX_CM,
   FRAME_MIN_CM,
   palette,
+  PRODUCT_IMAGE_MAX_BYTES,
   SIZE_DIMENSIONS,
   type Author,
   type Category,
@@ -120,13 +122,25 @@ export function ProductEditor({
 
   const run = async (action: (form: FormData) => Promise<ActionResult>, form: FormData) => {
     setStatus("saving");
-    const result = await action(form);
-    if (result.ok) {
-      setStatus("saved");
-      setMessage(null);
-    } else {
+    try {
+      const result = await action(form);
+      if (result.ok) {
+        setStatus("saved");
+        setMessage(null);
+      } else {
+        setStatus("error");
+        setMessage(result.error);
+      }
+    } catch (cause) {
+      /*
+        An action that rejects instead of answering — a request body the
+        framework refused, a server that went away mid-save — reaches the router
+        with nothing to catch it, and Next replaces the entire editor with its
+        own error page. Every unsaved field in a long form goes with it. Failing
+        into the status line keeps the work on screen and says what happened.
+      */
       setStatus("error");
-      setMessage(result.error);
+      setMessage(cause instanceof Error ? cause.message : String(cause));
     }
   };
 
@@ -1058,6 +1072,12 @@ function ImageManager({
   run: Runner;
 }) {
   const [pending, start] = useTransition();
+  /*
+    Which image the confirmation is asking about. Held as the image rather than a
+    boolean so the dialog can show the thumbnail: "are you sure?" is a much easier
+    question to answer when the thing in question is on screen.
+  */
+  const [doomed, setDoomed] = useState<Product["images"][number] | null>(null);
 
   return (
     <section className="border border-line bg-white p-6">
@@ -1067,38 +1087,65 @@ function ImageManager({
         <p className="text-[0.875rem] text-mute">{t.admin.noImages}</p>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          {product.images.map((image) => (
-            <li key={image.id} className="group relative">
-              {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL */}
-              <img
-                src={mediaUrl(image.path)}
-                alt={image.alt ?? product.name}
-                className="aspect-square w-full bg-shell object-cover"
-              />
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() =>
-                  start(async () => {
-                    const form = new FormData();
-                    form.set("image_id", image.id);
-                    form.set("path", image.path);
-                    await run(deleteProductImage, form);
-                  })
-                }
-                aria-label={t.admin.deleteImage}
-                className="absolute right-1 top-1 grid size-8 place-items-center bg-white/90 text-ink opacity-0 transition group-hover:opacity-100 hover:text-flame"
-              >
-                <CloseIcon className="size-4" />
-              </button>
-            </li>
-          ))}
+          {product.images.map((image) => {
+            /*
+              The colour this photograph belongs to, looked up in the product's own
+              list rather than resolved from the palette: a tag left behind by a
+              colour that has since been dropped from the product would otherwise
+              come back as "negro", and a caption that quietly names the wrong
+              colour is worse than one that looks broken. Such an image shows under
+              no colour on the storefront, so its raw id is what gets printed —
+              it should look wrong, because it is.
+            */
+            const tagged = product.colorways.find((c) => c.id === image.colorwayId);
+
+            return (
+              <li key={image.id} className="group relative">
+                {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL */}
+                <img
+                  src={mediaUrl(image.path)}
+                  alt={image.alt ?? product.name}
+                  className="aspect-square w-full bg-shell object-cover"
+                />
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setDoomed(image)}
+                  aria-label={t.admin.deleteImage}
+                  className="absolute right-1 top-1 grid size-8 place-items-center bg-white/90 text-ink opacity-0 transition group-hover:opacity-100 hover:text-flame"
+                >
+                  <CloseIcon className="size-4" />
+                </button>
+                <span className="mt-1.5 flex items-center gap-1.5 text-[0.75rem] text-mute">
+                  {tagged ? (
+                    <>
+                      <Swatch base={tagged.base} trim={tagged.trim} className="size-3.5" />
+                      {tagged.name}
+                    </>
+                  ) : (
+                    image.colorwayId ?? t.admin.imageColorwayAll
+                  )}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
 
       <form
         action={async (form) => {
           form.set("product_id", product.id);
+          const file = form.get("file");
+          if (file instanceof File && file.size > PRODUCT_IMAGE_MAX_BYTES) {
+            /*
+              Refused here, and reported through `run` so it lands in the same
+              status line as every other failure. Sending it would be worse than
+              pointless: the framework caps the request body and would reject it
+              on the way in, so the action's own `too_large` never gets to speak.
+            */
+            await run(() => Promise.resolve({ ok: false, error: "too_large" }), form);
+            return;
+          }
           await run(uploadProductImage, form);
         }}
         className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-4"
@@ -1114,11 +1161,58 @@ function ImageManager({
           />
         </label>
         <Field label={`${t.admin.imageAlt} (es)`} name="alt_es" required />
+
+        {/*
+          Which colour of the garment this photograph is of.
+
+          "Every colour" is the default and stays the right answer for most of the
+          shop — a framed print has no colour to choose, and one flat-lay of a tee
+          is better than none for a colour nobody photographed yet.
+        */}
+        <Select label={t.admin.imageColorway} name="colorway_id" defaultValue="">
+          <option value="">{t.admin.imageColorwayAll}</option>
+          {product.colorways.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </Select>
+
         <Button type="submit" variant="outline" className="h-12">
           {t.admin.uploadImage}
         </Button>
         <p className="w-full text-[0.75rem] text-mute">{t.admin.imageHint}</p>
+        <p className="w-full text-[0.75rem] text-mute">{t.admin.imageColorwayHint}</p>
       </form>
+
+      <ConfirmDialog
+        open={doomed !== null}
+        title={t.admin.deleteImage}
+        body={t.admin.deleteImageConfirm}
+        confirmLabel={t.admin.delete}
+        cancelLabel={t.admin.cancel}
+        pending={pending}
+        onClose={() => setDoomed(null)}
+        onConfirm={() => {
+          const image = doomed;
+          if (!image) return;
+          start(async () => {
+            const form = new FormData();
+            form.set("image_id", image.id);
+            await run(deleteProductImage, form);
+            setDoomed(null);
+          });
+        }}
+      >
+        {doomed && (
+          /* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL */
+          <img
+            src={mediaUrl(doomed.path)}
+            alt={doomed.alt ?? product.name}
+            className="mx-auto aspect-square w-32 border border-line bg-shell object-cover"
+          />
+        )}
+      </ConfirmDialog>
     </section>
   );
 }

@@ -394,6 +394,18 @@ export const FRAME_MAX_CM = 300;
 export const FRAME_MAX_SURCHARGE = 100_000;
 
 /**
+ * The most a product photograph may weigh.
+ *
+ * Checked by the upload action and by the bucket, and lives here rather than
+ * beside the action so the browser can read it too. It has to: the framework
+ * caps a Server Action's request body and refuses an oversized one while it is
+ * still arriving, before the action gets a turn to say `too_large`. A file this
+ * big has to be turned away on the near side, or the admin gets an error page
+ * instead of a sentence.
+ */
+export const PRODUCT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+
+/**
  * Reads a stored `frame_preview`, returning null when the product is not sold
  * framed — which is the case for everything that is not a cuadro.
  */

@@ -6,7 +6,14 @@ import { useI18n } from "@/components/i18n/provider";
 import { CloseIcon } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { publishArtwork, type PublishError, type PublishState } from "@/lib/gallery/actions";
-import { AGE_MAX, AGE_MIN, AUTHOR_NAME_MAX, TITLE_MAX, type ArtworkOrigin } from "@/lib/gallery/model";
+import {
+  AGE_MAX,
+  AGE_MIN,
+  ARTWORK_MAX_BYTES,
+  AUTHOR_NAME_MAX,
+  TITLE_MAX,
+  type ArtworkOrigin,
+} from "@/lib/gallery/model";
 
 /**
  * Naming a drawing, signing it, and agreeing to it being published.
@@ -115,6 +122,18 @@ export function PublishDialog({
       const source = await makeFile();
       if (!source) {
         setLocalError("no_image");
+        return;
+      }
+
+      /*
+        The same limit the action checks, checked again before the drawing is
+        sent. Not belt and braces: the framework caps a Server Action's request
+        body and turns an oversized one away while it is still arriving, so the
+        action never gets to answer `too_large` and the child is handed a server
+        error page instead of being told the photograph is too heavy.
+      */
+      if (source.file.size > ARTWORK_MAX_BYTES) {
+        setLocalError("too_large");
         return;
       }
 

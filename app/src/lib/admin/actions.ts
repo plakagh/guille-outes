@@ -11,6 +11,7 @@ import {
   isFrameFinish,
   isSizeDimension,
   parseVideoUrl,
+  PRODUCT_IMAGE_MAX_BYTES,
 } from "@/lib/catalog";
 import { createClient, getViewer } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils";
@@ -519,7 +520,6 @@ const ALLOWED_TYPES = new Set([
   "image/avif",
   "image/svg+xml",
 ]);
-const MAX_BYTES = 8 * 1024 * 1024;
 
 const EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -546,7 +546,7 @@ export async function uploadProductImage(form: FormData): Promise<ActionResult> 
     return { ok: false, error: INVALID };
   }
   if (!ALLOWED_TYPES.has(file.type)) return { ok: false, error: "unsupported_type" };
-  if (file.size > MAX_BYTES) return { ok: false, error: "too_large" };
+  if (file.size > PRODUCT_IMAGE_MAX_BYTES) return { ok: false, error: "too_large" };
 
   const bytes = new Uint8Array(await file.arrayBuffer());
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -563,12 +563,22 @@ export async function uploadProductImage(form: FormData): Promise<ActionResult> 
     .upload(path, bytes, { contentType: file.type, upsert: true });
   if (uploadError) return { ok: false, error: uploadError.message };
 
+  /*
+    Which colour of the garment this is a photograph of, or null for a photograph
+    that stands for every colour. Checked against the palette rather than stored as
+    typed: an id nothing recognises is not a harmless label — the storefront only
+    ever asks for the colours the product actually has, so such an image would be
+    filed under a colour that cannot be selected and would show up nowhere.
+  */
+  const colorwayId = str(form, "colorway_id");
+  if (colorwayId && !isColorwayId(colorwayId)) return { ok: false, error: INVALID };
+
   const alt = bundle(form, "alt");
   const { error } = await supabase.from("product_images").insert({
     product_id: productId,
     storage_path: path,
     alt,
-    colorway_id: str(form, "colorway_id") || null,
+    colorway_id: colorwayId || null,
     position: int(form, "position") ?? 0,
   });
   if (error) return { ok: false, error: error.message };
@@ -577,20 +587,45 @@ export async function uploadProductImage(form: FormData): Promise<ActionResult> 
   return { ok: true };
 }
 
+/**
+ * Removes the row and, when nothing else needs it, the file behind it.
+ *
+ * The object to delete is read from the row rather than taken from the form: the
+ * browser has no business naming which file in the bucket disappears.
+ *
+ * And it only goes once no other row points at it. A path is a hash of the file's
+ * contents, so the same photograph uploaded twice — a second alt text, a different
+ * colourway — is one object with two rows behind it, and removing one of them must
+ * not blank the other.
+ */
 export async function deleteProductImage(form: FormData): Promise<ActionResult> {
   if (!(await requireAdmin())) return { ok: false, error: FORBIDDEN };
 
   const imageId = str(form, "image_id");
-  const path = str(form, "path");
-  if (!imageId || !path) return { ok: false, error: INVALID };
+  if (!imageId) return { ok: false, error: INVALID };
 
   const supabase = await createClient();
+
+  const { data: row } = await supabase
+    .from("product_images")
+    .select("storage_path")
+    .eq("id", imageId)
+    .maybeSingle();
 
   const { error } = await supabase.from("product_images").delete().eq("id", imageId);
   if (error) return { ok: false, error: error.message };
 
-  // Best effort: if the object is already gone, the row removal still stands.
-  await supabase.storage.from("media").remove([path]);
+  const path = (row as { storage_path: string } | null)?.storage_path;
+  if (path) {
+    const { data: shared } = await supabase
+      .from("product_images")
+      .select("id")
+      .eq("storage_path", path)
+      .limit(1);
+
+    // Best effort: if the object is already gone, the row removal still stands.
+    if (!shared?.length) await supabase.storage.from("media").remove([path]);
+  }
 
   revalidateStore();
   return { ok: true };

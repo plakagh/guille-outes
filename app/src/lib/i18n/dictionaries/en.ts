@@ -863,8 +863,14 @@ const en: Dictionary = {
     uploading: "Uploading…",
     imageAlt: "Alt text",
     deleteImage: "Delete image",
+    deleteImageConfirm:
+      "The file is removed from storage too and cannot be recovered. If the image appears on the product page, it will stop appearing.",
     noImages: "No images. The generated vector illustration will be used.",
     imageHint: "JPG, PNG, WebP, AVIF or SVG. 8 MB maximum.",
+    imageColorway: "Garment colour",
+    imageColorwayAll: "Every colour",
+    imageColorwayHint:
+      "As soon as a colour has photographs of its own, picking it on the product page shows only those. Colours without their own photographs keep using the “every colour” ones.",
     localeTab: "Language",
     requiredEs: "Spanish is required; the other languages fall back to it when left empty.",
     error: "Could not save. Check the fields and try again.",

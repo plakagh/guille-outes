@@ -870,8 +870,14 @@ const gl: Dictionary = {
     uploading: "Subindo…",
     imageAlt: "Texto alternativo",
     deleteImage: "Borrar imaxe",
+    deleteImageConfirm:
+      "Bórrase tamén o arquivo do almacenamento e non se pode recuperar. Se a imaxe aparece na ficha do produto, deixará de aparecer.",
     noImages: "Sen imaxes. Usarase a ilustración vectorial xerada.",
     imageHint: "JPG, PNG, WebP, AVIF ou SVG. Máximo 8 MB.",
+    imageColorway: "Cor da peza",
+    imageColorwayAll: "Todas as cores",
+    imageColorwayHint:
+      "En canto unha cor teña fotos propias, a ficha amóstralle só esas ao escollela. As cores sen fotos propias seguen coas de «todas as cores».",
     localeTab: "Idioma",
     requiredEs: "O castelán é obrigatorio; o resto énchese con el se o deixas baleiro.",
     error: "Non se puido gardar. Revisa os campos e téntao de novo.",
