@@ -543,6 +543,32 @@ export function PaintStudio({
       {/* ------------------------------------------------------ the sheet */}
       <div className={cn(maximised ? "flex min-h-0 min-w-0 flex-1 flex-col gap-2 p-2" : "min-w-0")}>
         {/*
+          Full screen, above the sheet.
+
+          It used to sit at the far end of the row *under* the sheet, next to
+          undo and the bin — the tools you reach for once you are already
+          drawing. Full screen is the opposite: it is the first thing you want,
+          before the first stroke, and on a phone that row is below the fold of a
+          square canvas, so the button was there but nobody found it. Above the
+          sheet and hard against its right edge it is the first control on the
+          way in and the first on the way out, and it never moves between the
+          two.
+
+          The row is sized to the sheet in both modes so the button lands on the
+          corner of the paper rather than on the corner of the screen.
+        */}
+        <div
+          className={cn(
+            "flex shrink-0 justify-end",
+            maximised ? "w-full" : "mx-auto mb-2 w-full max-w-[46rem]",
+          )}
+        >
+          <ToolButton onClick={toggleMaximised} label={maximised ? s.exitMaximise : s.maximise}>
+            {maximised ? <CollapseIcon className="size-5" /> : <ExpandIcon className="size-5" />}
+          </ToolButton>
+        </div>
+
+        {/*
           The centring box. Full screen, the sheet takes the largest square that
           fits: `h-full` with a 1:1 ratio sizes it off the height, and `max-w-full`
           claws it back when the width is the tighter of the two.
@@ -593,19 +619,6 @@ export function PaintStudio({
           {/* The hint is the first thing to go: full screen, every row of pixels
               it takes is a row the sheet does not get. */}
           {!maximised && <p className="text-[0.75rem] text-mute">{s.undoHint}</p>}
-
-          <div className="ml-auto">
-            <ToolButton
-              onClick={toggleMaximised}
-              label={maximised ? s.exitMaximise : s.maximise}
-            >
-              {maximised ? (
-                <CollapseIcon className="size-5" />
-              ) : (
-                <ExpandIcon className="size-5" />
-              )}
-            </ToolButton>
-          </div>
         </div>
       </div>
 
