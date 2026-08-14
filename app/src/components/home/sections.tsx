@@ -92,7 +92,7 @@ export function CollectionCards({ locale, t, catalog }: Common) {
                   <h3 className="mt-2 text-[clamp(1.75rem,3.5vw,2.75rem)] leading-none">
                     {collection.name}
                   </h3>
-                  <p className="mt-3 max-w-sm text-[0.875rem] leading-relaxed text-mute">
+                  <p className="mt-3 text-[0.875rem] leading-relaxed text-mute">
                     {collection.blurb}
                   </p>
                   <span className="mt-5 inline-flex items-center gap-2 border-b-2 border-ink pb-1 font-display text-[0.875rem] font-bold uppercase tracking-wide">
@@ -194,10 +194,10 @@ export function EditorialSplit({ locale, t }: Omit<Common, "catalog">) {
     <section className="shell py-10 lg:py-14">
       <article className="relative overflow-hidden bg-[#e5dfd2] p-8 text-ink lg:p-12">
         <p className="eyebrow mb-3 text-flame">{t.home.giftEyebrow}</p>
-        <h3 className="max-w-xs text-[clamp(1.75rem,4vw,2.75rem)] leading-none">
+        <h3 className="text-[clamp(1.75rem,4vw,2.75rem)] leading-none">
           {t.home.giftTitle}
         </h3>
-        <p className="mt-4 max-w-sm text-[0.9375rem] leading-relaxed text-ink/65">
+        <p className="mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink/65">
           {t.home.giftBlurb}
         </p>
         <ButtonLink
@@ -240,7 +240,7 @@ export function KidsGalleryBand({
           <h2 className="text-[clamp(1.875rem,4.5vw,3rem)] leading-[0.95]">
             {t.home.kidsArtTitle}
           </h2>
-          <p className="mt-4 max-w-sm text-[0.9375rem] leading-relaxed text-white/70">
+          <p className="mt-4 text-[0.9375rem] leading-relaxed text-white/70">
             {t.home.kidsArtBlurb}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">

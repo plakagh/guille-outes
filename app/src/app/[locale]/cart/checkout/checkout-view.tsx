@@ -68,7 +68,7 @@ export function CheckoutView() {
     return (
       <div className="shell flex flex-col items-start gap-5 py-20">
         <h1 className="text-4xl">{t.cart.nothingToPay}</h1>
-        <p className="max-w-md text-[0.9375rem] text-mute">{t.cart.nothingToPayBlurb}</p>
+        <p className="text-[0.9375rem] text-mute">{t.cart.nothingToPayBlurb}</p>
         <ButtonLink href={href("shop")}>{t.cart.viewCatalogue}</ButtonLink>
       </div>
     );
@@ -173,7 +173,7 @@ export function CheckoutView() {
                 <ShieldIcon className="mt-0.5 size-5 shrink-0" />
                 {t.checkout.payViaBank}
               </p>
-              <p className="mt-2 max-w-xl text-[0.875rem] leading-relaxed text-mute">
+              <p className="mt-2 text-[0.875rem] leading-relaxed text-mute">
                 {t.checkout.payViaBankBody}
               </p>
             </div>

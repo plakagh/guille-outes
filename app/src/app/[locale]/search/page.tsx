@@ -46,7 +46,7 @@ export default async function SearchPage(props: PageProps<"/[locale]/search">) {
           <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[0.9]">
             {t.search.nothingFor} “{query}”
           </h1>
-          <p className="mt-4 max-w-lg text-[0.9375rem] leading-relaxed text-mute">
+          <p className="mt-4 text-[0.9375rem] leading-relaxed text-mute">
             {t.search.nothingBlurb}
           </p>
           <Suggestions locale={locale} t={t} />
@@ -119,7 +119,7 @@ function EmptyQuery({ locale, t }: { locale: Locale; t: Dictionary }) {
   return (
     <div className="shell py-16">
       <h1 className="text-4xl">{t.search.title}</h1>
-      <p className="mt-3 max-w-md text-[0.9375rem] text-mute">{t.search.blurb}</p>
+      <p className="mt-3 text-[0.9375rem] text-mute">{t.search.blurb}</p>
       <Suggestions locale={locale} t={t} />
     </div>
   );

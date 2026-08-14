@@ -71,7 +71,7 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
     return (
       <div className="shell flex flex-col items-start gap-4 py-20">
         <h1 className="text-3xl">{t.order.notFound}</h1>
-        <p className="max-w-md text-[0.9375rem] text-mute">{t.order.notFoundBody}</p>
+        <p className="text-[0.9375rem] text-mute">{t.order.notFoundBody}</p>
         <ButtonLink href={href(locale, "account")} variant="outline">
           {t.account.orders}
         </ButtonLink>
@@ -149,7 +149,7 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[0.9]">{headline.title}</h1>
-          <p className="mt-3 max-w-lg text-[0.9375rem] leading-relaxed text-mute">
+          <p className="mt-3 text-[0.9375rem] leading-relaxed text-mute">
             {headline.body}
           </p>
         </div>
@@ -157,7 +157,7 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
       </div>
 
       {gatewayMissing && (
-        <div className="mt-6 max-w-2xl border-l-2 border-gold bg-shell p-4">
+        <div className="mt-6 border-l-2 border-gold bg-shell p-4">
           <p className="font-semibold">{t.order.gatewayNotReady}</p>
           <p className="mt-1 text-[0.875rem] text-mute">{t.order.gatewayNotReadyBody}</p>
         </div>
@@ -175,7 +175,7 @@ export default async function OrderPage(props: PageProps<"/[locale]/order/[ref]"
       )}
 
       {exhausted && (
-        <div className="mt-6 max-w-2xl border-l-2 border-flame bg-shell p-4">
+        <div className="mt-6 border-l-2 border-flame bg-shell p-4">
           <p className="font-semibold">{t.order.noAttemptsLeftHelp}</p>
           <Link
             href={href(locale, "help", helpSlug("contacto", locale))}

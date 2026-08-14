@@ -102,7 +102,7 @@ export default async function AccountPage(props: PageProps<"/[locale]/account">)
       />
 
       {justConfirmed && (
-        <p className="mb-6 flex max-w-md items-center gap-2 border-l-2 border-pine bg-shell p-4 text-[0.875rem] font-semibold text-pine">
+        <p className="mb-6 flex items-center gap-2 border-l-2 border-pine bg-shell p-4 text-[0.875rem] font-semibold text-pine">
           {t.auth.confirmed}
         </p>
       )}
@@ -185,7 +185,7 @@ export default async function AccountPage(props: PageProps<"/[locale]/account">)
                   <p className="font-display text-xl font-bold uppercase">
                     {t.account.emptyWishlist}
                   </p>
-                  <p className="max-w-md text-[0.9375rem] text-mute">
+                  <p className="text-[0.9375rem] text-mute">
                     {t.account.emptyWishlistBlurb}
                   </p>
                   <ButtonLink href={href(locale, "shop")}>{t.account.startShopping}</ButtonLink>
@@ -210,7 +210,7 @@ export default async function AccountPage(props: PageProps<"/[locale]/account">)
                   <p className="font-display text-xl font-bold uppercase">
                     {t.gallery.emptyTitle}
                   </p>
-                  <p className="max-w-md text-[0.9375rem] text-mute">{t.gallery.emptyBlurb}</p>
+                  <p className="text-[0.9375rem] text-mute">{t.gallery.emptyBlurb}</p>
                   <ButtonLink href={href(locale, "studio")}>{t.gallery.paintCta}</ButtonLink>
                 </div>
               ) : (
@@ -231,7 +231,7 @@ export default async function AccountPage(props: PageProps<"/[locale]/account">)
               {orders.length === 0 ? (
                 <div className="flex flex-col items-start gap-4 border border-line p-8">
                   <p className="font-display text-xl font-bold uppercase">{t.account.noOrders}</p>
-                  <p className="max-w-md text-[0.9375rem] text-mute">{t.account.noOrdersBlurb}</p>
+                  <p className="text-[0.9375rem] text-mute">{t.account.noOrdersBlurb}</p>
                   <ButtonLink href={href(locale, "shop")} variant="outline">
                     {t.account.startShopping}
                   </ButtonLink>

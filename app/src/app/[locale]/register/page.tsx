@@ -39,7 +39,7 @@ export default async function RegisterPage(props: PageProps<"/[locale]/register"
         className="mb-6"
       />
       <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[0.9]">{t.auth.registerTitle}</h1>
-      <p className="mt-3 max-w-md text-[0.9375rem] text-mute">{t.auth.registerBlurb}</p>
+      <p className="mt-3 text-[0.9375rem] text-mute">{t.auth.registerBlurb}</p>
       <RegisterForm next={next} />
     </div>
   );

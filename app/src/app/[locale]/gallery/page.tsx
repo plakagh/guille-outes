@@ -91,7 +91,7 @@ export default async function GalleryPage(props: PageProps<"/[locale]/gallery">)
           */
           <div className="flex flex-col items-start gap-4 border border-line p-8">
             <p className="font-display text-xl font-bold uppercase">{t.gallery.emptyTitle}</p>
-            <p className="max-w-md text-[0.9375rem] text-mute">{t.gallery.emptyBlurb}</p>
+            <p className="text-[0.9375rem] text-mute">{t.gallery.emptyBlurb}</p>
             <ButtonLink href={href(locale, "studio")}>{t.gallery.paintCta}</ButtonLink>
           </div>
         ) : (

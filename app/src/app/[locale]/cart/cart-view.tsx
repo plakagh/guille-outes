@@ -52,7 +52,7 @@ export function CartView({ outlet }: { outlet: boolean }) {
       <div className="shell flex flex-col items-start gap-5 py-20">
         <BagIcon className="size-14 text-line" />
         <h1 className="text-4xl">{t.cart.empty}</h1>
-        <p className="max-w-md text-[0.9375rem] text-mute">
+        <p className="text-[0.9375rem] text-mute">
           {outlet ? t.cart.emptyBlurb : t.cart.emptyBlurbNoOutlet}
         </p>
         <div className="flex flex-wrap gap-3">

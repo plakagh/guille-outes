@@ -80,7 +80,7 @@ export function CatalogView({
           {visible.length === 0 ? (
             <div className="flex flex-col items-start gap-4 py-16">
               <h2 className="text-2xl">{t.plp.noMatch}</h2>
-              <p className="max-w-md text-[0.9375rem] text-mute">{t.plp.noMatchBlurb}</p>
+              <p className="text-[0.9375rem] text-mute">{t.plp.noMatchBlurb}</p>
               <ButtonLink href={href(locale, "shop")} variant="outline">
                 {t.plp.seeWholeCatalogue}
               </ButtonLink>

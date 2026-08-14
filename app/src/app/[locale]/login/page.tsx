@@ -37,7 +37,7 @@ export default async function LoginPage(props: PageProps<"/[locale]/login">) {
         className="mb-6"
       />
       <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[0.9]">{t.auth.signInTitle}</h1>
-      <p className="mt-3 max-w-md text-[0.9375rem] text-mute">{t.auth.signInBlurb}</p>
+      <p className="mt-3 text-[0.9375rem] text-mute">{t.auth.signInBlurb}</p>
       <LoginForm next={next} confirmNotice={confirmNotice} />
     </div>
   );

@@ -190,7 +190,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           </h1>
           <p
             className={cn(
-              "mt-5 max-w-md text-[0.9375rem] leading-relaxed",
+              "mt-5 text-[0.9375rem] leading-relaxed",
               light ? "text-white/75" : "text-ink/70",
             )}
           >
@@ -256,7 +256,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
               watching arrive. */}
           <div
             key={`art-${index}`}
-            className="relative w-[82%] max-w-md animate-[hero-enter_700ms_var(--ease-out-quint)] lg:max-w-lg"
+            className="relative w-[82%] animate-[hero-enter_700ms_var(--ease-out-quint)]"
             style={{ "--travel": "3rem" } as React.CSSProperties}
           >
             <SlideArt slide={slide} />

@@ -27,7 +27,7 @@ export default async function AdminLayout({ children, params }: LayoutProps<"/[l
     return (
       <div className="shell py-20">
         <h1 className="text-3xl">{t.admin.forbidden}</h1>
-        <p className="mt-3 max-w-lg text-[0.9375rem] text-mute">{t.auth.signInBlurb}</p>
+        <p className="mt-3 text-[0.9375rem] text-mute">{t.auth.signInBlurb}</p>
         <ButtonLink href={`${href(locale, "login")}?next=${encodeURIComponent(href(locale, "admin"))}`} className="mt-6">
           {t.auth.signIn}
         </ButtonLink>
@@ -39,7 +39,7 @@ export default async function AdminLayout({ children, params }: LayoutProps<"/[l
     return (
       <div className="shell py-20">
         <h1 className="text-3xl">{t.admin.forbidden}</h1>
-        <p className="mt-3 max-w-lg text-[0.9375rem] text-mute">{t.admin.forbiddenBlurb}</p>
+        <p className="mt-3 text-[0.9375rem] text-mute">{t.admin.forbiddenBlurb}</p>
         <ButtonLink href={href(locale)} variant="outline" className="mt-6">
           {t.notFound.home}
         </ButtonLink>

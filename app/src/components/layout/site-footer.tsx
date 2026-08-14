@@ -72,7 +72,7 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
         <div className="shell grid gap-10 py-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-1">
             <Logo className="h-6 text-white" />
-            <p className="mt-4 max-w-xs text-[0.8125rem] leading-relaxed text-white/60">
+            <p className="mt-4 text-[0.8125rem] leading-relaxed text-white/60">
               {t.footer.about}
             </p>
             <ul className="mt-5 flex flex-wrap gap-2">

@@ -35,7 +35,7 @@ export function RedsysRedirect({
   return (
     <div className="shell flex flex-col items-start gap-4 py-20">
       <h1 className="text-[clamp(1.75rem,4vw,2.75rem)] leading-[0.95]">{t.order.redirecting}</h1>
-      <p className="max-w-md text-[0.9375rem] text-mute">{t.order.redirectingBody}</p>
+      <p className="text-[0.9375rem] text-mute">{t.order.redirectingBody}</p>
 
       <form ref={formRef} method="POST" action={endpoint}>
         {Object.entries(fields).map(([name, value]) => (

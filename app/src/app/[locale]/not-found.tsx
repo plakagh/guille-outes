@@ -19,7 +19,7 @@ export default async function NotFound() {
         {t.notFound.code}
       </p>
       <h1 className="text-[clamp(2rem,5vw,3.25rem)] leading-[0.9]">{t.notFound.title}</h1>
-      <p className="max-w-md text-[0.9375rem] leading-relaxed text-mute">{t.notFound.blurb}</p>
+      <p className="text-[0.9375rem] leading-relaxed text-mute">{t.notFound.blurb}</p>
       <div className="flex flex-wrap gap-3">
         <ButtonLink href={href(locale, "shop")}>{t.notFound.cta}</ButtonLink>
         <Link

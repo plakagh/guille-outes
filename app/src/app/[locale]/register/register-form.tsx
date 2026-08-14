@@ -13,7 +13,7 @@ export function RegisterForm({ next }: { next?: string }) {
 
   if (state.confirm) {
     return (
-      <div className="mt-8 flex max-w-md items-start gap-3 border border-line bg-shell p-6">
+      <div className="mt-8 flex items-start gap-3 border border-line bg-shell p-6">
         <CheckIcon className="mt-0.5 size-6 shrink-0 text-pine" />
         <div>
           <p className="font-display text-xl font-bold uppercase">{t.auth.checkInbox}</p>
