@@ -59,12 +59,26 @@ export function CatalogView({
       >
         <div className="shell py-6 lg:py-10">
           <Breadcrumbs trail={trail} className="mb-4" label={t.plp.breadcrumbHome} />
+          {/*
+            The accent needs somewhere to go.
+
+            A line-height below 1 makes the line box shorter than the letters in
+            it, so the ink of a condensed cap — and an Á or an Ñ most of all —
+            stands outside the box at the top. This header undercut the 0.95 every
+            heading on the site gets (globals.css) down to 0.9, and then left the
+            eyebrow only 0.5rem above it: "O MÁIS VENDIDO" put its acute straight
+            through "ESCOLLA DO PÚBLICO".
+
+            So the override goes — the tightest leading here was never asked for,
+            and one line of caps at 0.95 still stacks tight — and the eyebrow gets
+            the same 0.75rem it has on every other page header.
+          */}
           {eyebrow && (
-            <p className="eyebrow mb-2" style={accent ? { color: accent } : undefined}>
+            <p className="eyebrow mb-3" style={accent ? { color: accent } : undefined}>
               {eyebrow}
             </p>
           )}
-          <h1 className="text-[clamp(2rem,5vw,3.5rem)] leading-[0.9]">{title}</h1>
+          <h1 className="text-[clamp(2rem,5vw,3.5rem)]">{title}</h1>
           {blurb && (
             <p className="mt-3 max-w-2xl text-[0.9375rem] leading-relaxed text-mute">{blurb}</p>
           )}
