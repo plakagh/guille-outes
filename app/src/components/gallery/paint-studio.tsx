@@ -278,14 +278,18 @@ export function PaintStudio({
     const rect = rectRef.current ?? canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0, p: 0.5 };
 
-    const scale = CANVAS_SIZE / rect.width;
+    // Each axis is scaled by its own side. The sheet is square and so both
+    // numbers agree — but if a layout ever hands the canvas a box that is not,
+    // the drawing lands squashed rather than sliding away from the finger, which
+    // is the failure a child cannot work around.
+    //
     // A mouse reports 0 pressure while its button is down in some browsers and
     // 0.5 in others. Either way it means "no pressure sensor", not "no pressure".
     const pressure = event.pressure && event.pressure > 0 ? event.pressure : 0.5;
 
     return {
-      x: (event.clientX - rect.left) * scale,
-      y: (event.clientY - rect.top) * scale,
+      x: ((event.clientX - rect.left) * CANVAS_SIZE) / rect.width,
+      y: ((event.clientY - rect.top) * CANVAS_SIZE) / rect.height,
       p: pressure,
     };
   };
@@ -570,15 +574,28 @@ export function PaintStudio({
 
         {/*
           The centring box. Full screen, the sheet takes the largest square that
-          fits: `h-full` with a 1:1 ratio sizes it off the height, and `max-w-full`
-          claws it back when the width is the tighter of the two.
+          fits, and it is measured against the *box* rather than the viewport —
+          `container-type: size` turns this div into the ruler, and the sheet asks
+          it for the smaller of its two sides.
+
+          The obvious spelling — `h-full` with a 1:1 ratio, clawed back by
+          `max-w-full` — is what was here, and it broke the studio on a phone.
+          A percentage height inside a flexed grid does not always resolve, and
+          when it does not the sheet falls back to the canvas's own 1500 px and
+          renders a square far taller than the space it was given: the paper ran
+          out past the bottom of its slot and the undo, redo and bin buttons ended
+          up *underneath* the drawing, where a finger reaching for undo left a
+          stroke instead. The `min()` cannot do that — neither side of it can
+          exceed the box.
         */}
-        <div className={cn(maximised && "grid min-h-0 flex-1 place-items-center")}>
+        <div
+          className={cn(maximised && "grid min-h-0 flex-1 place-items-center [container-type:size]")}
+        >
           <div
             className={cn(
               "aspect-square border border-line bg-white",
               maximised
-                ? "h-full max-h-full max-w-full"
+                ? "size-[min(100cqw,100cqh)]"
                 : "mx-auto w-full max-w-[46rem] shadow-[0_1px_0_rgba(0,0,0,0.06)]",
             )}
           >
@@ -622,11 +639,21 @@ export function PaintStudio({
         </div>
       </div>
 
-      {/* ---------------------------------------------------- the toolbar */}
+      {/*
+        ---------------------------------------------------- the toolbar
+
+        Portrait full screen, the strip along the bottom is capped twice over,
+        and both halves earn their place. `dvh` rather than `vh` because on a
+        phone the browser's own bars come and go, and `vh` measures the screen
+        with them gone — the strip would quietly claim a fifth more room than
+        the child can see, out of the sheet's share. The `22rem` is what stops a
+        tablet held upright giving half its height to a palette that never needed
+        it; past that the strip scrolls, and the paper keeps the rest.
+      */}
       <div
         className={cn(
           maximised
-            ? "shrink-0 space-y-5 overflow-y-auto border-line p-3 landscape:w-[19rem] landscape:border-l portrait:max-h-[45vh] portrait:border-t"
+            ? "shrink-0 space-y-5 overflow-y-auto border-line p-3 landscape:w-[19rem] landscape:border-l portrait:max-h-[min(40dvh,22rem)] portrait:border-t"
             : "space-y-6 lg:sticky lg:top-4 lg:self-start",
         )}
       >
